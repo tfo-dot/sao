@@ -126,6 +126,8 @@ func (f *Fight) Init(currentTime *calendar.Calendar) {
 	f.StartTime = currentTime.Copy()
 	f.ExternalChannel = make(chan []byte)
 
+	//FIGHT START EVENT
+
 	for _, entity := range f.Entities {
 		if !entity.Entity.IsAuto() {
 			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
@@ -254,6 +256,32 @@ func (f *Fight) Run() {
 			}
 
 			fmt.Printf("Entity %s has %d hp left\n", entry.Entity.GetName(), entry.Entity.GetCurrentHP())
+		}
+	}
+
+	//FIGHT END EVENT
+	for _, entity := range f.Entities {
+		if !entity.Entity.IsAuto() {
+			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
+				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+					continue
+				}
+
+				if skill.Trigger.Event.TriggerType != types.TRIGGER_FIGHT_END {
+					continue
+				}
+
+				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
+
+				if skill.Trigger.Event.TargetCount != -1 {
+					targets = targets[:skill.Trigger.Event.TargetCount]
+				}
+
+				for _, target := range targets {
+					skill.Action(entity.Entity, f.Entities[target].Entity)
+				}
+
+			}
 		}
 	}
 
