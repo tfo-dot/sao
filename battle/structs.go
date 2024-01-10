@@ -2,6 +2,7 @@ package battle
 
 import (
 	"fmt"
+	"sao/types"
 	"sao/utils"
 	"sao/world/calendar"
 
@@ -124,6 +125,76 @@ func (f *Fight) Init(currentTime *calendar.Calendar) {
 
 	f.StartTime = currentTime.Copy()
 	f.ExternalChannel = make(chan []byte)
+
+	for _, entity := range f.Entities {
+		if !entity.Entity.IsAuto() {
+			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
+				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+					continue
+				}
+
+				if skill.Trigger.Event.TriggerType != types.TRIGGER_FIGHT_START {
+					continue
+				}
+
+				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
+
+				if skill.Trigger.Event.TargetCount != -1 {
+					targets = targets[:skill.Trigger.Event.TargetCount]
+				}
+
+				for _, target := range targets {
+					skill.Action(entity.Entity, f.Entities[target].Entity)
+				}
+
+			}
+		}
+	}
+}
+
+func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDetails) []uuid.UUID {
+	_, sourceSide := f.GetEntity(source)
+
+	if len(trigger.TargetType) == 1 && trigger.TargetType[0] == types.TARGET_SELF {
+		return []uuid.UUID{source}
+	}
+
+	targets := make([]uuid.UUID, 0)
+
+	for _, targetType := range trigger.TargetType {
+		if targetType == types.TARGET_SELF {
+			targets = append(targets, source)
+		}
+	}
+
+	isAllyValid := false
+
+	for _, targetType := range trigger.TargetType {
+		if targetType == types.TARGET_ALLY {
+			isAllyValid = true
+		}
+	}
+
+	isEnemyValid := false
+
+	for _, targetType := range trigger.TargetType {
+		if targetType == types.TARGET_ENEMY {
+			isEnemyValid = true
+		}
+	}
+
+	for _, entity := range f.Entities {
+		if entity.Side == sourceSide && isAllyValid {
+			targets = append(targets, entity.Entity.GetUUID())
+		}
+
+		if entity.Side != sourceSide && isEnemyValid {
+			targets = append(targets, entity.Entity.GetUUID())
+		}
+	}
+
+	//TODO: Implement targeting details
+	return targets
 }
 
 func (f *Fight) Run() {

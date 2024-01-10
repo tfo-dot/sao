@@ -17,8 +17,8 @@ type PlayerSkill struct {
 	Cost    SkillCost
 	UUID    uuid.UUID
 	Grade   SkillGrade
-	//TODO Rest of the types (options)
-	Actions func(owner interface{})
+	//TODO remember fight events? Ye
+	Action func(source, target interface{})
 }
 
 type Resource int
