@@ -18,7 +18,8 @@ type PlayerSkill struct {
 	UUID    uuid.UUID
 	Grade   SkillGrade
 	//TODO remember fight events? Ye
-	Action func(source, target interface{})
+	/* Source, target - entities, fight is fight instance */
+	Action func(source, target interface{}, fight interface{})
 }
 
 type Resource int

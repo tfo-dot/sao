@@ -127,12 +127,12 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 	return currentHP - p.Stats.HP
 }
 
-func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) int {
+func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) (int, bool) {
 	if utils.RandomNumber(0, 100) <= p.getDGD() && dmg.CanDodge {
-		return 0
+		return 0, true
 	}
 
-	return p.TakeDMG(dmg)
+	return p.TakeDMG(dmg), false
 }
 
 func (p *Player) AddEXP(value int) {

@@ -11,6 +11,7 @@ type FightMessage byte
 const (
 	MSG_ACTION_NEEDED FightMessage = iota
 	MSG_FIGHT_END
+	MSG_ENTITY_DIED
 )
 
 type Stat int
@@ -52,10 +53,12 @@ type ActionEnum int
 
 const (
 	ACTION_ATTACK ActionEnum = iota
-	ACTION_EFFECT
 	ACTION_DODGE
 	ACTION_DEFEND
 	ACTION_SKILL
+	//Helper events
+	ACTION_EFFECT
+	ACTION_DMG
 )
 
 type Effect int
@@ -187,5 +190,5 @@ type PlayerEntity interface {
 }
 
 type DodgeEntity interface {
-	TakeDMGOrDodge(ActionDamage) int
+	TakeDMGOrDodge(ActionDamage) (int, bool)
 }
