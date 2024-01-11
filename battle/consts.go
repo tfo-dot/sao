@@ -205,7 +205,7 @@ func (e EntitySort) Len() int {
 
 func (e EntitySort) Less(i, j int) bool {
 	for _, order := range e.Order {
-		result := TargetDetailsCheck(e.Entities[i], e.Entities[j], order)
+		result := TargetDetailsCheck(e.Entities[i], e.Entities[j], order, e.Meta)
 
 		if result == 0 {
 			continue
@@ -217,7 +217,7 @@ func (e EntitySort) Less(i, j int) bool {
 	return false
 }
 
-func TargetDetailsCheck(left, right interface{}, order types.TargetDetails) int {
+func TargetDetailsCheck(left, right interface{}, order types.TargetDetails, meta *map[string]interface{}) int {
 	if order == types.DETAIL_ALL {
 		return 0
 	}
@@ -251,7 +251,39 @@ func TargetDetailsCheck(left, right interface{}, order types.TargetDetails) int 
 		return left.(Entity).GetMR() - right.(Entity).GetMR()
 	case types.DETAIL_LOW_RES:
 		return right.(Entity).GetMR() - left.(Entity).GetMR()
-		//TODO: Add effect checks
+	case types.DETAIL_HAS_EFFECT:
+		if meta == nil {
+			return 0
+		}
+		leftHas := left.(Entity).HasEffect((*meta)["effect"].(Effect))
+		rightHas := right.(Entity).HasEffect((*meta)["effect"].(Effect))
+
+		if leftHas && !rightHas {
+			return -1
+		}
+
+		if !leftHas && rightHas {
+			return 1
+		}
+
+		return 0
+	case types.DETAIL_NO_EFFECT:
+		if meta == nil {
+			return 0
+		}
+
+		leftHas := left.(Entity).HasEffect((*meta)["effect"].(Effect))
+		rightHas := right.(Entity).HasEffect((*meta)["effect"].(Effect))
+
+		if leftHas && !rightHas {
+			return 1
+		}
+
+		if !leftHas && rightHas {
+			return -1
+		}
+
+		return 0
 	}
 
 	return 0

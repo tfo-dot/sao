@@ -581,19 +581,3 @@ func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []Entity {
 
 	return enemiesList
 }
-
-func (f *Fight) GetAlliesFor(uuid uuid.UUID) []Entity {
-	_, userSide := f.GetEntity(uuid)
-
-	enemiesList := make([]Entity, 0)
-
-	for _, entry := range f.Entities {
-		if entry.Side != userSide {
-			continue
-		}
-
-		enemiesList = append(enemiesList, entry.Entity)
-	}
-
-	return enemiesList
-}
