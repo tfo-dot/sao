@@ -223,6 +223,27 @@ func (f *Fight) Run() {
 			}
 
 			if !entity.IsAuto() {
+				for _, skill := range entity.(PlayerEntity).GetAllSkills() {
+					if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+						continue
+					}
+
+					if skill.Trigger.Event.TriggerType != types.TRIGGER_TURN {
+						continue
+					}
+
+					targets := f.FindValidTargets(uuid, *skill.Trigger.Event)
+
+					if skill.Trigger.Event.TargetCount != -1 {
+						targets = targets[:skill.Trigger.Event.TargetCount]
+					}
+
+					for _, target := range targets {
+						skill.Action(entity, f.Entities[target].Entity)
+					}
+
+				}
+
 				fmt.Printf("Entity %s is taking action\n", entity.GetName())
 
 				bytes, err := entity.GetUUID().MarshalBinary()
