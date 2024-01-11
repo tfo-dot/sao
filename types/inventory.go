@@ -8,7 +8,7 @@ type Skill struct {
 	Name    string
 	Trigger Trigger
 	Cost    *SkillCost
-	Execute func(owner interface{})
+	Execute func(source, target interface{}, fight interface{})
 }
 
 type PlayerSkill struct {

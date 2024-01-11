@@ -4,13 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sao/battle"
-	"sao/player/inventory"
-	"sao/types"
-	"sao/utils"
 	"sao/world"
-
-	"github.com/google/uuid"
 )
 
 func main() {
@@ -69,45 +63,44 @@ func main() {
 
 			pl.Inventory.UseItem(potionUUID, &pl) */
 
-		itemUUID := uuid.New()
-
 		//Passive item example
-		pl.Inventory.Items = append(pl.Inventory.Items, inventory.PlayerItem{
-			UUID: itemUUID,
-			Name: "Bami's Cinder",
-			Stats: map[battle.Stat]int{
-				battle.STAT_HP: 100,
-			},
-			Consume: false,
-			Count:   1,
-			Stacks:  false,
-			Effects: []types.Skill{
-				{
-					Name: "Burning",
-					Trigger: types.Trigger{
-						Type: types.TRIGGER_PASSIVE,
-						Event: &types.EventTriggerDetails{
-							TriggerType:   types.TRIGGER_TURN,
-							TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-							TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-							TargetCount:   -1,
-						},
-					},
-					Cost: nil,
-					Execute: func(entity interface{}) {
-						entity.(battle.Entity).TakeDMG(battle.ActionDamage{
-							Damage: []battle.Damage{
-								{
-									Type:  battle.DMG_TRUE,
-									Value: utils.PercentOf(entity.(battle.Entity).GetMaxHP(), 1),
-								},
+		/*
+			itemUUID := uuid.New()
+			pl.Inventory.Items = append(pl.Inventory.Items, inventory.PlayerItem{
+				UUID: itemUUID,
+				Name: "Bami's Cinder",
+				Stats: map[battle.Stat]int{
+					battle.STAT_HP: 100,
+				},
+				Consume: false,
+				Count:   1,
+				Stacks:  false,
+				Effects: []types.Skill{
+					{
+						Name: "Burning",
+						Trigger: types.Trigger{
+							Type: types.TRIGGER_PASSIVE,
+							Event: &types.EventTriggerDetails{
+								TriggerType:   types.TRIGGER_TURN,
+								TargetType:    []types.TargetTag{types.TARGET_ENEMY},
+								TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+								TargetCount:   -1,
 							},
-							CanDodge: false,
-						})
-					},
-				}},
-		})
-
+						},
+						Cost: nil,
+						Execute: func(source, target, fight interface{}) {
+							target.(battle.Entity).TakeDMG(battle.ActionDamage{
+								Damage: []battle.Damage{
+									{
+										Type:  battle.DMG_TRUE,
+										Value: utils.PercentOf(target.(battle.Entity).GetMaxHP(), 1),
+									},
+								},
+								CanDodge: false,
+							})
+						},
+					}},
+			})*/
 	}
 
 	for {

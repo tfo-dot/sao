@@ -87,6 +87,6 @@ func (item *PlayerItem) UseItem(owner interface{}) {
 			continue
 		}
 
-		effect.Execute(owner)
+		effect.Execute(owner, nil, nil)
 	}
 }

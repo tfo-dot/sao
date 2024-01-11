@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math"
 	"math/rand"
 )
 
@@ -24,7 +25,7 @@ func RandomNumber(min, max int) int {
 }
 
 func PercentOf(value, percent int) int {
-	return int(float32(value) * float32(percent) / 100)
+	return int(math.Round(float64(value) * float64(percent) / 100.0))
 }
 
 func ReadStringWithOffset(offset int, buf []byte) (int, string) {

@@ -263,7 +263,24 @@ func (p *Player) GetAvailableActions() []battle.ActionPartial {
 }
 
 func (p *Player) GetAllSkills() []types.PlayerSkill {
-	return p.Inventory.Skills
+
+	tempArr := p.Inventory.Skills
+
+	for _, item := range p.Inventory.Items {
+		for _, effect := range item.Effects {
+
+			tempArr = append(tempArr, types.PlayerSkill{
+				Name:    effect.Name,
+				Trigger: effect.Trigger,
+				Cost:    types.SkillCost{Cost: 0, Resource: types.ManaResource},
+				UUID:    item.UUID,
+				Grade:   types.GradeCommon,
+				Action:  effect.Execute,
+			})
+		}
+	}
+
+	return tempArr
 }
 
 func NewPlayer(gender PlayerGender, name string, uid string) Player {
