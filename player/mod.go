@@ -262,6 +262,10 @@ func (p *Player) GetAvailableActions() []battle.ActionPartial {
 	return actions
 }
 
+func (p *Player) GetAllSkills() []types.PlayerSkill {
+	return p.Inventory.Skills
+}
+
 func NewPlayer(gender PlayerGender, name string, uid string) Player {
 	return Player{
 		name,
