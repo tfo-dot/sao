@@ -5,6 +5,7 @@ import (
 	"sao/types"
 	"sao/utils"
 	"sao/world/calendar"
+	"sort"
 
 	"github.com/google/uuid"
 )
@@ -392,17 +393,17 @@ func (f *Fight) Init(currentTime *calendar.Calendar) {
 }
 
 func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDetails) []uuid.UUID {
-	_, sourceSide := f.GetEntity(source)
+	sourceEntity, sourceSide := f.GetEntity(source)
 
 	if len(trigger.TargetType) == 1 && trigger.TargetType[0] == types.TARGET_SELF {
 		return []uuid.UUID{source}
 	}
 
-	targets := make([]uuid.UUID, 0)
+	targetEntities := make([]Entity, 0)
 
 	for _, targetType := range trigger.TargetType {
 		if targetType == types.TARGET_SELF {
-			targets = append(targets, source)
+			targetEntities = append(targetEntities, sourceEntity)
 		}
 	}
 
@@ -424,15 +425,28 @@ func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDet
 
 	for _, entity := range f.Entities {
 		if entity.Side == sourceSide && isAllyValid {
-			targets = append(targets, entity.Entity.GetUUID())
+			targetEntities = append(targetEntities, entity.Entity)
 		}
 
 		if entity.Side != sourceSide && isEnemyValid {
-			targets = append(targets, entity.Entity.GetUUID())
+			targetEntities = append(targetEntities, entity.Entity)
 		}
 	}
 
-	//TODO: Implement targeting details
+	sortInit := EntitySort{
+		Entities: targetEntities,
+		Order:    trigger.TargetDetails,
+		Meta:     &trigger.Meta,
+	}
+
+	sort.Sort(sortInit)
+
+	targets := make([]uuid.UUID, len(targetEntities))
+
+	for i, entity := range sortInit.Entities {
+		targets[i] = entity.GetUUID()
+	}
+
 	return targets
 }
 
