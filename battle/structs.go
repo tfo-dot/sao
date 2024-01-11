@@ -266,20 +266,22 @@ func (f *Fight) HandleAction(act Action) {
 
 		//TODO IDK MAN XD
 	case ACTION_DMG:
+		//TODO Redirect all the damage here
 		sourceEntity := f.Entities[act.Source]
+		targetEntity := f.Entities[act.Target]
 		meta := act.Meta.(ActionDamage)
 
-		if f.Entities[act.Target].Entity.GetCurrentHP() <= 0 {
+		if targetEntity.Entity.GetCurrentHP() <= 0 {
 			return
 		}
 
-		if meta.CanDodge && f.Entities[act.Target].Entity.CanDodge() {
-			f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(meta)
+		if meta.CanDodge && targetEntity.Entity.CanDodge() {
+			targetEntity.Entity.(DodgeEntity).TakeDMGOrDodge(meta)
 		} else {
-			f.Entities[act.Target].Entity.TakeDMG(meta)
+			targetEntity.Entity.TakeDMG(meta)
 		}
 
-		if f.Entities[act.Target].Entity.GetCurrentHP() <= 0 {
+		if targetEntity.Entity.GetCurrentHP() <= 0 {
 			if !sourceEntity.Entity.IsAuto() {
 				for _, skill := range sourceEntity.Entity.(PlayerEntity).GetAllSkills() {
 					if skill.Trigger.Type == types.TRIGGER_ACTIVE {
@@ -301,6 +303,43 @@ func (f *Fight) HandleAction(act Action) {
 						if f.Entities[target].Entity.GetCurrentHP() <= 0 {
 							skill.Action(sourceEntity.Entity, f.Entities[target].Entity, f)
 						}
+					}
+				}
+			}
+		}
+
+		if !targetEntity.Entity.IsAuto() {
+			for _, skill := range targetEntity.Entity.(PlayerEntity).GetAllSkills() {
+				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+					continue
+				}
+
+				if skill.Trigger.Event.TriggerType != types.TRIGGER_HEALTH {
+					continue
+				}
+
+				hpValue := 0
+
+				if skill.Trigger.Event.Meta["value"] != nil {
+					hpValue = skill.Trigger.Event.Meta["value"].(int)
+				} else {
+					hpValue = (skill.Trigger.Event.Meta["percent"].(int) * targetEntity.Entity.GetMaxHP() / 100)
+				}
+
+				if hpValue > targetEntity.Entity.GetCurrentHP() {
+					continue
+				}
+
+				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
+
+				if skill.Trigger.Event.TargetCount != -1 {
+					//TODO Handle what should happen if there are less targets than the skill requires
+					targets = targets[:skill.Trigger.Event.TargetCount]
+				}
+
+				for _, target := range targets {
+					if f.Entities[target].Entity.GetCurrentHP() <= 0 {
+						skill.Action(sourceEntity.Entity, f.Entities[target].Entity, f)
 					}
 				}
 			}
