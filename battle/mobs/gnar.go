@@ -151,7 +151,7 @@ func (g *Gnar) GetMR() int {
 	return 0
 }
 
-func (g *Gnar) GetDGD() int {
+func (g *Gnar) GetAGL() int {
 	return 0
 }
 

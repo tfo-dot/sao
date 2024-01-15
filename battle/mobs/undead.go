@@ -147,7 +147,7 @@ func (u *Undead) GetMR() int {
 	return 0
 }
 
-func (u *Undead) GetDGD() int {
+func (u *Undead) GetAGL() int {
 	return 0
 }
 

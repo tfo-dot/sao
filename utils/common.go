@@ -10,7 +10,6 @@ func RandomElement[v any](slice []v) v {
 	return slice[rand.Intn(len(slice))]
 }
 
-// Damage reduction
 func CalcReducedDamage(atk, def int) int {
 	if def < 0 {
 		return int(float32(atk) * float32(2.0-float32(100/(100-def))))

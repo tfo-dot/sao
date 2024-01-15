@@ -62,7 +62,7 @@ func (b *Bear) GetMR() int {
 	return 0
 }
 
-func (b *Bear) GetDGD() int {
+func (b *Bear) GetAGL() int {
 	return 0
 }
 

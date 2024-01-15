@@ -76,26 +76,37 @@ func (mp EntityMap) FromSide(side int) []Entity {
 func (f *Fight) DispatchActionAttack(act Action) (int, bool) {
 	sourceEntity := f.Entities[act.Source]
 
-	if act.Meta.(ActionDamage).CanDodge && f.Entities[act.Target].Entity.CanDodge() {
-		meta := act.Meta.(ActionDamage)
+	tempMeta := act.Meta
 
+	if _, ok := tempMeta.(ActionDamage); !ok {
+		tempMeta = Damage{
+			Value:    sourceEntity.Entity.GetATK(),
+			Type:     DMG_PHYSICAL,
+			CanDodge: true,
+		}.ToActionMeta()
+	}
+
+	meta := tempMeta.(ActionDamage)
+
+	if meta.CanDodge && f.Entities[act.Target].Entity.CanDodge() {
 		atk, dodged := f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(meta)
 
-		if dodged && !sourceEntity.Entity.IsAuto() {
+		if !dodged && !sourceEntity.Entity.IsAuto() {
 			for _, skill := range sourceEntity.Entity.(PlayerEntity).GetAllSkills() {
-				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
-					continue
-				}
-
-				if skill.Trigger.Event.TriggerType != types.TRIGGER_HIT {
+				if skill.Trigger.Type != types.TRIGGER_PASSIVE || skill.Trigger.Event.TriggerType != types.TRIGGER_HIT {
 					continue
 				}
 
 				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
@@ -120,8 +131,13 @@ func (f *Fight) DispatchActionAttack(act Action) (int, bool) {
 				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
@@ -130,7 +146,6 @@ func (f *Fight) DispatchActionAttack(act Action) (int, bool) {
 			}
 		}
 
-		meta := act.Meta.(ActionDamage)
 		return f.Entities[act.Target].Entity.TakeDMG(meta), false
 	}
 }
@@ -161,8 +176,13 @@ func (f *Fight) HandleAction(act Action) {
 				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
@@ -170,6 +190,27 @@ func (f *Fight) HandleAction(act Action) {
 				}
 			}
 		}
+
+		targetEntity := f.Entities[act.Target]
+
+		if !targetEntity.Entity.IsAuto() {
+			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
+				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
+
+					f.HandleAction(Action{
+						Event:  ACTION_ATTACK,
+						Source: act.Target,
+						Target: act.Source,
+						Meta: Damage{
+							Value:    targetEntity.Entity.GetATK(),
+							Type:     DMG_PHYSICAL,
+							CanDodge: true,
+						}.ToActionMeta(),
+					})
+				}
+			}
+		}
+
 	case ACTION_EFFECT:
 		meta := act.Meta.(ActionEffect)
 
@@ -177,37 +218,12 @@ func (f *Fight) HandleAction(act Action) {
 			switch meta.Effect {
 			case EFFECT_HEAL:
 				f.Entities[act.Target].Entity.Heal(meta.Value)
+			case EFFECT_STAT_INC:
+				f.Entities[act.Target].Entity.ApplyEffect(meta)
 			}
 		}
 
 		f.Entities[act.Target].Entity.ApplyEffect(act.Meta.(ActionEffect))
-	case ACTION_DODGE:
-		entity := f.Entities[act.Source]
-
-		if !entity.Entity.IsAuto() {
-			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
-				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
-					continue
-				}
-
-				if skill.Trigger.Event.TriggerType != types.TRIGGER_DODGE {
-					continue
-				}
-
-				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
-
-				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
-				}
-
-				for _, target := range targets {
-					skill.Action(entity.Entity, f.Entities[target].Entity, f)
-				}
-			}
-		}
-
-		//TODO IDK MAN XD
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 
@@ -224,22 +240,58 @@ func (f *Fight) HandleAction(act Action) {
 				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
 					skill.Action(entity.Entity, f.Entities[target].Entity, f)
 				}
 			}
+
+			entity.Entity.(PlayerEntity).SetDefendingState(true)
+
+			f.HandleAction(Action{
+				Event:  ACTION_EFFECT,
+				Source: act.Source,
+				Target: act.Source,
+				Meta: ActionEffect{
+					Effect:   EFFECT_STAT_INC,
+					Duration: 1,
+					Meta: &map[string]interface{}{
+						"stat":     STAT_DEF,
+						"percent":  20,
+						"duration": 1,
+					},
+				},
+			})
+
+			f.HandleAction(Action{
+				Event:  ACTION_EFFECT,
+				Source: act.Source,
+				Target: act.Source,
+				Meta: ActionEffect{
+					Effect:   EFFECT_STAT_INC,
+					Duration: 0,
+					Meta: &map[string]interface{}{
+						"stat":     STAT_DEF,
+						"percent":  20,
+						"duration": 1,
+					},
+				},
+			})
 		}
 
-		//TODO IDK MAN XD
 	case ACTION_SKILL:
-		entity := f.Entities[act.Source]
+		sourceEntity := f.Entities[act.Source]
 
-		if !entity.Entity.IsAuto() {
-			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
+		if !sourceEntity.Entity.IsAuto() {
+			for _, skill := range sourceEntity.Entity.(PlayerEntity).GetAllSkills() {
 				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
 					continue
 				}
@@ -248,24 +300,50 @@ func (f *Fight) HandleAction(act Action) {
 					continue
 				}
 
-				if skill.Trigger.Event.Meta["value"].(int) > entity.Entity.GetCurrentMana() {
+				if skill.Trigger.Event.Meta["value"].(int) > sourceEntity.Entity.GetCurrentMana() {
 					continue
 				}
 
-				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
+				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
-					skill.Action(entity.Entity, f.Entities[target].Entity, f)
+					targetEntity := f.Entities[target]
+
+					beforeSkillHP := targetEntity.Entity.GetCurrentHP()
+
+					skill.Action(sourceEntity.Entity, targetEntity, f)
+
+					//Check if it's dmg skill so it doesn't trigger on heal/barrier etc
+					if !targetEntity.Entity.IsAuto() && beforeSkillHP > targetEntity.Entity.GetCurrentHP() {
+						if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
+							if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
+								f.HandleAction(Action{
+									Event:  ACTION_ATTACK,
+									Source: act.Target,
+									Target: act.Source,
+									Meta: Damage{
+										Value:    targetEntity.Entity.GetATK(),
+										Type:     DMG_PHYSICAL,
+										CanDodge: true,
+									}.ToActionMeta(),
+								})
+							}
+						}
+					}
 				}
 			}
 		}
 
-		//TODO IDK MAN XD
 	case ACTION_DMG:
 		//TODO Redirect all the damage here
 		sourceEntity := f.Entities[act.Source]
@@ -296,8 +374,13 @@ func (f *Fight) HandleAction(act Action) {
 					targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
 
 					if skill.Trigger.Event.TargetCount != -1 {
-						//TODO Handle what should happen if there are less targets than the skill requires
-						targets = targets[:skill.Trigger.Event.TargetCount]
+						count := skill.Trigger.Event.TargetCount
+
+						if count > len(targets) {
+							count = len(targets)
+						}
+
+						targets = targets[:count]
 					}
 
 					for _, target := range targets {
@@ -334,8 +417,13 @@ func (f *Fight) HandleAction(act Action) {
 				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
@@ -364,7 +452,6 @@ func (f *Fight) Init(currentTime *calendar.Calendar) {
 	f.ExternalChannel = make(chan []byte)
 
 	//FIGHT START EVENT
-
 	for _, entity := range f.Entities {
 		if !entity.Entity.IsAuto() {
 			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
@@ -379,8 +466,13 @@ func (f *Fight) Init(currentTime *calendar.Calendar) {
 				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {
@@ -459,9 +551,15 @@ func (f *Fight) Run() {
 
 			f.SpeedMap[uuid] = speed + entity.GetSPD()
 
-			if f.SpeedMap[uuid] >= SPEED_GAUGE {
-				f.SpeedMap[uuid] -= SPEED_GAUGE
+			turns := f.SpeedMap[uuid] / SPEED_GAUGE
 
+			if turns == 0 {
+				continue
+			}
+
+			f.SpeedMap[uuid] -= turns * SPEED_GAUGE
+
+			for i := 0; i < turns; i++ {
 				turnList = append(turnList, entity.GetUUID())
 			}
 		}
@@ -486,8 +584,13 @@ func (f *Fight) Run() {
 					targets := f.FindValidTargets(uuid, *skill.Trigger.Event)
 
 					if skill.Trigger.Event.TargetCount != -1 {
-						//TODO Handle what should happen if there are less targets than the skill requires
-						targets = targets[:skill.Trigger.Event.TargetCount]
+						count := skill.Trigger.Event.TargetCount
+
+						if count > len(targets) {
+							count = len(targets)
+						}
+
+						targets = targets[:count]
 					}
 
 					for _, target := range targets {
@@ -546,8 +649,13 @@ func (f *Fight) Run() {
 				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
 
 				if skill.Trigger.Event.TargetCount != -1 {
-					//TODO Handle what should happen if there are less targets than the skill requires
-					targets = targets[:skill.Trigger.Event.TargetCount]
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
 				}
 
 				for _, target := range targets {

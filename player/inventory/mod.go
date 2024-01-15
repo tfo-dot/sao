@@ -59,6 +59,22 @@ func GetDefaultInventory() PlayerInventory {
 	}
 }
 
+func (inv *PlayerInventory) UseSkill(skillUuid uuid.UUID, owner, target, fightInstance interface{}) {
+	for _, skill := range inv.Skills {
+		if skill.Trigger.Type != types.TRIGGER_ACTIVE {
+			continue
+		}
+
+		if skill.UUID == skillUuid {
+			skill.Action(owner, target, fightInstance)
+
+			inv.CDS[skill.UUID] = skill.CD
+
+			return
+		}
+	}
+}
+
 type PlayerItem struct {
 	UUID        uuid.UUID
 	Name        string

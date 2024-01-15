@@ -23,8 +23,9 @@ const (
 type PlayerStats struct {
 	HP          int
 	SPD         int
-	DGD         int
+	AGL         int
 	Effects     mobs.EffectList
+	Defending   bool
 	CurrentMana int
 }
 
@@ -93,16 +94,20 @@ func (p *Player) GetMR() int {
 	return p.Inventory.GetStat(battle.STAT_MR)
 }
 
-func (p *Player) GetDGD() int {
-	return p.Stats.DGD + p.Inventory.GetStat(battle.STAT_DGD)
+func (p *Player) GetAGL() int {
+	return p.Stats.AGL + p.Inventory.GetStat(battle.STAT_AGL)
 }
 
 func (p *Player) GetAP() int {
 	return p.Inventory.GetStat(battle.STAT_AP)
 }
 
-func (p *Player) getDGD() int {
-	return p.Inventory.GetStat(battle.STAT_DGD) + p.Stats.DGD
+func (p *Player) SetDefendingState(state bool) {
+	p.Stats.Defending = state
+}
+
+func (p *Player) GetDefendingState() bool {
+	return p.Stats.Defending
 }
 
 func (p *Player) Action(f *battle.Fight) int {
@@ -115,9 +120,9 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 	for _, dmg := range dmgList.Damage {
 		switch dmg.Type {
 		case battle.DMG_PHYSICAL:
-			dmg.Value -= utils.CalcReducedDamage(dmg.Value, p.GetDEF())
+			dmg.Value = utils.CalcReducedDamage(dmg.Value, p.GetDEF())
 		case battle.DMG_MAGICAL:
-			dmg.Value -= utils.CalcReducedDamage(dmg.Value, p.GetMR())
+			dmg.Value = utils.CalcReducedDamage(dmg.Value, p.GetMR())
 		}
 
 		p.Stats.HP -= dmg.Value
@@ -128,7 +133,7 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 }
 
 func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) (int, bool) {
-	if utils.RandomNumber(0, 100) <= p.getDGD() && dmg.CanDodge {
+	if utils.RandomNumber(0, 100) <= p.GetAGL() && dmg.CanDodge {
 		return 0, true
 	}
 
@@ -180,7 +185,8 @@ func (p *Player) GetName() string {
 }
 
 func (p *Player) CanDodge() bool {
-	return true
+	// If player is defending, he can't dodge (counterattack is possible)
+	return !p.Stats.Defending
 }
 
 func (p *Player) ApplyEffect(e battle.ActionEffect) {
@@ -245,17 +251,26 @@ func (p *Player) GetAvailableActions() []battle.ActionPartial {
 		actions = append(actions, battle.ActionPartial{Event: battle.ACTION_ATTACK, Meta: nil})
 	}
 
-	if p.CanDodgeNow() {
-		actions = append(actions, battle.ActionPartial{Event: battle.ACTION_DODGE, Meta: nil})
-	}
-
 	if p.CanDefend() {
 		actions = append(actions, battle.ActionPartial{Event: battle.ACTION_DEFEND, Meta: nil})
 	}
 
-	for _, skill := range p.Inventory.Skills {
+	for _, skill := range p.GetAllSkills() {
 		if skill.Trigger.Type == types.TRIGGER_ACTIVE && p.CanUseSkill(skill) {
 			actions = append(actions, battle.ActionPartial{Event: battle.ACTION_SKILL, Meta: &skill.UUID})
+		}
+	}
+
+	for _, item := range p.Inventory.Items {
+
+		if item.Effects == nil {
+			continue
+		}
+
+		for _, effect := range item.Effects {
+			if effect.Trigger.Type == types.TRIGGER_ACTIVE {
+				actions = append(actions, battle.ActionPartial{Event: battle.ACTION_ITEM, Meta: &item.UUID})
+			}
 		}
 	}
 
@@ -287,7 +302,7 @@ func NewPlayer(gender PlayerGender, name string, uid string) Player {
 	return Player{
 		name,
 		xp.PlayerXP{Level: 1, Exp: 0},
-		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), 0},
+		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), false, 0},
 		PlayerMeta{gender, location.DefaultLocation(), uuid.New(), uid, nil, nil},
 		inventory.GetDefaultInventory(),
 	}

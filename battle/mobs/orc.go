@@ -175,7 +175,7 @@ func (o *Orc) GetMR() int {
 	return 0
 }
 
-func (o *Orc) GetDGD() int {
+func (o *Orc) GetAGL() int {
 	return 0
 }
 

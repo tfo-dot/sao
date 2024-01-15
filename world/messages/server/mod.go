@@ -1,9 +1,9 @@
 package server
 
 import (
-	"sao/battle"
-	"sao/player"
 	"sao/utils"
+
+	"github.com/google/uuid"
 )
 
 type Message byte
@@ -14,8 +14,16 @@ const (
 	PLAYER_MOVE_SELF
 	PLAYER_DEATH
 	FIGHT_START
+	FIGHT_PACKET
 	FIGHT_END
 	DEBUG Message = 255
+)
+
+type FightMessage byte
+
+const (
+	FIGHT_ACTION_NEEDED FightMessage = iota
+	FIGHT_ENTITY_DIED
 )
 
 func PlayerSpawnPacket(uid, floorName, locationName string) []byte {
@@ -69,23 +77,23 @@ func PlayerMoveSelfPacket(uid, floorName, locationName string) []byte {
 	return eventData
 }
 
-func FightStartPacket(entities battle.EntityMap) []byte {
-	rawData := make([]byte, 2+len(entities)*(1+36))
+func FightStartPacket(fUuid uuid.UUID) []byte {
+	rawData := make([]byte, 1+36)
 
 	rawData[0] = byte(FIGHT_START)
-	rawData[1] = byte(len(entities))
+	copy(rawData[1:], fUuid.String()[:])
 
-	offset := 2
+	return rawData
+}
 
-	for _, entityEntry := range entities {
-		rawData[offset] = byte(entityEntry.Side)
-		offset++
-		if !entityEntry.Entity.IsAuto() {
-			offset = utils.WriteStringWithOffset(rawData, offset, entityEntry.Entity.(*player.Player).Meta.UserID)
-		} else {
-			offset = utils.WriteStringWithOffset(rawData, offset, entityEntry.Entity.GetUUID().String())
-		}
-	}
+func ActionNeededPacket(fUuid uuid.UUID, playerUuid uuid.UUID) []byte {
+	rawData := make([]byte, 2+36+36)
+
+	rawData[0] = byte(FIGHT_PACKET)
+	rawData[1] = byte(FIGHT_ACTION_NEEDED)
+
+	copy(rawData[2:], fUuid.String()[:])
+	copy(rawData[2+36:], playerUuid.String()[:])
 
 	return rawData
 }

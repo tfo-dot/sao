@@ -138,7 +138,7 @@ func (t *Tiger) GetMR() int {
 	return 0
 }
 
-func (t *Tiger) GetDGD() int {
+func (t *Tiger) GetAGL() int {
 	return 0
 }
 

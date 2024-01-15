@@ -19,7 +19,7 @@ type Stat int
 const (
 	STAT_HP Stat = iota
 	STAT_SPD
-	STAT_DGD
+	STAT_AGL
 	STAT_AD
 	STAT_DEF
 	STAT_MR
@@ -53,9 +53,9 @@ type ActionEnum int
 
 const (
 	ACTION_ATTACK ActionEnum = iota
-	ACTION_DODGE
 	ACTION_DEFEND
 	ACTION_SKILL
+	ACTION_ITEM
 	//Helper events
 	ACTION_EFFECT
 	ACTION_DMG
@@ -79,6 +79,7 @@ const (
 	EFFECT_MARK
 	EFFECT_STAT_INC
 	EFFECT_STAT_DEC
+	EFFECT_RESIST
 )
 
 type Action struct {
@@ -159,7 +160,7 @@ type Entity interface {
 	GetATK() int
 	GetDEF() int
 	GetMR() int
-	GetDGD() int
+	GetAGL() int
 	GetMaxMana() int
 	GetCurrentMana() int
 	GetAP() int
@@ -175,6 +176,7 @@ type Entity interface {
 	GetName() string
 	GetUUID() uuid.UUID
 
+	//TODO Effect stat dec/inc working correctly
 	ApplyEffect(ActionEffect)
 	HasEffect(Effect) bool
 	GetEffect(Effect) *ActionEffect
@@ -187,6 +189,8 @@ type PlayerEntity interface {
 	ReceiveMultipleLoot([]Loot)
 
 	GetAllSkills() []types.PlayerSkill
+	SetDefendingState(bool)
+	GetDefendingState() bool
 }
 
 type DodgeEntity interface {

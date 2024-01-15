@@ -32,7 +32,7 @@ func main() {
 	world.HandlePacket([]byte{0, 0, 18, 51, 52, 52, 48, 52, 56, 56, 55, 52, 54, 53, 54, 51, 54, 54, 53, 57, 50, 3, 116, 102, 111})
 
 	for i, pl := range world.Players {
-		world.PlayerEncounter(i)
+		// world.PlayerEncounter(i)
 
 		fmt.Printf("Player %s: %s\n", i, pl.GetName())
 
@@ -89,6 +89,7 @@ func main() {
 						},
 						Cost: nil,
 						Execute: func(source, target, fight interface{}) {
+							//Fight is here so use that to add dmg event
 							target.(battle.Entity).TakeDMG(battle.ActionDamage{
 								Damage: []battle.Damage{
 									{

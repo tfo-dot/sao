@@ -49,7 +49,7 @@ func CreateWorld() World {
 			{
 				Name:     "Las",
 				CID:      "1162450159251234876",
-				CityPart: true,
+				CityPart: false,
 				Enemies:  []mobs.MobType{mobs.MOB_TIGER},
 			},
 		},
@@ -130,6 +130,7 @@ func (w *World) HandlePacket(buf []byte) {
 
 		//Dont care error jumpscare
 		if player == nil {
+			fmt.Println("Player not found")
 			return
 		}
 
@@ -137,6 +138,7 @@ func (w *World) HandlePacket(buf []byte) {
 		location := floor.FindLocation(player.Meta.Location.LocationName)
 
 		if location.CityPart {
+			//TODO Wander in city part
 			w.DispatchDebug("wander in city part not implemented")
 		} else {
 			w.PlayerEncounter(player.Meta.OwnUUID)
@@ -216,11 +218,11 @@ func (w *World) PlayerEncounter(uuid uuid.UUID) {
 
 	fight := battle.Fight{Entities: entityMap}
 
-	w.EventChannel <- ServerMessage.FightStartPacket(entityMap)
-
 	fight.Init(w.Time.Copy())
 
 	fightUUID := w.RegisterFight(fight)
+
+	w.EventChannel <- ServerMessage.FightStartPacket(fightUUID)
 
 	player.Meta.FightInstance = &fightUUID
 
@@ -306,21 +308,9 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 		switch battle.FightMessage(msgType) {
 		case battle.MSG_ACTION_NEEDED:
-			err := uuid.Nil.UnmarshalBinary(payload[1:17])
+			playerUuid := uuid.UUID(payload[1:17])
 
-			if err != nil {
-				panic(err)
-			}
-
-			rawFUid, _ := fightUuid.MarshalBinary()
-
-			msg := make([]byte, 1+16+16)
-
-			msg[0] = byte(10)
-			copy(msg[1:17], payload[1:17])
-			copy(msg[17:33], rawFUid)
-
-			w.EventChannel <- msg
+			w.EventChannel <- ServerMessage.ActionNeededPacket(fightUuid, playerUuid)
 		case battle.MSG_FIGHT_END:
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 
@@ -340,13 +330,12 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				if !entity.IsAuto() {
 					entity.(battle.PlayerEntity).ReceiveMultipleLoot(allLoot)
 				} else {
-					println("NP character won (loot distribution skipped)")
+					w.EventChannel <- ServerMessage.DebugPacket("NP character won (loot distribution skipped)")
 				}
 			}
 
 		default:
-			fmt.Printf("Unknown message %d\n", payload[0])
-			panic("Not implemented (unknown message)")
+			w.EventChannel <- ServerMessage.DebugPacket(fmt.Sprintf("Unknown message %d\n", payload[0]))
 		}
 
 		//Fallback for when the channel is closed
@@ -425,7 +414,7 @@ func (w *World) HTTPGetPlayer(res http.ResponseWriter, req *http.Request) {
 	userID := strings.Split(req.URL.Path, "/")[3]
 
 	for _, player := range w.Players {
-		if player.Meta.UserID == userID {
+		if player.Meta.UserID == userID || player.GetUUID().String() == userID {
 			res.Header().Set("Content-Type", "application/json")
 			res.WriteHeader(200)
 			res.Write(SerializePlayer(*player))
@@ -439,16 +428,75 @@ func (w *World) HTTPGetPlayer(res http.ResponseWriter, req *http.Request) {
 func (w *World) HTTPGetPlayerActions(res http.ResponseWriter, req *http.Request) {
 	userID := strings.Split(req.URL.Path, "/")[3]
 
-	for _, player := range w.Players {
-		if player.Meta.UserID == userID {
-			res.Header().Set("Content-Type", "application/json")
-			res.WriteHeader(200)
-			res.Write(SerializePlayerActions(player.GetAvailableActions()))
-			return
+	var player *player.Player
+
+	for _, tempPlayer := range w.Players {
+		if tempPlayer.Meta.UserID == userID {
+			player = tempPlayer
+			break
 		}
 	}
 
-	res.WriteHeader(404)
+	if player == nil {
+		res.WriteHeader(404)
+		return
+	}
+
+	if req.Method == "POST" {
+		if player.Meta.FightInstance == nil {
+			res.WriteHeader(400)
+			return
+		}
+
+		fight := w.Fights[*player.Meta.FightInstance]
+
+		if fight.IsFinished() {
+			res.WriteHeader(400)
+			return
+		}
+
+		decoder := json.NewDecoder(req.Body)
+
+		var actionTemp map[string]interface{}
+
+		err := decoder.Decode(&actionTemp)
+
+		if err != nil {
+			res.WriteHeader(400)
+			return
+		}
+
+		//TODO multi targeting
+		targetUuid, err := uuid.Parse(actionTemp["target"].(string))
+
+		if err != nil {
+			res.WriteHeader(400)
+			return
+		}
+
+		action := battle.Action{
+			Event:  battle.ActionEnum(int(actionTemp["event"].(float64))),
+			Meta:   actionTemp["meta"].(map[string]interface{}),
+			Source: player.GetUUID(),
+			Target: targetUuid,
+		}
+
+		if err != nil {
+			res.WriteHeader(400)
+			return
+		}
+
+		fight.HandleAction(action)
+
+		res.WriteHeader(200)
+		return
+	} else {
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(200)
+		res.Write(SerializePlayerActions(player.GetAvailableActions()))
+
+		return
+	}
 }
 
 func (w *World) HTTPGetFight(res http.ResponseWriter, req *http.Request) {
@@ -522,6 +570,7 @@ func SerializeEntity(entity battle.Entity) []byte {
 	mapData["maxHp"] = entity.GetMaxHP()
 	mapData["spd"] = entity.GetSPD()
 	mapData["atk"] = entity.GetATK()
+	mapData["uuid"] = entity.GetUUID().String()
 
 	data, err := json.Marshal(mapData)
 
@@ -535,6 +584,7 @@ func SerializeEntity(entity battle.Entity) []byte {
 func SerializePlayer(entity player.Player) []byte {
 	mapData := make(map[string]interface{})
 
+	mapData["uid"] = entity.Meta.UserID
 	mapData["name"] = entity.Name
 	mapData["uuid"] = entity.Meta.OwnUUID.String()
 	mapData["location"] = map[string]interface{}{
@@ -585,6 +635,8 @@ func SerializeFight(fight battle.Fight) []byte {
 
 	entityList := make([]map[string]interface{}, len(fight.Entities))
 
+	loopIDX := 0
+
 	for _, entity := range fight.Entities {
 		tempEntity := make(map[string]interface{})
 
@@ -592,7 +644,8 @@ func SerializeFight(fight battle.Fight) []byte {
 		tempEntity["side"] = entity.Side
 		tempEntity["isPlayer"] = !entity.Entity.IsAuto()
 
-		entityList = append(entityList, tempEntity)
+		entityList[loopIDX] = tempEntity
+		loopIDX++
 	}
 
 	mapData["entities"] = entityList

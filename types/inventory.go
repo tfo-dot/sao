@@ -12,11 +12,15 @@ type Skill struct {
 }
 
 type PlayerSkill struct {
-	Name    string
+	Name string
+
 	Trigger Trigger
 	Cost    SkillCost
 	UUID    uuid.UUID
 	Grade   SkillGrade
+	//TODO conditional cd, like start counting after the shield breaks
+	//TODO passive skills have cd too
+	CD int
 	//TODO remember fight events? Ye
 	/* Source, target - entities, fight is fight instance */
 	Action func(source, target interface{}, fight interface{})
