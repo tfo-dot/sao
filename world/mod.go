@@ -1,20 +1,14 @@
 package world
 
 import (
-	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/player"
 	"sao/utils"
 	"sao/world/calendar"
 	"sao/world/location"
-	ClientMessage "sao/world/messages/client"
-	ServerMessage "sao/world/messages/server"
 	"sao/world/npc"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,14 +17,12 @@ import (
 type FloorMap map[string]location.Floor
 
 type World struct {
-	Players      map[uuid.UUID]*player.Player
-	NPCs         map[uuid.UUID]npc.NPC
-	Floors       FloorMap
-	Fights       map[uuid.UUID]battle.Fight
-	Entities     map[uuid.UUID]battle.Entity
-	Time         *calendar.Calendar
-	EventChannel chan []byte
-	Conn         *net.Conn
+	Players  map[uuid.UUID]*player.Player
+	NPCs     map[uuid.UUID]npc.NPC
+	Floors   FloorMap
+	Fights   map[uuid.UUID]battle.Fight
+	Entities map[uuid.UUID]*battle.Entity
+	Time     *calendar.Calendar
 }
 
 func CreateWorld() World {
@@ -60,142 +52,28 @@ func CreateWorld() World {
 		make(map[uuid.UUID]npc.NPC),
 		floorMap,
 		make(map[uuid.UUID]battle.Fight),
-		make(map[uuid.UUID]battle.Entity),
+		make(map[uuid.UUID]*battle.Entity),
 		calendar.StartCalendar(),
-		make(chan []byte, 10),
-		nil,
 	}
 }
 
-func (w *World) SetConnection(conn *net.Conn) {
-	w.Conn = conn
+func (w *World) RegisterNewPlayer(gender player.PlayerGender, name, uid string) player.Player {
+	newPlayer := player.NewPlayer(gender, name, uid)
 
-	go w.ListenToSocket()
-	go w.ListenToChannel()
+	w.Players[newPlayer.GetUUID()] = &newPlayer
+
+	return newPlayer
 }
 
-func (w *World) ClearConnection() {
-	w.Conn = nil
-}
-
-func (w *World) ListenToSocket() {
-	bytes := make([]byte, 1024)
-
-	for {
-		num, err := (*w.Conn).Read(bytes)
-
-		if err != nil {
-			w.ClearConnection()
-			break
-		}
-
-		w.HandlePacket(bytes[:num])
+func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason string) {
+	if len(reason) == 0 {
+		fmt.Println("No reason for move, it was by player wish")
 	}
-}
 
-func (w *World) HandlePacket(buf []byte) {
-	switch ClientMessage.Message(buf[0]) {
-	case ClientMessage.PLAYER_NEW:
-		payload := ClientMessage.DecodePlayerNew(buf[1:])
-
-		newPlayer := player.NewPlayer(payload.Gender, payload.Name, payload.Uid)
-
-		w.Players[newPlayer.Meta.OwnUUID] = &newPlayer
-
-		w.DispatchSpawn(newPlayer.Meta.OwnUUID)
-	case ClientMessage.PLAYER_MOVE:
-		payload := ClientMessage.DecodePlayerMove(buf[1:])
-
-		var player player.Player
-
-		for _, p := range w.Players {
-			if p.Meta.UserID == payload.Uid {
-				player = *p
-				break
-			}
-		}
-
-		w.MovePlayer(player.Meta.OwnUUID, w.Floors[player.Meta.Location.FloorName].FindLocation(payload.CID).Name)
-	case ClientMessage.PLAYER_WANDER:
-		payload := ClientMessage.DecodePlayerWander(buf[1:])
-
-		var player *player.Player
-
-		for _, p := range w.Players {
-			if p.Meta.UserID == payload.Uid {
-				player = p
-				break
-			}
-		}
-
-		//Dont care error jumpscare
-		if player == nil {
-			fmt.Println("Player not found")
-			return
-		}
-
-		floor := w.Floors[player.Meta.Location.FloorName]
-		location := floor.FindLocation(player.Meta.Location.LocationName)
-
-		if location.CityPart {
-			//TODO Wander in city part
-			w.DispatchDebug("wander in city part not implemented")
-		} else {
-			w.PlayerEncounter(player.Meta.OwnUUID)
-		}
-	}
-}
-
-func (w *World) MovePlayer(pUuid uuid.UUID, locationName string) {
-	player := w.Players[pUuid]
-
-	player.Meta.Location.LocationName = locationName
-
-	w.EventChannel <- ServerMessage.PlayerMoveSelfPacket(player.Meta.UserID, player.Meta.Location.FloorName, player.Meta.Location.LocationName)
-}
-
-func (w *World) ForceMovePlayer(pUuid uuid.UUID, floorName string, locationName, reason string) {
 	player := w.Players[pUuid]
 
 	player.Meta.Location.FloorName = floorName
 	player.Meta.Location.LocationName = locationName
-
-	w.EventChannel <- ServerMessage.PlayerMoveOtherPacket(player.Meta.UserID, player.Meta.Location.FloorName, player.Meta.Location.LocationName, reason)
-}
-
-func (w *World) DispatchSpawn(uuid uuid.UUID) {
-	player := w.Players[uuid]
-
-	w.EventChannel <- ServerMessage.PlayerSpawnPacket(player.Meta.UserID, player.Meta.Location.FloorName, player.Meta.Location.LocationName)
-}
-
-func (w *World) ListenToChannel() {
-	for {
-		if w.Conn == nil {
-			//Don't handle message until connection is there
-			break
-		}
-
-		msg, ok := <-w.EventChannel
-
-		if !ok {
-			fmt.Printf("Channel closed?")
-			w.ClearConnection()
-			break
-		}
-
-		_, err := (*w.Conn).Write(msg)
-
-		if err != nil {
-			fmt.Printf("Error (2): %s", err.Error())
-			w.ClearConnection()
-			break
-		}
-	}
-}
-
-func (w *World) DispatchDebug(msg string) {
-	w.EventChannel <- ServerMessage.DebugPacket(msg)
 }
 
 func (w *World) PlayerEncounter(uuid uuid.UUID) {
@@ -221,8 +99,6 @@ func (w *World) PlayerEncounter(uuid uuid.UUID) {
 	fight.Init(w.Time.Copy())
 
 	fightUUID := w.RegisterFight(fight)
-
-	w.EventChannel <- ServerMessage.FightStartPacket(fightUUID)
 
 	player.Meta.FightInstance = &fightUUID
 
@@ -280,7 +156,7 @@ func (w *World) RegisterFight(fight battle.Fight) uuid.UUID {
 
 	for _, entity := range fight.Entities {
 		if entity.Entity.IsAuto() {
-			w.Entities[entity.Entity.GetUUID()] = entity.Entity
+			w.Entities[entity.Entity.GetUUID()] = &entity.Entity
 		}
 	}
 
@@ -307,10 +183,6 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 		msgType := payload[0]
 
 		switch battle.FightMessage(msgType) {
-		case battle.MSG_ACTION_NEEDED:
-			playerUuid := uuid.UUID(payload[1:17])
-
-			w.EventChannel <- ServerMessage.ActionNeededPacket(fightUuid, playerUuid)
 		case battle.MSG_FIGHT_END:
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 
@@ -329,13 +201,11 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			for _, entity := range wonEntities {
 				if !entity.IsAuto() {
 					entity.(battle.PlayerEntity).ReceiveMultipleLoot(allLoot)
-				} else {
-					w.EventChannel <- ServerMessage.DebugPacket("NP character won (loot distribution skipped)")
 				}
 			}
 
 		default:
-			w.EventChannel <- ServerMessage.DebugPacket(fmt.Sprintf("Unknown message %d\n", payload[0]))
+			panic("Unhandled event")
 		}
 
 		//Fallback for when the channel is closed
@@ -358,304 +228,4 @@ func (w *World) DeregisterFight(uuid uuid.UUID) {
 	}
 
 	delete(w.Fights, uuid)
-}
-
-// Http stuff
-func (w *World) HTTPGetTime(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(200)
-
-	mapData := make(map[string]interface{})
-
-	mapData["day"] = w.Time.Day
-	mapData["month"] = w.Time.Month
-	mapData["year"] = w.Time.Year
-	mapData["hour"] = w.Time.Time.Hour
-	mapData["tick"] = w.Time.Time.Tick
-
-	data, err := json.Marshal(mapData)
-
-	if err != nil {
-		panic(err)
-	}
-
-	res.Write(data)
-}
-
-func (w *World) HTTPGetEntity(res http.ResponseWriter, req *http.Request) {
-	entityUuid := strings.Split(req.URL.Path, "/")[2]
-	uuid, err := uuid.Parse(entityUuid)
-
-	if err != nil {
-		res.WriteHeader(400)
-		return
-	}
-
-	entity, ok := w.Entities[uuid]
-
-	if ok {
-		res.Header().Set("Content-Type", "application/json")
-		res.WriteHeader(200)
-		res.Write(SerializeEntity(entity))
-	} else {
-		entity, ok := w.Players[uuid]
-
-		if ok {
-			res.Header().Set("Content-Type", "application/json")
-			res.WriteHeader(200)
-			res.Write(SerializeEntity(entity))
-		} else {
-			res.WriteHeader(404)
-		}
-	}
-}
-
-func (w *World) HTTPGetPlayer(res http.ResponseWriter, req *http.Request) {
-	userID := strings.Split(req.URL.Path, "/")[3]
-
-	for _, player := range w.Players {
-		if player.Meta.UserID == userID || player.GetUUID().String() == userID {
-			res.Header().Set("Content-Type", "application/json")
-			res.WriteHeader(200)
-			res.Write(SerializePlayer(*player))
-			return
-		}
-	}
-
-	res.WriteHeader(404)
-}
-
-func (w *World) HTTPGetPlayerActions(res http.ResponseWriter, req *http.Request) {
-	userID := strings.Split(req.URL.Path, "/")[3]
-
-	var player *player.Player
-
-	for _, tempPlayer := range w.Players {
-		if tempPlayer.Meta.UserID == userID {
-			player = tempPlayer
-			break
-		}
-	}
-
-	if player == nil {
-		res.WriteHeader(404)
-		return
-	}
-
-	if req.Method == "POST" {
-		if player.Meta.FightInstance == nil {
-			res.WriteHeader(400)
-			return
-		}
-
-		fight := w.Fights[*player.Meta.FightInstance]
-
-		if fight.IsFinished() {
-			res.WriteHeader(400)
-			return
-		}
-
-		decoder := json.NewDecoder(req.Body)
-
-		var actionTemp map[string]interface{}
-
-		err := decoder.Decode(&actionTemp)
-
-		if err != nil {
-			res.WriteHeader(400)
-			return
-		}
-
-		//TODO multi targeting
-		targetUuid, err := uuid.Parse(actionTemp["target"].(string))
-
-		if err != nil {
-			res.WriteHeader(400)
-			return
-		}
-
-		action := battle.Action{
-			Event:  battle.ActionEnum(int(actionTemp["event"].(float64))),
-			Meta:   actionTemp["meta"].(map[string]interface{}),
-			Source: player.GetUUID(),
-			Target: targetUuid,
-		}
-
-		if err != nil {
-			res.WriteHeader(400)
-			return
-		}
-
-		fight.HandleAction(action)
-
-		res.WriteHeader(200)
-		return
-	} else {
-		res.Header().Set("Content-Type", "application/json")
-		res.WriteHeader(200)
-		res.Write(SerializePlayerActions(player.GetAvailableActions()))
-
-		return
-	}
-}
-
-func (w *World) HTTPGetFight(res http.ResponseWriter, req *http.Request) {
-	fightID := strings.Split(req.URL.Path, "/")[2]
-
-	parsedFightID, err := uuid.Parse(fightID)
-
-	if err != nil {
-		res.WriteHeader(400)
-		return
-	}
-
-	fight, foundFight := w.Fights[parsedFightID]
-
-	if !foundFight {
-		res.WriteHeader(404)
-		return
-	}
-
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(200)
-	res.Write(SerializeFight(fight))
-}
-
-func (w *World) HTTPGetStore(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(200)
-
-	mapData := make(map[string]interface{})
-
-	mapData["items"] = []map[string]interface{}{
-		{
-			"name": "Health Potion",
-			"uuid": "1162450076438900958",
-			"cost": map[string]interface{}{
-				"gold": 10,
-			},
-		},
-	}
-
-	data, err := json.Marshal(mapData)
-
-	if err != nil {
-		panic(err)
-	}
-
-	res.Write(data)
-}
-
-func (w *World) HTTPGetPlayerStore(res http.ResponseWriter, req *http.Request) {
-	userID := strings.Split(req.URL.Path, "/")[3]
-
-	for _, player := range w.Players {
-		if player.Meta.UserID == userID {
-			res.Header().Set("Content-Type", "application/json")
-			res.WriteHeader(200)
-			// res.Write(SerializePlayerStore(player))
-			return
-		}
-	}
-
-	res.WriteHeader(404)
-}
-
-func SerializeEntity(entity battle.Entity) []byte {
-	mapData := make(map[string]interface{})
-
-	mapData["isPlayer"] = !entity.IsAuto()
-	mapData["name"] = entity.GetName()
-	mapData["hp"] = entity.GetCurrentHP()
-	mapData["maxHp"] = entity.GetMaxHP()
-	mapData["spd"] = entity.GetSPD()
-	mapData["atk"] = entity.GetATK()
-	mapData["uuid"] = entity.GetUUID().String()
-
-	data, err := json.Marshal(mapData)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return data
-}
-
-func SerializePlayer(entity player.Player) []byte {
-	mapData := make(map[string]interface{})
-
-	mapData["uid"] = entity.Meta.UserID
-	mapData["name"] = entity.Name
-	mapData["uuid"] = entity.Meta.OwnUUID.String()
-	mapData["location"] = map[string]interface{}{
-		"floor":    entity.Meta.Location.FloorName,
-		"location": entity.Meta.Location.LocationName,
-	}
-
-	if entity.Meta.FightInstance != nil {
-		mapData["fight"] = entity.Meta.FightInstance.String()
-	} else {
-		mapData["fight"] = nil
-	}
-
-	data, err := json.Marshal(mapData)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return data
-}
-
-func SerializePlayerActions(actions []battle.ActionPartial) []byte {
-	actionList := make([]map[string]interface{}, len(actions))
-
-	for i, action := range actions {
-		tempAction := make(map[string]interface{})
-
-		tempAction["event"] = action.Event
-		if action.Meta != nil {
-			tempAction["meta"] = action.Meta.String()
-		}
-
-		actionList[i] = tempAction
-	}
-
-	data, err := json.Marshal(actionList)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return data
-}
-
-func SerializeFight(fight battle.Fight) []byte {
-	mapData := make(map[string]interface{})
-
-	entityList := make([]map[string]interface{}, len(fight.Entities))
-
-	loopIDX := 0
-
-	for _, entity := range fight.Entities {
-		tempEntity := make(map[string]interface{})
-
-		tempEntity["uuid"] = entity.Entity.GetUUID().String()
-		tempEntity["side"] = entity.Side
-		tempEntity["isPlayer"] = !entity.Entity.IsAuto()
-
-		entityList[loopIDX] = tempEntity
-		loopIDX++
-	}
-
-	mapData["entities"] = entityList
-	mapData["finished"] = fight.IsFinished()
-
-	data, err := json.Marshal(mapData)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return data
 }

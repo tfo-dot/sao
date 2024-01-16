@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"net/http"
+	"sao/player"
 	"sao/world"
 )
 
@@ -12,24 +11,7 @@ func main() {
 
 	go world.StartClock()
 
-	ln, errSoc := net.Listen("tcp", "127.0.0.1:8080")
-
-	http.HandleFunc("/entity/", world.HTTPGetEntity)
-	http.HandleFunc("/player/details/", world.HTTPGetPlayer)
-	http.HandleFunc("/player/actions/", world.HTTPGetPlayerActions)
-	http.HandleFunc("/player/store/", world.HTTPGetPlayerStore)
-	http.HandleFunc("/fight/", world.HTTPGetFight)
-	http.HandleFunc("/time/", world.HTTPGetTime)
-	http.HandleFunc("/store/", world.HTTPGetStore)
-
-	go http.ListenAndServe("127.0.0.1:8124", nil)
-
-	if errSoc != nil {
-		panic(errSoc)
-	}
-
-	//Register character speedrun
-	world.HandlePacket([]byte{0, 0, 18, 51, 52, 52, 48, 52, 56, 56, 55, 52, 54, 53, 54, 51, 54, 54, 53, 57, 50, 3, 116, 102, 111})
+	world.RegisterNewPlayer(player.MALE, "tfo", "<id here>")
 
 	for i, pl := range world.Players {
 		// world.PlayerEncounter(i)
@@ -102,21 +84,5 @@ func main() {
 						},
 					}},
 			})*/
-	}
-
-	for {
-		conn, err := ln.Accept()
-
-		if err != nil {
-			fmt.Printf("Error (1): %s", err.Error())
-			continue
-		}
-
-		if world.Conn == nil {
-			world.SetConnection(&conn)
-		} else {
-			conn.Close()
-			fmt.Println("Connection sus")
-		}
 	}
 }
