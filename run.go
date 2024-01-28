@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"sao/discord"
 	"sao/player"
 	"sao/world"
 )
@@ -36,7 +37,7 @@ func main() {
 		return
 	}
 
-	fmt.Println(string(botKey))
+	go discord.StartClient(string(botKey))
 
 	world := world.CreateWorld(os.Args[1] == "test")
 
@@ -46,5 +47,9 @@ func main() {
 
 	for _, pl := range world.Players {
 		fmt.Printf("Player `%s` registered \n", pl.GetName())
+	}
+
+	for {
+		continue
 	}
 }
