@@ -2,14 +2,13 @@ package location
 
 import (
 	"sao/battle"
-	"sao/battle/mobs"
 )
 
 type Location struct {
 	Name     string
 	CID      string
 	CityPart bool
-	Enemies  []mobs.MobType
+	Enemies  []string
 	Effects  []LocationEffect
 }
 

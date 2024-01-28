@@ -2,25 +2,19 @@ package mobs
 
 import (
 	"sao/battle"
-	"sao/utils"
+
+	"github.com/google/uuid"
 )
 
-type MobType string
-
-const (
-	MOB_BEAR   MobType = "Niedźwiedź"
-	MOB_TIGER  MobType = "Tygrys"
-	MOB_GNAR   MobType = "Gnar"
-	MOB_ORC    MobType = "Ork"
-	MOB_UNDEAD MobType = "Nieumarły"
-)
-
-type MobMeta struct {
-	Name    MobType
+type MobEntity struct {
+	//ID as mob type
+	Id      string
+	MaxHP   int
 	HP      int
 	SPD     int
 	ATK     int
 	Effects EffectList
+	UUID    uuid.UUID
 	Props   map[string]interface{}
 }
 
@@ -71,31 +65,105 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) EffectList {
 	return effects
 }
 
-func MobEncounter(mobType MobType) []battle.Entity {
-	switch mobType {
-	case MOB_BEAR:
-		return []battle.Entity{NewBear()}
-	case MOB_GNAR:
-		return []battle.Entity{NewGnar()}
-	case MOB_ORC:
-		num := utils.RandomNumber(0, 4)
-		if num < 2 {
-			return []battle.Entity{NewOrc()}
-		} else {
-			group := NewOrcGroup(num)
+func (m *MobEntity) GetName() string {
+	//get name from db
+	return m.Id
+}
 
-			entities := make([]battle.Entity, len(group))
-			for i, orc := range group {
-				entities[i] = &orc
-			}
+func (m *MobEntity) GetCurrentHP() int {
+	return m.HP
+}
 
-			return entities
-		}
-	case MOB_TIGER:
-		return []battle.Entity{NewTiger()}
-	case MOB_UNDEAD:
-		return []battle.Entity{NewUndead()}
+func (m *MobEntity) GetMaxHP() int {
+	return m.HP
+}
+
+func (m *MobEntity) GetATK() int {
+	return m.ATK
+}
+
+func (m *MobEntity) GetSPD() int {
+	return m.SPD
+}
+
+func (m *MobEntity) GetDEF() int {
+	return 0
+}
+
+func (m *MobEntity) GetMR() int {
+	return 0
+}
+
+func (m *MobEntity) GetAGL() int {
+	return 0
+}
+
+func (m *MobEntity) GetMaxMana() int {
+	return 0
+}
+
+func (m *MobEntity) GetCurrentMana() int {
+	return 0
+}
+
+func (m *MobEntity) GetAP() int {
+	return 0
+}
+
+func (m *MobEntity) IsAuto() bool {
+	return true
+}
+
+func (m *MobEntity) Action(f *battle.Fight) int {
+	//TODO Generic action implementation
+
+	return 0
+}
+
+func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) int {
+	currentHP := m.HP
+
+	for _, dmg := range dmg.Damage {
+		m.HP -= dmg.Value
 	}
 
-	return []battle.Entity{}
+	return currentHP - m.HP
+}
+
+func (m *MobEntity) GetUUID() uuid.UUID {
+	return m.UUID
+}
+
+func (m *MobEntity) GetLoot() []battle.Loot {
+	return []battle.Loot{{
+		Type: battle.LOOT_EXP, Meta: &map[string]interface{}{"value": 55},
+	}}
+}
+
+func (m *MobEntity) CanDodge() bool {
+	return false
+}
+
+func (m *MobEntity) ApplyEffect(e battle.ActionEffect) {
+	m.Effects = append(m.Effects, e)
+}
+
+func (m *MobEntity) HasEffect(e battle.Effect) bool {
+	return m.Effects.HasEffect(e)
+}
+
+func (m *MobEntity) GetEffect(effect battle.Effect) *battle.ActionEffect {
+	return m.Effects.GetEffect(effect)
+}
+
+func (m *MobEntity) GetAllEffects() []battle.ActionEffect {
+	return m.Effects
+}
+
+func (m *MobEntity) Heal(value int) {
+	m.HP += value
+}
+
+func (m *MobEntity) TriggerAllEffects() {
+	m.Effects = m.Effects.TriggerAllEffects(m)
 }

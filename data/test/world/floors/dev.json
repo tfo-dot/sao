@@ -1,0 +1,21 @@
+{
+  "name": "dev",
+  "cid": "1162450076438900958",
+  "effects": [],
+  "locations": [
+    {
+      "name": "Rynek",
+      "cid": "1162450122249076756",
+      "cityPart": true,
+      "enemies": [],
+      "effects": []
+    },
+    {
+      "name": "Las",
+      "cid": "1162450159251234876",
+      "cityPart": false,
+      "enemies": [],
+      "effects": []
+    }
+  ]
+}

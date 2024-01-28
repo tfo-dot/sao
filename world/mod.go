@@ -1,11 +1,11 @@
 package world
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sao/battle"
-	"sao/battle/mobs"
 	"sao/player"
-	"sao/utils"
 	"sao/world/calendar"
 	"sao/world/location"
 	"sao/world/npc"
@@ -23,28 +23,46 @@ type World struct {
 	Fights   map[uuid.UUID]battle.Fight
 	Entities map[uuid.UUID]*battle.Entity
 	Time     *calendar.Calendar
+	TestMode bool
 }
 
-func CreateWorld() World {
+func CreateWorld(testMode bool) World {
 	floorMap := make(FloorMap, 1)
 
-	floorMap["dev"] = location.Floor{
-		Name: "dev",
-		CID:  "1162450076438900958",
-		Locations: []location.Location{
-			{
-				Name:     "Rynek",
-				CID:      "1162450122249076756",
-				CityPart: true,
-				Enemies:  []mobs.MobType{},
-			},
-			{
-				Name:     "Las",
-				CID:      "1162450159251234876",
-				CityPart: false,
-				Enemies:  []mobs.MobType{mobs.MOB_TIGER},
-			},
-		},
+	pathToRes := "./data/release/world/floors/"
+
+	if testMode {
+		pathToRes = "./data/test/world/floors/"
+	}
+
+	files, err := os.ReadDir(pathToRes)
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		f, err := os.Open(pathToRes + file.Name())
+
+		if err != nil {
+			panic(err)
+		}
+
+		var floor location.Floor
+
+		err = json.NewDecoder(f).Decode(&floor)
+
+		if err != nil {
+			panic(err)
+		}
+
+		floorMap[floor.Name] = floor
+
+		fmt.Printf("Loaded floor %v\n", floor)
 	}
 
 	return World{
@@ -54,6 +72,7 @@ func CreateWorld() World {
 		make(map[uuid.UUID]battle.Fight),
 		make(map[uuid.UUID]*battle.Entity),
 		calendar.StartCalendar(),
+		testMode,
 	}
 }
 
@@ -77,32 +96,33 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 }
 
 func (w *World) PlayerEncounter(uuid uuid.UUID) {
-	player := w.Players[uuid]
+	//TODO: Implement actual encounters
+	// 	player := w.Players[uuid]
 
-	floor := w.Floors[player.Meta.Location.FloorName]
-	location := floor.FindLocation(player.Meta.Location.LocationName)
+	// 	floor := w.Floors[player.Meta.Location.FloorName]
+	// 	location := floor.FindLocation(player.Meta.Location.LocationName)
 
-	randomEnemy := utils.RandomElement[mobs.MobType](location.Enemies)
+	// 	randomEnemy := utils.RandomElement[mobs.MobType](location.Enemies)
 
-	enemies := mobs.MobEncounter(randomEnemy)
+	// 	enemies := mobs.MobEncounter(randomEnemy)
 
-	entityMap := make(battle.EntityMap)
+	// 	entityMap := make(battle.EntityMap)
 
-	entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
+	// 	entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
 
-	for _, enemy := range enemies {
-		entityMap[enemy.GetUUID()] = battle.EntityEntry{Entity: enemy, Side: 1}
-	}
+	// 	for _, enemy := range enemies {
+	// 		entityMap[enemy.GetUUID()] = battle.EntityEntry{Entity: enemy, Side: 1}
+	// 	}
 
-	fight := battle.Fight{Entities: entityMap}
+	// 	fight := battle.Fight{Entities: entityMap}
 
-	fight.Init(w.Time.Copy())
+	// 	fight.Init(w.Time.Copy())
 
-	fightUUID := w.RegisterFight(fight)
+	// 	fightUUID := w.RegisterFight(fight)
 
-	player.Meta.FightInstance = &fightUUID
+	// 	player.Meta.FightInstance = &fightUUID
 
-	go w.ListenForFight(fightUUID)
+	// 	go w.ListenForFight(fightUUID)
 }
 
 func (w *World) StartClock() {

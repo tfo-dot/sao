@@ -12,8 +12,7 @@ type Skill struct {
 }
 
 type PlayerSkill struct {
-	Name string
-
+	Name    string
 	Trigger Trigger
 	Cost    SkillCost
 	UUID    uuid.UUID
@@ -78,6 +77,8 @@ const (
 	TRIGGER_TURN
 	TRIGGER_HEALTH
 	TRIGGER_MANA
+	TRIGGER_EFFECT
+	TRIGGER_COUNTER
 )
 
 type TargetTag int

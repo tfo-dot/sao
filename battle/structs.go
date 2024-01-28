@@ -198,7 +198,7 @@ func (f *Fight) HandleAction(act Action) {
 				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
 
 					f.HandleAction(Action{
-						Event:  ACTION_ATTACK,
+						Event:  ACTION_COUNTER,
 						Source: act.Target,
 						Target: act.Source,
 						Meta: Damage{
@@ -430,6 +430,70 @@ func (f *Fight) HandleAction(act Action) {
 					if f.Entities[target].Entity.GetCurrentHP() <= 0 {
 						skill.Action(sourceEntity.Entity, f.Entities[target].Entity, f)
 					}
+				}
+			}
+		}
+
+	case ACTION_COUNTER:
+		dmgDealt, dodged := f.DispatchActionAttack(act)
+
+		entity := f.Entities[act.Source]
+
+		if entity.Entity.HasEffect(EFFECT_VAMP) && !dodged {
+			effect := entity.Entity.GetEffect(EFFECT_VAMP)
+
+			entity.Entity.Heal(utils.PercentOf(dmgDealt, effect.Value))
+		}
+
+		if !dodged && !entity.Entity.IsAuto() {
+			for _, skill := range entity.Entity.(PlayerEntity).GetAllSkills() {
+				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+					continue
+				}
+
+				if skill.Trigger.Event.TriggerType != types.TRIGGER_ATTACK {
+					continue
+				}
+
+				targets := f.FindValidTargets(entity.Entity.GetUUID(), *skill.Trigger.Event)
+
+				if skill.Trigger.Event.TargetCount != -1 {
+					count := skill.Trigger.Event.TargetCount
+
+					if count > len(targets) {
+						count = len(targets)
+					}
+
+					targets = targets[:count]
+				}
+
+				for _, target := range targets {
+					skill.Action(entity.Entity, f.Entities[target].Entity, f)
+				}
+			}
+		}
+
+		targetEntity := f.Entities[act.Target]
+
+		if !targetEntity.Entity.IsAuto() {
+			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
+				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
+
+					counterDmg := utils.PercentOf(targetEntity.Entity.GetATK(), 70)
+
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetDEF(), 15)
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetMR(), 15)
+
+					f.HandleAction(Action{
+						Event:  ACTION_COUNTER,
+						Source: act.Target,
+						Target: act.Source,
+						Meta: Damage{
+							Value:    counterDmg,
+							Type:     DMG_PHYSICAL,
+							CanDodge: true,
+						}.ToActionMeta(),
+					})
 				}
 			}
 		}
