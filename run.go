@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"sao/discord"
-	"sao/player"
 	"sao/world"
 )
 
@@ -13,7 +12,6 @@ import (
 var botkey embed.FS
 
 func main() {
-
 	botkeyRaw, err := botkey.Open("botkey.txt")
 
 	if err != nil {
@@ -37,17 +35,13 @@ func main() {
 		return
 	}
 
-	go discord.StartClient(string(botKey))
-
 	world := world.CreateWorld(os.Args[1] == "test")
 
 	go world.StartClock()
 
-	world.RegisterNewPlayer(player.MALE, "tfo", "344048874656366592")
+	discord.World = &world
 
-	for _, pl := range world.Players {
-		fmt.Printf("Player `%s` registered \n", pl.GetName())
-	}
+	go discord.StartClient(string(botKey))
 
 	for {
 		continue

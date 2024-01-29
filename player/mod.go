@@ -13,13 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type PlayerGender byte
-
-const (
-	MALE PlayerGender = iota
-	FEMALE
-)
-
 type PlayerStats struct {
 	HP          int
 	SPD         int
@@ -30,7 +23,6 @@ type PlayerStats struct {
 }
 
 type PlayerMeta struct {
-	Gender        PlayerGender
 	Location      location.PlayerLocation
 	OwnUUID       uuid.UUID
 	UserID        string
@@ -298,12 +290,12 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 	return tempArr
 }
 
-func NewPlayer(gender PlayerGender, name string, uid string) Player {
+func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
 		xp.PlayerXP{Level: 1, Exp: 0},
 		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), false, 0},
-		PlayerMeta{gender, location.DefaultLocation(), uuid.New(), uid, nil, nil},
+		PlayerMeta{location.DefaultLocation(), uuid.New(), uid, nil, nil},
 		inventory.GetDefaultInventory(),
 	}
 }

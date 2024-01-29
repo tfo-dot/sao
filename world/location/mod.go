@@ -10,11 +10,13 @@ type Location struct {
 	CityPart bool
 	Enemies  []string
 	Effects  []LocationEffect
+	TP       bool
 }
 
 type Floor struct {
 	Name      string
 	CID       string
+	Default   string
 	Locations []Location
 	Effects   []LocationEffect
 }

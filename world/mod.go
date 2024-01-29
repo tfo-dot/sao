@@ -76,8 +76,8 @@ func CreateWorld(testMode bool) World {
 	}
 }
 
-func (w *World) RegisterNewPlayer(gender player.PlayerGender, name, uid string) player.Player {
-	newPlayer := player.NewPlayer(gender, name, uid)
+func (w *World) RegisterNewPlayer(name, uid string) player.Player {
+	newPlayer := player.NewPlayer(name, uid)
 
 	w.Players[newPlayer.GetUUID()] = &newPlayer
 
