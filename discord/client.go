@@ -54,7 +54,19 @@ var (
 					Required:     true,
 					Autocomplete: true,
 				},
-			}},
+			},
+		},
+		discord.SlashCommandCreate{
+			Name:        "info",
+			Description: "Informacje o postaci",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionUser{
+					Name:        "gracz",
+					Description: "Gracz",
+					Required:    false,
+				},
+			},
+		},
 	}
 )
 
@@ -74,13 +86,7 @@ func StartClient(token string) {
 		panic(err)
 	}
 
-	gid, err := snowflake.Parse("1151589368373444690")
-
-	if err != nil {
-		panic(err)
-	}
-
-	if _, err = client.Rest().SetGuildCommands(client.ApplicationID(), gid, cmds); err != nil {
+	if _, err = client.Rest().SetGuildCommands(client.ApplicationID(), snowflake.MustParse("1151589368373444690"), cmds); err != nil {
 		fmt.Println("error while registering commands")
 	}
 
@@ -120,12 +126,12 @@ func autocompleteHandler(event *events.AutocompleteInteractionCreate) {
 	case "tp":
 		locationOption := event.Data.String("nazwa")
 
-		userSnowflake := event.Member().User.ID
+		userSnowflake := event.Member().User.ID.String()
 
 		var floorName string
 
 		for _, pl := range World.Players {
-			if pl.Meta.UserID == userSnowflake.String() {
+			if pl.Meta.UserID == userSnowflake {
 				floorName = pl.Meta.Location.FloorName
 			}
 		}
@@ -177,9 +183,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		locationName := data.String("nazwa")
 
 		for uuid, pl := range World.Players {
-			snowflake, _ := snowflake.Parse(pl.Meta.UserID)
-
-			if snowflake == event.Member().User.ID {
+			if snowflake.MustParse(pl.Meta.UserID) == event.Member().User.ID {
 				World.MovePlayer(uuid, pl.Meta.Location.FloorName, locationName, "")
 				return
 			}
@@ -188,9 +192,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		floorName := data.String("nazwa")
 
 		for uuid, pl := range World.Players {
-			snowflake, _ := snowflake.Parse(pl.Meta.UserID)
-
-			if snowflake == event.Member().User.ID {
+			if snowflake.MustParse(pl.Meta.UserID) == event.Member().User.ID {
 				currentLocation := World.Floors[pl.Meta.Location.FloorName].FindLocation(pl.Meta.Location.LocationName)
 
 				if !currentLocation.TP {
@@ -208,5 +210,57 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 		}
+	case "info":
+
+		user := event.User()
+
+		if mentionedUser, exists := data.OptUser("gracz"); exists {
+			user = mentionedUser
+		}
+
+		for _, pl := range World.Players {
+			if pl.Meta.UserID == user.ID.String() {
+
+				inFight := pl.Meta.FightInstance != nil
+
+				inFightText := "Nie"
+
+				if inFight {
+					inFightText = "Tak"
+				}
+
+				event.CreateMessage(
+					discord.NewMessageCreateBuilder().
+						AddEmbeds(
+							discord.NewEmbedBuilder().
+								AddField("Nazwa", pl.GetName(), true).
+								AddField("Gracz", fmt.Sprintf("<@%s>", pl.Meta.UserID), true).
+								AddField("Lokacja", pl.Meta.Location.LocationName, true).
+								AddField("Piętro", pl.Meta.Location.FloorName, true).
+								AddField("HP", fmt.Sprintf("%d/%d", pl.GetCurrentHP(), pl.GetMaxHP()), true).
+								AddField("Mana", fmt.Sprintf("%d/%d", pl.GetCurrentMana(), pl.GetMaxMana()), true).
+								AddField("Atak", fmt.Sprintf("%d", pl.GetATK()), true).
+								AddField("AP", fmt.Sprintf("%d", pl.GetAP()), true).
+								AddField("DEF/RES", fmt.Sprintf("%d/%d", pl.GetDEF(), pl.GetMR()), true).
+								AddField("Lvl", fmt.Sprintf("%d %d/%d", pl.XP.Level, pl.XP.Exp, (pl.XP.Level*100)+100), true).
+								AddField("SPD/AGL", fmt.Sprintf("%d/%d", pl.GetSPD(), pl.GetAGL()), true).
+								AddField("Walce?", inFightText, true).
+								AddField("Party?", "Nie", true).
+								AddField("Gildia?", "Nie", true).
+								Build(),
+						).
+						Build(),
+				)
+				return
+			}
+		}
+
+		event.CreateMessage(
+			discord.
+				NewMessageCreateBuilder().
+				SetContent("Nie znaleziono postaci").
+				SetEphemeral(true).
+				Build(),
+		)
 	}
 }
