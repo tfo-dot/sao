@@ -444,6 +444,17 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						return
 					}
 
+					if _, exists := pl.Inventory.LevelSkills[lvl]; exists {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Odblokowano już umiejętność na tym poziomie").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
 					embed := discord.NewEmbedBuilder()
 
 					buttons := make([]discord.InteractiveComponent, 0)
