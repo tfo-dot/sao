@@ -290,6 +290,31 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 	return tempArr
 }
 
+func (p *Player) AddItem(item interface{}) {
+	itemCasted := item.(inventory.PlayerItem)
+	p.Inventory.Items = append(p.Inventory.Items, itemCasted)
+}
+
+func (p *Player) GetAllItems() []interface{} {
+	items := make([]interface{}, len(p.Inventory.Items))
+	for i, item := range p.Inventory.Items {
+		items[i] = item
+	}
+	return items
+}
+
+func (p *Player) RemoveItem(item int) {
+	p.Inventory.Items = append(p.Inventory.Items[:item], p.Inventory.Items[item+1:]...)
+}
+
+func (p *Player) RestoreMana(value int) {
+	p.Stats.CurrentMana += value
+
+	if p.Stats.CurrentMana > p.GetMaxMana() {
+		p.Stats.CurrentMana = p.GetMaxMana()
+	}
+}
+
 func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,

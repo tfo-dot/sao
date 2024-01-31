@@ -1,8 +1,6 @@
 package types
 
-import (
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 type Skill struct {
 	Name    string
@@ -19,7 +17,8 @@ type PlayerSkill struct {
 	Grade   SkillGrade
 	//TODO conditional cd, like start counting after the shield breaks
 	//TODO passive skills have cd too
-	CD int
+	CD          int
+	SkillSource SkillSource
 	//TODO remember fight events? Ye
 	/* Source, target - entities, fight is fight instance */
 	Action func(source, target interface{}, fight interface{})
@@ -64,6 +63,14 @@ const (
 	GradeUltimate
 )
 
+type SkillSource int
+
+const (
+	SourceLVL SkillSource = iota
+	SourceItem
+	SourceFurry
+)
+
 type SkillTrigger int
 
 const (
@@ -79,6 +86,7 @@ const (
 	TRIGGER_MANA
 	TRIGGER_EFFECT
 	TRIGGER_COUNTER
+	TRIGGER_NONE
 )
 
 type TargetTag int
@@ -109,4 +117,10 @@ const (
 	DETAIL_HAS_EFFECT
 	DETAIL_NO_EFFECT
 	DETAIL_ALL
+)
+
+type CustomTrigger int
+
+const (
+	CUSTOM_TRIGGER_UNLOCK CustomTrigger = iota
 )

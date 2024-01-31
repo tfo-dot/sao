@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"errors"
 	"sao/battle"
 	"sao/types"
 
@@ -8,11 +9,12 @@ import (
 )
 
 type PlayerInventory struct {
-	Gold     int
-	Capacity int
-	Items    []PlayerItem
-	CDS      map[uuid.UUID]int
-	Skills   []types.PlayerSkill
+	Gold        int
+	Capacity    int
+	Items       []PlayerItem
+	CDS         map[uuid.UUID]int
+	Skills      []types.PlayerSkill
+	LevelSkills map[int]PSkill
 }
 
 func (inv PlayerInventory) GetStat(stat battle.Stat) int {
@@ -49,13 +51,40 @@ func (inv PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}) {
 	}
 }
 
+func (inv PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, player battle.PlayerEntity) error {
+	if lvl > playerLvl {
+		return errors.New("PLAYER_LVL_TOO_LOW")
+	}
+
+	if _, exists := inv.LevelSkills[lvl]; exists {
+		return errors.New("SKILL_ALREADY_UNLOCKED")
+	}
+
+	for _, skill := range AVAILABLE_SKILLS {
+		if skill.Path == path && skill.ForLevel == lvl {
+			inv.LevelSkills[lvl] = skill
+
+			if skill.OnEvent != nil {
+				if fn, exists := (*skill.OnEvent)[types.CUSTOM_TRIGGER_UNLOCK]; exists {
+					fn(&player)
+				}
+			}
+
+			return nil
+		}
+	}
+
+	return errors.New("SKILL_NOT_FOUND")
+}
+
 func GetDefaultInventory() PlayerInventory {
 	return PlayerInventory{
-		Gold:     0,
-		Capacity: 10,
-		Items:    []PlayerItem{},
-		CDS:      map[uuid.UUID]int{},
-		Skills:   []types.PlayerSkill{},
+		Gold:        0,
+		Capacity:    10,
+		Items:       []PlayerItem{},
+		CDS:         map[uuid.UUID]int{},
+		Skills:      []types.PlayerSkill{},
+		LevelSkills: map[int]PSkill{},
 	}
 }
 
@@ -84,6 +113,7 @@ type PlayerItem struct {
 	Consume     bool
 	Count       int
 	MaxCount    int
+	Hidden      bool
 	Stats       map[battle.Stat]int
 	Effects     []types.Skill
 }

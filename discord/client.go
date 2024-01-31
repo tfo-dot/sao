@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"sao/player/inventory"
 	"sao/world"
 	"strings"
 
@@ -13,6 +14,13 @@ import (
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/snowflake/v2"
 )
+
+var PathToString = map[inventory.SkillPath]string{
+	inventory.PathControl:   "Kontrola",
+	inventory.PathDamage:    "Obrażenia",
+	inventory.PathEndurance: "Wytrzymałość",
+	inventory.PathMobility:  "Mobilność",
+}
 
 var (
 	cmds = []discord.ApplicationCommandCreate{
@@ -67,6 +75,48 @@ var (
 				},
 			},
 		},
+		discord.SlashCommandCreate{
+			Name:        "skill",
+			Description: "Zarządzaj umiejętnościami",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "pokaż",
+					Description: "Pokaż umiejętności",
+					Options: []discord.ApplicationCommandOption{
+						discord.ApplicationCommandOptionUser{
+							Name:        "gracz",
+							Description: "Gracz",
+							Required:    false,
+						},
+					},
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "odblokuj",
+					Description: "Odblokuj umiejętność",
+					Options: []discord.ApplicationCommandOption{
+						discord.ApplicationCommandOptionInt{
+							Name:        "lvl",
+							Description: "Umiejętność którego chcesz odblokować",
+							Required:    true,
+						},
+					},
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "ulepsz",
+					Description: "Ulepsz umiejętność",
+				},
+			},
+		},
+		discord.SlashCommandCreate{
+			Name:        "plecak",
+			Description: "Zarządzaj ekwipunkiem",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "pokaż",
+					Description: "Pokaż ekwipunek",
+				},
+			},
+		},
 	}
 )
 
@@ -80,6 +130,7 @@ func StartClient(token string) {
 		}),
 		bot.WithEventListenerFunc(commandListener),
 		bot.WithEventListenerFunc(autocompleteHandler),
+		bot.WithEventListenerFunc(messageComponentHandler),
 	)
 
 	if err != nil {
@@ -152,6 +203,69 @@ func autocompleteHandler(event *events.AutocompleteInteractionCreate) {
 		}
 
 		event.AutocompleteResult(choices)
+	}
+}
+
+func messageComponentHandler(event *events.ComponentInteractionCreate) {
+	if strings.HasPrefix(event.ComponentInteraction.Data.CustomID(), "su") {
+		data := strings.Split(event.ComponentInteraction.Data.CustomID(), "|")
+
+		path := inventory.SkillPath(0)
+
+		switch data[1] {
+		case "0":
+			path = inventory.PathControl
+		case "1":
+			path = inventory.PathDamage
+		case "2":
+			path = inventory.PathEndurance
+		case "3":
+			path = inventory.PathMobility
+		}
+
+		lvl := 0
+
+		fmt.Sscanf(data[2], "%d", &lvl)
+
+		userSnowflake := event.Member().User.ID.String()
+
+		for _, pl := range World.Players {
+			if pl.Meta.UserID == userSnowflake {
+				res := pl.Inventory.UnlockSkill(path, lvl, pl.XP.Level, pl)
+
+				if res == nil {
+					event.UpdateMessage(
+						discord.
+							NewMessageUpdateBuilder().
+							SetContent("Odblokowano umiejętność").
+							ClearContainerComponents().
+							ClearEmbeds().
+							Build(),
+					)
+
+					return
+				}
+
+				msgContent := ""
+
+				switch res.Error() {
+				case "PLAYER_LVL_TOO_LOW":
+					msgContent = "Nie masz wystarczającego poziomu"
+				case "SKILL_ALREADY_UNLOCKED":
+					msgContent = "Umiejętność jest już odblokowana"
+				case "SKILL_NOT_FOUND":
+					msgContent = "Nie znaleziono umiejętności"
+				}
+
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent(msgContent).
+						Build(),
+				)
+				return
+			}
+		}
 	}
 }
 
@@ -262,5 +376,153 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				SetEphemeral(true).
 				Build(),
 		)
+	case "skill":
+		switch *data.SubCommandName {
+		case "pokaż":
+			user := event.User()
+
+			if mentionedUser, exists := data.OptUser("gracz"); exists {
+				user = mentionedUser
+			}
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+					embed := discord.NewEmbedBuilder()
+
+					if len(pl.Inventory.Skills) == 0 {
+						embed.AddField("Skille", "Brak", false)
+					}
+
+					//TODO add inv.skills
+
+					if len(pl.Inventory.LevelSkills) == 0 {
+						embed.AddField("Skille za lvl", "Brak", false)
+					}
+
+					for _, skill := range pl.Inventory.LevelSkills {
+						embed.AddField(
+							fmt.Sprintf("%s (LVL: %d)", skill.Name, skill.ForLevel),
+							fmt.Sprintf("Ścieżka: %s\n\n%s", PathToString[skill.Path], skill.Description),
+							false,
+						)
+					}
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							AddEmbeds(embed.Build()).
+							Build(),
+					)
+
+					return
+				}
+			}
+		case "odblokuj":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+
+					lvl := data.Int("lvl")
+
+					skillList := make([]inventory.PSkill, 0)
+
+					for _, skill := range inventory.AVAILABLE_SKILLS {
+						if skill.ForLevel == lvl {
+							skillList = append(skillList, skill)
+						}
+					}
+
+					if len(skillList) == 0 {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie znaleziono umiejętności dla tego poziomu").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					embed := discord.NewEmbedBuilder()
+
+					buttons := make([]discord.InteractiveComponent, 0)
+
+					for _, skill := range skillList {
+
+						upgradeMsg := ""
+
+						for _, upgrade := range skill.Upgrades {
+							upgradeMsg += fmt.Sprintf("\n- %s - %s", upgrade.Name, upgrade.Description)
+						}
+
+						embed.AddField(
+							skill.Name,
+							fmt.Sprintf("Ścieżka: %s\n\n%s\nUlepszenia:%s", PathToString[skill.Path], skill.Description, upgradeMsg),
+							false,
+						)
+
+						buttons = append(buttons, discord.NewPrimaryButton(
+							skill.Name,
+							fmt.Sprintf("su|%d|%d", skill.Path, skill.ForLevel),
+						))
+					}
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							AddEmbeds(embed.Build()).
+							AddActionRow(buttons...).
+							Build(),
+					)
+
+					return
+				}
+			}
+		}
+
+	case "plecak":
+		switch *data.SubCommandName {
+		case "pokaż":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+					embed := discord.NewEmbedBuilder()
+
+					if len(pl.Inventory.Items) == 0 {
+						embed.AddField("Przedmioty", fmt.Sprintf("%d/%d", 0, pl.Inventory.Capacity), false)
+					} else {
+						count := 0
+
+						for _, item := range pl.Inventory.Items {
+							if !item.Hidden {
+								count++
+							}
+						}
+
+						embed.AddField("Przedmioty", fmt.Sprintf("%d/%d", count, pl.Inventory.Capacity), false)
+					}
+
+					for _, item := range pl.Inventory.Items {
+
+						if item.Hidden {
+							continue
+						}
+
+						embed.AddField(item.Name, item.Description, false)
+					}
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							AddEmbeds(embed.Build()).
+							Build(),
+					)
+
+					return
+				}
+			}
+		}
 	}
 }

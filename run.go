@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sao/discord"
+	"sao/player/inventory"
 	"sao/world"
 )
 
@@ -42,6 +43,15 @@ func main() {
 	discord.World = &world
 
 	world.RegisterNewPlayer("tfo", "344048874656366592")
+
+	for _, pl := range world.Players {
+		if pl.Name == "tfo" {
+
+			pl.AddEXP(1000)
+
+			fmt.Println(pl.Inventory.UnlockSkill(inventory.PathControl, 2, pl.XP.Level, pl))
+		}
+	}
 
 	go discord.StartClient(string(botKey))
 

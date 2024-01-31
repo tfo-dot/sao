@@ -69,6 +69,7 @@ const (
 	EFFECT_FEAR
 	EFFECT_VAMP
 	EFFECT_HEAL
+	EFFECT_MANA
 	EFFECT_SHIELD
 	EFFECT_BLIND
 	EFFECT_DISARM
@@ -186,15 +187,25 @@ type Entity interface {
 }
 
 type PlayerEntity interface {
+	Entity
+
 	ReceiveLoot(Loot)
 	ReceiveMultipleLoot([]Loot)
 
 	GetAllSkills() []types.PlayerSkill
 	SetDefendingState(bool)
 	GetDefendingState() bool
+
+	RestoreMana(int)
+
+	GetAllItems() []interface{}
+	AddItem(interface{})
+	RemoveItem(int)
 }
 
 type DodgeEntity interface {
+	Entity
+
 	TakeDMGOrDodge(ActionDamage) (int, bool)
 }
 
