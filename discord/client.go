@@ -1052,7 +1052,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 								return
 							}
 
-							if *pl.Meta.Party != *pl.Meta.Party {
+							if *pl.Meta.Party != *playr.Meta.Party {
 								event.CreateMessage(
 									discord.
 										NewMessageCreateBuilder().
