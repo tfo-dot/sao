@@ -999,10 +999,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		case "zmień":
 			user := event.User()
 
-			for _, pl := range World.Players {
-				if pl.Meta.UserID == user.ID.String() {
+			for _, playr := range World.Players {
+				if playr.Meta.UserID == user.ID.String() {
 
-					if pl.Meta.Party == nil {
+					if playr.Meta.Party == nil {
 						event.CreateMessage(
 							discord.
 								NewMessageCreateBuilder().
@@ -1013,9 +1013,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						return
 					}
 
-					part := World.Parties[*pl.Meta.Party]
+					part := World.Parties[*playr.Meta.Party]
 
-					if (*part.Roles)[party.Leader][0] != pl.GetUUID() {
+					if (*part.Roles)[party.Leader][0] != playr.GetUUID() {
 						event.CreateMessage(
 							discord.
 								NewMessageCreateBuilder().
