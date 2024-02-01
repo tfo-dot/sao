@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sao/player/inventory"
 	"sao/world"
+	"sao/world/party"
 	"strings"
 
 	"github.com/disgoorg/disgo"
@@ -13,6 +14,7 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/snowflake/v2"
+	"github.com/google/uuid"
 )
 
 var PathToString = map[inventory.SkillPath]string{
@@ -20,6 +22,13 @@ var PathToString = map[inventory.SkillPath]string{
 	inventory.PathDamage:    "Obrażenia",
 	inventory.PathEndurance: "Wytrzymałość",
 	inventory.PathMobility:  "Mobilność",
+}
+
+var RoleToString = map[party.PartyRole]string{
+	party.Leader:  "Lider",
+	party.DPS:     "DPS",
+	party.Support: "Support",
+	party.Tank:    "Tank",
 }
 
 var (
@@ -114,6 +123,84 @@ var (
 				discord.ApplicationCommandOptionSubCommand{
 					Name:        "pokaż",
 					Description: "Pokaż ekwipunek",
+				},
+			},
+		},
+		discord.SlashCommandCreate{
+			Name:        "szukaj",
+			Description: "Szukaj zajęcia",
+		},
+		discord.SlashCommandCreate{
+			Name:        "party",
+			Description: "Zarządzaj party",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "pokaż",
+					Description: "Pokaż party",
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "zapros",
+					Description: "Zaproś do party",
+					Options: []discord.ApplicationCommandOption{
+						discord.ApplicationCommandOptionUser{
+							Name:        "gracz",
+							Description: "Gracz",
+							Required:    true,
+						},
+					},
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "wyrzuć",
+					Description: "Wyrzuć z party",
+					Options: []discord.ApplicationCommandOption{
+						discord.ApplicationCommandOptionUser{
+							Name:        "gracz",
+							Description: "Gracz",
+							Required:    true,
+						},
+					},
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "opuść",
+					Description: "Opuść party",
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "zmień",
+					Description: "Zmień rolę",
+					Options: []discord.ApplicationCommandOption{
+						discord.ApplicationCommandOptionUser{
+							Name:        "gracz",
+							Description: "Gracz",
+							Required:    true,
+						},
+						discord.ApplicationCommandOptionString{
+							Name:        "rola",
+							Description: "Rola",
+							Required:    true,
+							Choices: []discord.ApplicationCommandOptionChoiceString{
+								{
+									Name:  "Lider",
+									Value: "Lider",
+								},
+								{
+									Name:  "DPS",
+									Value: "DPS",
+								},
+								{
+									Name:  "Support",
+									Value: "Support",
+								},
+								{
+									Name:  "Tank",
+									Value: "Tank",
+								},
+							},
+						},
+					},
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "rozwiąż",
+					Description: "Rozwiąż party",
 				},
 			},
 		},
@@ -267,7 +354,59 @@ func messageComponentHandler(event *events.ComponentInteractionCreate) {
 			}
 		}
 	}
+
+	if strings.HasPrefix(event.ComponentInteraction.Data.CustomID(), "party") {
+		if event.ComponentInteraction.Data.CustomID() == "party/res" {
+			userSnowflake := event.Member().User.ID.String()
+
+			partyUuid := uuid.MustParse(event.ComponentInteraction.Data.CustomID()[10:])
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == userSnowflake {
+
+					if pl.Meta.Party != nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Jesteś już w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					World.Parties[partyUuid].Players = append(World.Parties[partyUuid].Players, pl.GetUUID())
+
+					pl.Meta.Party = &partyUuid
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Dołączono do party").
+							SetEphemeral(true).
+							Build(),
+					)
+
+					return
+				}
+			}
+		}
+
+		if event.ComponentInteraction.Data.CustomID() == "party/rej" {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Odrzucono zaproszenie").
+					SetEphemeral(true).
+					Build(),
+			)
+
+			//TODO msg delete (or update)
+		}
+	}
 }
+
+//TODO add checks if player has character XD
 
 func commandListener(event *events.ApplicationCommandInteractionCreate) {
 	data := event.SlashCommandInteractionData()
@@ -343,6 +482,14 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 					inFightText = "Tak"
 				}
 
+				inParty := pl.Meta.Party != nil
+
+				inPartyText := "Nie"
+
+				if inParty {
+					inPartyText = "Tak"
+				}
+
 				event.CreateMessage(
 					discord.NewMessageCreateBuilder().
 						AddEmbeds(
@@ -359,7 +506,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 								AddField("Lvl", fmt.Sprintf("%d %d/%d", pl.XP.Level, pl.XP.Exp, (pl.XP.Level*100)+100), true).
 								AddField("SPD/AGL", fmt.Sprintf("%d/%d", pl.GetSPD(), pl.GetAGL()), true).
 								AddField("Walce?", inFightText, true).
-								AddField("Party?", "Nie", true).
+								AddField("Party?", inPartyText, true).
 								AddField("Gildia?", "Nie", true).
 								Build(),
 						).
@@ -491,7 +638,6 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				}
 			}
 		}
-
 	case "plecak":
 		switch *data.SubCommandName {
 		case "pokaż":
@@ -528,6 +674,462 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						discord.
 							NewMessageCreateBuilder().
 							AddEmbeds(embed.Build()).
+							Build(),
+					)
+
+					return
+				}
+			}
+		}
+	case "szukaj":
+		user := event.User()
+
+		for _, pl := range World.Players {
+			if pl.Meta.UserID == user.ID.String() {
+				World.PlayerEncounter(pl.GetUUID())
+
+				//TODO implement rest
+			}
+		}
+	case "party":
+		switch *data.SubCommandName {
+		case "pokaż":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+
+					if pl.Meta.Party == nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					embed := discord.NewEmbedBuilder()
+
+					partyMembersText := ""
+
+					party := World.Parties[*pl.Meta.Party]
+
+					for _, member := range party.Players {
+						memberObj := World.Players[member]
+
+						partyMembersText += fmt.Sprintf("<@%s> - %s\n", memberObj.Meta.UserID, memberObj.GetName())
+					}
+
+					if partyMembersText[len(partyMembersText)-1] == '\n' {
+						partyMembersText = partyMembersText[:len(partyMembersText)-1]
+					}
+
+					embed.AddField("Członkowie", partyMembersText, false)
+
+					for role, players := range *party.Roles {
+
+						if len(players) == 0 {
+							embed.AddField(RoleToString[role], "Brak", false)
+							continue
+						}
+
+						playersText := ""
+
+						for _, player := range players {
+							playerObj := World.Players[player]
+
+							playersText += fmt.Sprintf("<@%s> - %s\n", playerObj.Meta.UserID, playerObj.GetName())
+						}
+
+						if playersText[len(playersText)-1] == '\n' {
+							playersText = playersText[:len(playersText)-1]
+						}
+
+						embed.AddField(RoleToString[role], playersText, false)
+					}
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							AddEmbeds(embed.Build()).
+							Build(),
+					)
+
+					return
+				}
+			}
+		case "zapros":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+					if pl.Meta.Party == nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					if len(World.Parties[*pl.Meta.Party].Players) == 6 {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Party jest pełne").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					part := World.Parties[*pl.Meta.Party]
+
+					if (*part.Roles)[party.Leader][0] != pl.GetUUID() {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś liderem").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					mentionedUser := data.User("gracz")
+
+					for _, pl := range World.Players {
+						if pl.Meta.UserID == mentionedUser.ID.String() {
+							if pl.Meta.Party != nil {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Gracz jest już w party").
+										SetEphemeral(true).
+										Build(),
+								)
+								return
+							}
+						}
+					}
+
+					ch, error := event.Client().Rest().CreateDMChannel(mentionedUser.ID)
+
+					if error != nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie można wysłać wiadomości do gracza").
+								SetEphemeral(true).
+								Build(),
+						)
+					}
+
+					chID := ch.ID()
+
+					_, error = event.Client().Rest().CreateMessage(chID, discord.NewMessageCreateBuilder().
+						SetContent(fmt.Sprintf("<@%s> (%s) zaprasza cię do party", user.ID.String(), pl.GetName())).
+						AddActionRow(
+							discord.NewPrimaryButton("Akceptuj", "party/res|"+(*pl.Meta.Party).String()),
+							discord.NewDangerButton("Odrzuć", "party/rej|"+(*pl.Meta.Party).String()),
+						).
+						Build(),
+					)
+
+					if error != nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie można wysłać wiadomości do gracza").
+								SetEphemeral(true).
+								Build(),
+						)
+					} else {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Wysłano zaproszenie").
+								SetEphemeral(true).
+								Build(),
+						)
+					}
+
+					return
+				}
+			}
+
+		case "wyrzuć":
+			user := event.User()
+
+			for _, plyer := range World.Players {
+				if plyer.Meta.UserID == user.ID.String() {
+
+					if plyer.Meta.Party == nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					part := World.Parties[*plyer.Meta.Party]
+
+					if (*part.Roles)[party.Leader][0] != plyer.GetUUID() {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś liderem").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					mentionedUser := data.User("gracz")
+
+					if mentionedUser.ID == user.ID {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie możesz wyrzucić samego siebie").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					for _, pl := range World.Players {
+						if pl.Meta.UserID == mentionedUser.ID.String() {
+							if pl.Meta.Party == nil {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Gracz nie jest w party").
+										SetEphemeral(true).
+										Build(),
+								)
+								return
+							}
+
+							if *pl.Meta.Party != *plyer.Meta.Party {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Gracz nie jest w twoim party").
+										SetEphemeral(true).
+										Build(),
+								)
+								return
+							}
+
+							for i, partyMember := range World.Parties[*plyer.Meta.Party].Players {
+								if partyMember == pl.GetUUID() {
+									pl.Meta.Party = nil
+
+									World.Parties[*plyer.Meta.Party].Players = append(World.Parties[*plyer.Meta.Party].Players[:i], World.Parties[*plyer.Meta.Party].Players[i+1:]...)
+									break
+								}
+							}
+
+						}
+					}
+
+					return
+				}
+			}
+
+		case "opuść":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+
+					if pl.Meta.Party == nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					part := World.Parties[*pl.Meta.Party]
+
+					if (*part.Roles)[party.Leader][0] == pl.GetUUID() {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie możesz opuścić party będąc liderem").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					for i, partyMember := range World.Parties[*pl.Meta.Party].Players {
+						if partyMember == pl.GetUUID() {
+							World.Parties[*pl.Meta.Party].Players = append(World.Parties[*pl.Meta.Party].Players[:i], World.Parties[*pl.Meta.Party].Players[i+1:]...)
+							break
+						}
+					}
+
+					pl.Meta.Party = nil
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Opuściłeś party").
+							SetEphemeral(true).
+							Build(),
+					)
+
+					return
+				}
+			}
+
+		case "zmień":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+
+					if pl.Meta.Party == nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					part := World.Parties[*pl.Meta.Party]
+
+					if (*part.Roles)[party.Leader][0] != pl.GetUUID() {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś liderem").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					mentionedUser := data.User("gracz")
+
+					if mentionedUser.ID == user.ID {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie możesz zmienić roli samego siebie").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					for _, pl := range World.Players {
+						if pl.Meta.UserID == mentionedUser.ID.String() {
+							if pl.Meta.Party == nil {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Gracz nie jest w party").
+										SetEphemeral(true).
+										Build(),
+								)
+								return
+							}
+
+							if *pl.Meta.Party != *pl.Meta.Party {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Gracz nie jest w twoim party").
+										SetEphemeral(true).
+										Build(),
+								)
+								return
+							}
+
+							role := data.String("rola")
+
+							switch role {
+							case "Lider":
+								(*part.Roles)[party.Leader][0] = pl.GetUUID()
+							case "DPS":
+								(*part.Roles)[party.DPS] = append((*part.Roles)[party.DPS], pl.GetUUID())
+							case "Support":
+								(*part.Roles)[party.Support] = append((*part.Roles)[party.Support], pl.GetUUID())
+							case "Tank":
+								(*part.Roles)[party.Tank] = append((*part.Roles)[party.Tank], pl.GetUUID())
+							}
+
+							event.CreateMessage(
+								discord.
+									NewMessageCreateBuilder().
+									SetContent("Zmieniono rolę").
+									SetEphemeral(true).
+									Build(),
+							)
+						}
+					}
+				}
+			}
+
+		case "rozwiąż":
+			user := event.User()
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == user.ID.String() {
+					if pl.Meta.Party == nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					part := World.Parties[*pl.Meta.Party]
+
+					if (*part.Roles)[party.Leader][0] != pl.GetUUID() {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Nie jesteś liderem").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+
+					uuid := *pl.Meta.Party
+
+					for _, partyMember := range World.Parties[uuid].Players {
+						World.Players[partyMember].Meta.Party = nil
+					}
+
+					delete(World.Parties, uuid)
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Rozwiązano party").
+							SetEphemeral(true).
 							Build(),
 					)
 

@@ -28,6 +28,7 @@ type PlayerMeta struct {
 	UserID        string
 	Navel         *navel.Navel
 	FightInstance *uuid.UUID
+	Party         *uuid.UUID
 }
 
 type Player struct {
@@ -320,7 +321,7 @@ func NewPlayer(name string, uid string) Player {
 		name,
 		xp.PlayerXP{Level: 1, Exp: 0},
 		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), false, 10},
-		PlayerMeta{location.DefaultLocation(), uuid.New(), uid, nil, nil},
+		PlayerMeta{location.DefaultLocation(), uuid.New(), uid, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 	}
 }

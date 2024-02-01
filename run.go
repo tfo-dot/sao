@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"sao/discord"
-	"sao/player/inventory"
 	"sao/world"
+	"sao/world/party"
+
+	"github.com/google/uuid"
 )
 
 //go:embed botkey.txt
@@ -47,9 +49,16 @@ func main() {
 	for _, pl := range world.Players {
 		if pl.Name == "tfo" {
 
-			pl.AddEXP(1000)
+			pUuid := uuid.New()
 
-			fmt.Println(pl.Inventory.UnlockSkill(inventory.PathControl, 2, pl.XP.Level, pl))
+			world.Parties[pUuid] = &party.Party{
+				Players: []uuid.UUID{pl.GetUUID()},
+				Roles: &map[party.PartyRole][]uuid.UUID{
+					party.Leader: {pl.GetUUID()},
+				},
+			}
+
+			pl.Meta.Party = &pUuid
 		}
 	}
 

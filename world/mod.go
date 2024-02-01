@@ -9,6 +9,7 @@ import (
 	"sao/world/calendar"
 	"sao/world/location"
 	"sao/world/npc"
+	"sao/world/party"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type World struct {
 	Fights   map[uuid.UUID]battle.Fight
 	Entities map[uuid.UUID]*battle.Entity
 	Time     *calendar.Calendar
+	Parties  map[uuid.UUID]*party.Party
 	TestMode bool
 }
 
@@ -72,6 +74,7 @@ func CreateWorld(testMode bool) World {
 		make(map[uuid.UUID]battle.Fight),
 		make(map[uuid.UUID]*battle.Entity),
 		calendar.StartCalendar(),
+		make(map[uuid.UUID]*party.Party),
 		testMode,
 	}
 }
