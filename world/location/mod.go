@@ -1,16 +1,19 @@
 package location
 
-import (
-	"sao/battle"
-)
-
 type Location struct {
 	Name     string
 	CID      string
 	CityPart bool
-	Enemies  []string
 	Effects  []LocationEffect
 	TP       bool
+	Enemies  []EnemyMeta
+	Unlocked bool
+}
+
+type EnemyMeta struct {
+	MinNum int
+	MaxNum int
+	Enemy  string
 }
 
 type Floor struct {
@@ -19,6 +22,7 @@ type Floor struct {
 	Default   string
 	Locations []Location
 	Effects   []LocationEffect
+	Unlocked  bool
 }
 
 func (f Floor) FindLocation(str string) *Location {
@@ -32,7 +36,7 @@ func (f Floor) FindLocation(str string) *Location {
 }
 
 type LocationEffect struct {
-	Effect battle.Effect
+	Effect int
 	Value  int
 	Meta   *map[string]interface{}
 }

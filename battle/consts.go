@@ -10,6 +10,7 @@ type FightMessage byte
 
 const (
 	MSG_ACTION_NEEDED FightMessage = iota
+	MSG_FIGHT_START
 	MSG_FIGHT_END
 	MSG_ENTITY_DIED
 )
@@ -26,6 +27,7 @@ const (
 	STAT_MANA
 	STAT_AP
 	STAT_HEAL_POWER
+	STAT_ADAPTIVE
 )
 
 type LootType int
@@ -56,6 +58,7 @@ const (
 	ACTION_DEFEND
 	ACTION_SKILL
 	ACTION_ITEM
+	ACTION_RUN
 	//Helper events
 	ACTION_COUNTER
 	ACTION_EFFECT
@@ -82,6 +85,8 @@ const (
 	EFFECT_STAT_INC
 	EFFECT_STAT_DEC
 	EFFECT_RESIST
+	EFFECT_FASTEN
+	EFFECT_ON_HIT
 )
 
 type Action struct {
@@ -105,7 +110,8 @@ type ActionEffect struct {
 	Effect   Effect
 	Value    int
 	Duration int
-	Meta     *map[string]interface{}
+	Uuid     uuid.UUID
+	Meta     any
 }
 
 type ActionEffectHeal struct {
@@ -113,22 +119,32 @@ type ActionEffectHeal struct {
 }
 
 type ActionEffectStat struct {
-	Stat  Stat
-	Value int
+	Stat      Stat
+	Value     int
+	IsPercent bool
 }
 
-func (d Damage) ToActionMeta() ActionDamage {
-	return ActionDamage{
-		Damage:   []Damage{d},
-		CanDodge: d.CanDodge,
-	}
+type ActionEffectResist struct {
+	Value     int
+	IsPercent bool
 }
 
-func ActionMetaFromList(list []Damage, dodge bool) ActionDamage {
-	return ActionDamage{
-		Damage:   list,
-		CanDodge: dodge,
-	}
+type ActionEffectOnHit struct {
+	Skill     bool
+	Attack    bool
+	IsPercent bool
+}
+
+type ActionSkillMeta struct {
+	Lvl        int
+	IsForLevel bool
+	SkillUuid  uuid.UUID
+	Targets    []uuid.UUID
+}
+
+type ActionItemMeta struct {
+	Item    uuid.UUID
+	Targets []uuid.UUID
 }
 
 type Damage struct {
@@ -158,6 +174,8 @@ type Entity interface {
 	GetCurrentHP() int
 	GetMaxHP() int
 
+	GetStat(Stat) int
+
 	GetSPD() int
 	GetATK() int
 	GetDEF() int
@@ -169,7 +187,10 @@ type Entity interface {
 
 	Action(*Fight) int
 	TakeDMG(ActionDamage) int
+
 	Heal(int)
+	RestoreMana(int)
+	Cleanse()
 
 	GetLoot() []Loot
 	CanDodge() bool
@@ -178,35 +199,41 @@ type Entity interface {
 	GetName() string
 	GetUUID() uuid.UUID
 
-	//TODO Effect stat dec/inc working correctly
 	ApplyEffect(ActionEffect)
 	HasEffect(Effect) bool
 	GetEffect(Effect) *ActionEffect
 	GetAllEffects() []ActionEffect
-	TriggerAllEffects()
-}
-
-type PlayerEntity interface {
-	Entity
-
-	ReceiveLoot(Loot)
-	ReceiveMultipleLoot([]Loot)
-
-	GetAllSkills() []types.PlayerSkill
-	SetDefendingState(bool)
-	GetDefendingState() bool
-
-	RestoreMana(int)
-
-	GetAllItems() []interface{}
-	AddItem(interface{})
-	RemoveItem(int)
+	TriggerAllEffects() []ActionEffect
 }
 
 type DodgeEntity interface {
 	Entity
 
 	TakeDMGOrDodge(ActionDamage) (int, bool)
+}
+
+type PlayerEntity interface {
+	DodgeEntity
+
+	ReceiveLoot(Loot)
+	ReceiveMultipleLoot([]Loot)
+
+	GetUID() string
+
+	GetAllSkills() []types.PlayerSkill
+	GetUpgrades(int) []string
+	GetLvlSkill(int) *types.PlayerSkill
+	GetSkill(uuid.UUID) *types.PlayerSkill
+
+	SetCD(uuid.UUID, int)
+	GetCD(uuid.UUID) int
+
+	SetDefendingState(bool)
+	GetDefendingState() bool
+
+	GetAllItems() []*types.PlayerItem
+	AddItem(*types.PlayerItem)
+	RemoveItem(int)
 }
 
 type EntitySort struct {

@@ -2,7 +2,8 @@
   "name": "dev",
   "cid": "1162450076438900958",
   "effects": [],
-  "default": "Rynek",
+  "default": "Las",
+  "unlocked": false,
   "locations": [
     {
       "name": "Rynek",
@@ -10,15 +11,23 @@
       "cityPart": true,
       "enemies": [],
       "effects": [],
-      "tp": true
+      "tp": true,
+      "unlocked": true
     },
     {
       "name": "Las",
       "cid": "1162450159251234876",
       "cityPart": false,
-      "enemies": [],
+      "enemies": [
+        {
+          "minNum": 1,
+          "maxNum": 3,
+          "enemy": "LV0_Rycerz"
+        }
+      ],
       "effects": [],
-      "tp": false
+      "tp": false,
+      "unlocked": false
     }
   ]
 }

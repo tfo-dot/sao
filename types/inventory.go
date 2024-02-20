@@ -1,38 +1,25 @@
 package types
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type Skill struct {
 	Name    string
 	Trigger Trigger
-	Cost    *SkillCost
-	Execute func(source, target interface{}, fight interface{})
+	Cost    int
+	//ACTUALLY, shouldn't it be all pointers?
+	Execute func(source, target interface{}, fight *interface{})
 }
 
 type PlayerSkill struct {
-	Name    string
-	Trigger Trigger
-	Cost    SkillCost
-	UUID    uuid.UUID
-	Grade   SkillGrade
-	//TODO conditional cd, like start counting after the shield breaks
-	//TODO passive skills have cd too
+	Name        string
+	Description string
+	Trigger     Trigger
+	Cost        int
+	UUID        uuid.UUID
 	CD          int
-	SkillSource SkillSource
-	//TODO remember fight events? Ye
-	/* Source, target - entities, fight is fight instance */
-	Action func(source, target interface{}, fight interface{})
-}
-
-type Resource int
-
-const (
-	ManaResource Resource = iota
-)
-
-type SkillCost struct {
-	Cost     int
-	Resource Resource
+	Action      func(source, target, fight interface{})
 }
 
 type SkillTriggerType int
@@ -56,21 +43,6 @@ type EventTriggerDetails struct {
 	Meta        map[string]interface{}
 }
 
-type SkillGrade int
-
-const (
-	GradeCommon SkillGrade = iota
-	GradeUltimate
-)
-
-type SkillSource int
-
-const (
-	SourceLVL SkillSource = iota
-	SourceItem
-	SourceFurry
-)
-
 type SkillTrigger int
 
 const (
@@ -86,6 +58,8 @@ const (
 	TRIGGER_MANA
 	TRIGGER_EFFECT
 	TRIGGER_COUNTER
+	TRIGGER_CAST
+	TRIGGER_DAMAGE
 	TRIGGER_NONE
 )
 
@@ -123,4 +97,39 @@ type CustomTrigger int
 
 const (
 	CUSTOM_TRIGGER_UNLOCK CustomTrigger = iota
+	CUSTOM_TRIGGER_AFTER_EXECUTE
+	CUSTOM_TRIGGER_BEFORE_EXECUTE
 )
+
+type PlayerItem struct {
+	UUID        uuid.UUID
+	Name        string
+	Description string
+	TakesSlot   bool
+	Stacks      bool
+	Consume     bool
+	Count       int
+	MaxCount    int
+	Hidden      bool
+	Stats       map[int]int
+	Effects     []Skill
+}
+
+func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *interface{}) {
+
+	if item.Count < 0 {
+		return
+	}
+
+	if item.Consume {
+		item.Count--
+	}
+
+	for _, effect := range item.Effects {
+		if effect.Trigger.Type == TRIGGER_PASSIVE {
+			continue
+		}
+
+		effect.Execute(owner, target, fight)
+	}
+}

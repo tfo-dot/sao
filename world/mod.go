@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"os"
 	"sao/battle"
+	"sao/battle/mobs"
 	"sao/player"
+	"sao/types"
+	"sao/utils"
 	"sao/world/calendar"
 	"sao/world/location"
 	"sao/world/npc"
 	"sao/world/party"
 	"time"
 
+	"github.com/disgoorg/disgo/discord"
 	"github.com/google/uuid"
 )
 
@@ -26,6 +30,7 @@ type World struct {
 	Time     *calendar.Calendar
 	Parties  map[uuid.UUID]*party.Party
 	TestMode bool
+	DChannel chan types.DiscordMessageStruct
 }
 
 func CreateWorld(testMode bool) World {
@@ -76,56 +81,203 @@ func CreateWorld(testMode bool) World {
 		calendar.StartCalendar(),
 		make(map[uuid.UUID]*party.Party),
 		testMode,
+		make(chan types.DiscordMessageStruct, 10),
 	}
 }
 
-func (w *World) RegisterNewPlayer(name, uid string) player.Player {
+func (w *World) RegisterNewPlayer(name, uid string) *player.Player {
 	newPlayer := player.NewPlayer(name, uid)
 
 	w.Players[newPlayer.GetUUID()] = &newPlayer
 
-	return newPlayer
+	return &newPlayer
 }
 
-func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason string) {
+func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason string) error {
+	player := w.Players[pUuid]
+
+	if floorData, exists := w.Floors[floorName]; !exists || (!floorData.Unlocked && player.Meta.Location.FloorName != floorName) {
+		return fmt.Errorf("floor %v not found or locked", locationName)
+	}
+
+	if locationData := w.Floors[floorName].FindLocation(locationName); locationData == nil || (!locationData.Unlocked && player.Meta.Location.LocationName != locationName) {
+		return fmt.Errorf("location %v not found or locked", locationName)
+	}
+
 	if len(reason) == 0 {
 		fmt.Println("No reason for move, it was by player wish")
 	}
 
-	player := w.Players[pUuid]
-
 	player.Meta.Location.FloorName = floorName
 	player.Meta.Location.LocationName = locationName
+
+	return nil
 }
 
-func (w *World) PlayerEncounter(uuid uuid.UUID) {
-	//TODO: Implement actual encounters
-	// 	player := w.Players[uuid]
+func (w *World) PlayerSearch(uuid uuid.UUID) {
+	player := w.Players[uuid]
 
-	// 	floor := w.Floors[player.Meta.Location.FloorName]
-	// 	location := floor.FindLocation(player.Meta.Location.LocationName)
+	floor := w.Floors[player.Meta.Location.FloorName]
 
-	// 	randomEnemy := utils.RandomElement[mobs.MobType](location.Enemies)
+	var location location.Location
 
-	// 	enemies := mobs.MobEncounter(randomEnemy)
+	for _, loc := range floor.Locations {
+		if loc.Name == player.Meta.Location.LocationName {
+			location = loc
+		}
+	}
 
-	// 	entityMap := make(battle.EntityMap)
+	if len(location.Enemies) == 0 {
+		return
+	}
 
-	// 	entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
+	enemyEntry := utils.RandomElement(location.Enemies)
+	enemyCount := utils.RandomNumber(enemyEntry.MinNum, enemyEntry.MaxNum)
 
-	// 	for _, enemy := range enemies {
-	// 		entityMap[enemy.GetUUID()] = battle.EntityEntry{Entity: enemy, Side: 1}
-	// 	}
+	entityMap := make(battle.EntityMap)
 
-	// 	fight := battle.Fight{Entities: entityMap}
+	if player.Meta.Party != nil {
+		partyData := w.Parties[*player.Meta.Party]
+		partyMemberCount := len(partyData.Players)
 
-	// 	fight.Init(w.Time.Copy())
+		for role, members := range *partyData.Roles {
+			switch role {
+			case party.Leader:
+				for _, member := range members {
+					resolvedMember := w.Players[member]
 
-	// 	fightUUID := w.RegisterFight(fight)
+					if _, exists := entityMap[member]; exists {
+						continue
+					}
 
-	// 	player.Meta.FightInstance = &fightUUID
+					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
+				}
+			case party.DPS:
+				for _, member := range members {
+					resolvedMember := w.Players[member]
 
-	// 	go w.ListenForFight(fightUUID)
+					if _, exists := entityMap[member]; exists {
+						continue
+					}
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_ADAPTIVE,
+							Value:     10 + (partyMemberCount-1)*5,
+							IsPercent: true,
+						},
+					})
+
+					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
+				}
+			case party.Tank:
+				for _, member := range members {
+					resolvedMember := w.Players[member]
+
+					if _, exists := entityMap[member]; exists {
+						continue
+					}
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_DEF,
+							Value:     25,
+							IsPercent: false,
+						},
+					})
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_MR,
+							Value:     25,
+							IsPercent: false,
+						},
+					})
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_HP,
+							Value:     (partyMemberCount - 1) * 5,
+							IsPercent: true,
+						},
+					})
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_DEF,
+							Value:     (partyMemberCount - 1) * 5,
+							IsPercent: true,
+						},
+					})
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_MR,
+							Value:     (partyMemberCount - 1) * 5,
+							IsPercent: true,
+						},
+					})
+
+					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
+				}
+			case party.Support:
+				for _, member := range members {
+					resolvedMember := w.Players[member]
+
+					if _, exists := entityMap[member]; exists {
+						continue
+					}
+
+					resolvedMember.ApplyEffect(battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_INC,
+						Duration: -1,
+						Meta: battle.ActionEffectStat{
+							Stat:      battle.STAT_HEAL_POWER,
+							Value:     15 + (partyMemberCount-1)*5,
+							IsPercent: true,
+						},
+					})
+
+					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
+				}
+			}
+		}
+	} else {
+		entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
+	}
+
+	for i := 0; i < enemyCount; i++ {
+		entity := mobs.Spawn(enemyEntry.Enemy)
+
+		entityMap[entity.GetUUID()] = battle.EntityEntry{Entity: entity, Side: 1}
+	}
+
+	fight := battle.Fight{
+		Entities:       entityMap,
+		DiscordChannel: w.DChannel,
+		StartTime:      w.Time.Copy(),
+		Location:       &location,
+	}
+
+	fight.Init()
+
+	fightUUID := w.RegisterFight(fight)
+
+	player.Meta.FightInstance = &fightUUID
+
+	go w.ListenForFight(fightUUID)
 }
 
 func (w *World) StartClock() {
@@ -153,7 +305,7 @@ func (w *World) StartClock() {
 				healRatio := 50
 
 				if w.PlayerInCity(pUuid) {
-					healRatio = 100
+					healRatio = 25
 				}
 
 				player.Heal(player.GetMaxHP() / healRatio)
@@ -227,6 +379,151 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				}
 			}
 
+			wonSideText := ""
+
+			for _, entity := range wonEntities {
+				wonSideText += fmt.Sprintf("%v", entity.GetName())
+
+				if !entity.IsAuto() {
+					wonSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+				}
+
+				wonSideText += "\n"
+			}
+
+			wonSideText = wonSideText[:len(wonSideText)-1]
+
+			w.DChannel <- types.DiscordMessageStruct{
+				ChannelID: fight.Location.CID,
+				MessageContent: discord.
+					NewMessageCreateBuilder().
+					AddEmbeds(
+						discord.
+							NewEmbedBuilder().
+							SetTitle("Koniec walki!").
+							SetDescriptionf("Wygrali:\n" + wonSideText).
+							Build(),
+					).
+					Build(),
+			}
+		case battle.MSG_FIGHT_START:
+			oneSide := fight.Entities.FromSide(0)
+			otherSide := fight.Entities.FromSide(1)
+
+			oneSideText := ""
+
+			for _, entity := range oneSide {
+				oneSideText += fmt.Sprintf("%v", entity.GetName())
+				if !entity.IsAuto() {
+					oneSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+				}
+
+				oneSideText += "\n"
+			}
+
+			oneSideText = oneSideText[:len(oneSideText)-1]
+
+			otherSideText := ""
+
+			for _, entity := range otherSide {
+				otherSideText += fmt.Sprintf("%v", entity.GetName())
+
+				if !entity.IsAuto() {
+					otherSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+				}
+
+				otherSideText += "\n"
+			}
+
+			otherSideText = otherSideText[:len(otherSideText)-1]
+
+			w.DChannel <- types.DiscordMessageStruct{
+				ChannelID: fight.Location.CID,
+				MessageContent: discord.NewMessageCreateBuilder().
+					SetContent("Walka się rozpoczyna!").
+					AddEmbeds(discord.NewEmbedBuilder().
+						SetTitle("Walka").
+						AddField("Po jednej!", oneSideText, false).
+						AddField("Po drugiej!", otherSideText, false).
+						Build()).
+					Build(),
+			}
+
+		case battle.MSG_ACTION_NEEDED:
+			entityUuid, err := uuid.FromBytes(payload[1:17])
+			player := w.Players[entityUuid]
+
+			if err != nil {
+				panic(err)
+			}
+
+			attackButton := discord.NewPrimaryButton("Atak", "f/attack")
+
+			if !player.CanAttack() {
+				attackButton = attackButton.AsDisabled()
+			}
+
+			defendButton := discord.NewPrimaryButton("Obrona", "f/defend")
+
+			if !player.CanDefend() {
+				defendButton = defendButton.AsDisabled()
+			}
+
+			skillButton := discord.NewPrimaryButton("Skill", "f/skill")
+
+			filteredSkillsCount := 0
+
+			for _, skill := range player.GetAllSkills() {
+				if player.CanUseSkill(skill) {
+					filteredSkillsCount++
+				}
+			}
+
+			for _, skill := range player.Inventory.LevelSkills {
+				if player.CanUseLvlSkill(skill) {
+					filteredSkillsCount++
+				}
+			}
+
+			if filteredSkillsCount == 0 {
+				skillButton = skillButton.AsDisabled()
+			}
+
+			itemButton := discord.NewPrimaryButton("Przedmiot", "f/item")
+
+			filteredItemsCount := 0
+
+			for _, item := range player.GetAllItems() {
+				if item.Consume && item.Count > 0 && !item.Hidden {
+					filteredItemsCount++
+				}
+			}
+
+			if filteredItemsCount == 0 {
+				itemButton = itemButton.AsDisabled()
+			}
+
+			escapeButton := discord.NewDangerButton("Ucieczka", "f/escape")
+
+			w.DChannel <- types.DiscordMessageStruct{
+				ChannelID: fight.Location.CID,
+				MessageContent: discord.NewMessageCreateBuilder().
+					AddEmbeds(discord.NewEmbedBuilder().
+						SetTitle("Czas na turę!").
+						SetDescriptionf("Kolej <@%s>!", player.GetUID()).
+						SetAuthorName(player.Name).
+						Build(),
+					).
+					AddActionRow(
+						attackButton,
+						defendButton,
+						skillButton,
+						itemButton,
+						escapeButton,
+					).
+					Build(),
+			}
+
 		default:
 			panic("Unhandled event")
 		}
@@ -251,4 +548,14 @@ func (w *World) DeregisterFight(uuid uuid.UUID) {
 	}
 
 	delete(w.Fights, uuid)
+}
+
+func (w *World) GetPlayer(uid string) *player.Player {
+	for _, pl := range w.Players {
+		if pl.Meta.UserID == uid {
+			return pl
+		}
+	}
+
+	return nil
 }

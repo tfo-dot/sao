@@ -107,18 +107,32 @@ func (p *Player) Action(f *battle.Fight) int {
 	return 0
 }
 
+func (p *Player) GetShields() int {
+	shieldValue := 0
+
+	for _, effect := range p.Stats.Effects {
+		if effect.Effect == battle.EFFECT_SHIELD {
+			shieldValue += effect.Value
+		}
+	}
+
+	return shieldValue
+}
+
 func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 	currentHP := p.Stats.HP
 
 	for _, dmg := range dmgList.Damage {
+		updatedDmg := dmg.Value
+
 		switch dmg.Type {
 		case battle.DMG_PHYSICAL:
-			dmg.Value = utils.CalcReducedDamage(dmg.Value, p.GetDEF())
+			updatedDmg = utils.CalcReducedDamage(dmg.Value, p.GetDEF())
 		case battle.DMG_MAGICAL:
-			dmg.Value = utils.CalcReducedDamage(dmg.Value, p.GetMR())
+			updatedDmg = utils.CalcReducedDamage(dmg.Value, p.GetMR())
 		}
 
-		p.Stats.HP -= dmg.Value
+		p.Stats.HP -= updatedDmg
 	}
 
 	//DMG TAKEN NOT THE SAME AS DMG DEALT
@@ -194,8 +208,12 @@ func (p *Player) GetEffect(effect battle.Effect) *battle.ActionEffect {
 	return p.Stats.Effects.GetEffect(effect)
 }
 
-func (p *Player) TriggerAllEffects() {
-	p.Stats.Effects = p.Stats.Effects.TriggerAllEffects(p)
+func (p *Player) TriggerAllEffects() []battle.ActionEffect {
+	effects, expiredEffects := p.Stats.Effects.TriggerAllEffects(p)
+
+	p.Stats.Effects = effects
+
+	return expiredEffects
 }
 
 func (p *Player) GetAllEffects() []battle.ActionEffect {
@@ -227,81 +245,74 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	switch skill.Cost.Resource {
-	case types.ManaResource:
-		if p.GetCurrentMana() < skill.Cost.Cost {
-			return false
-		}
+	if p.GetCurrentMana() < skill.Cost {
+		return false
 	}
 
 	return true
 }
 
-func (p *Player) GetAvailableActions() []battle.ActionPartial {
-	actions := make([]battle.ActionPartial, 0)
-
-	if p.CanAttack() {
-		actions = append(actions, battle.ActionPartial{Event: battle.ACTION_ATTACK, Meta: nil})
+func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkill) bool {
+	if skill.Trigger.Type == types.TRIGGER_PASSIVE {
+		return false
 	}
 
-	if p.CanDefend() {
-		actions = append(actions, battle.ActionPartial{Event: battle.ACTION_DEFEND, Meta: nil})
+	if p.HasEffect(battle.EFFECT_SILENCE) {
+		return false
 	}
 
-	for _, skill := range p.GetAllSkills() {
-		if skill.Trigger.Type == types.TRIGGER_ACTIVE && p.CanUseSkill(skill) {
-			actions = append(actions, battle.ActionPartial{Event: battle.ACTION_SKILL, Meta: &skill.UUID})
-		}
+	if p.Inventory.LevelSkillsCDS[skill.ForLevel] > 0 {
+		return false
 	}
 
-	for _, item := range p.Inventory.Items {
-
-		if item.Effects == nil {
-			continue
-		}
-
-		for _, effect := range item.Effects {
-			if effect.Trigger.Type == types.TRIGGER_ACTIVE {
-				actions = append(actions, battle.ActionPartial{Event: battle.ACTION_ITEM, Meta: &item.UUID})
-			}
-		}
+	if p.GetCurrentMana() < skill.Cost {
+		return false
 	}
 
-	return actions
+	return true
 }
 
 func (p *Player) GetAllSkills() []types.PlayerSkill {
-
 	tempArr := p.Inventory.Skills
 
 	for _, item := range p.Inventory.Items {
 		for _, effect := range item.Effects {
 
-			tempArr = append(tempArr, types.PlayerSkill{
+			tempArr = append(tempArr, &types.PlayerSkill{
 				Name:    effect.Name,
 				Trigger: effect.Trigger,
-				Cost:    types.SkillCost{Cost: 0, Resource: types.ManaResource},
+				Cost:    0,
 				UUID:    item.UUID,
-				Grade:   types.GradeCommon,
-				Action:  effect.Execute,
+				Action: func(source interface{}, target interface{}, fight interface{}) {
+					effect.Execute(source, target, fight.(*interface{}))
+				},
 			})
 		}
 	}
 
-	return tempArr
-}
-
-func (p *Player) AddItem(item interface{}) {
-	itemCasted := item.(inventory.PlayerItem)
-	p.Inventory.Items = append(p.Inventory.Items, itemCasted)
-}
-
-func (p *Player) GetAllItems() []interface{} {
-	items := make([]interface{}, len(p.Inventory.Items))
-	for i, item := range p.Inventory.Items {
-		items[i] = item
+	for _, skill := range p.Inventory.LevelSkills {
+		tempArr = append(tempArr, &types.PlayerSkill{
+			Name:        skill.Name,
+			Description: skill.Description,
+			Trigger:     *skill.Trigger,
+			Cost:        skill.Cost,
+			UUID:        uuid.Nil,
+			Action: func(source interface{}, target interface{}, fight interface{}) {
+				skill.Execute(source.(battle.PlayerEntity), target.(battle.Entity), fight.(*battle.Fight))
+			},
+			CD: skill.CD.Calc(skill, p.GetUpgrades(skill.ForLevel)),
+		})
 	}
-	return items
+
+	return []types.PlayerSkill{}
+}
+
+func (p *Player) AddItem(item *types.PlayerItem) {
+	p.Inventory.Items = append(p.Inventory.Items, item)
+}
+
+func (p *Player) GetAllItems() []*types.PlayerItem {
+	return p.Inventory.Items
 }
 
 func (p *Player) RemoveItem(item int) {
@@ -314,6 +325,117 @@ func (p *Player) RestoreMana(value int) {
 	if p.Stats.CurrentMana > p.GetMaxMana() {
 		p.Stats.CurrentMana = p.GetMaxMana()
 	}
+}
+
+func (p *Player) GetStat(stat battle.Stat) int {
+	statValue := 0
+	percentValue := 0
+
+	for _, effect := range p.GetAllEffects() {
+		if effect.Effect == battle.EFFECT_STAT_INC {
+
+			if value, ok := effect.Meta.(battle.ActionEffectStat); ok {
+				if value.Stat != stat {
+					continue
+				}
+
+				if value.IsPercent {
+					percentValue += value.Value
+				} else {
+					statValue += value.Value
+				}
+			}
+		}
+
+		if effect.Effect == battle.EFFECT_STAT_DEC {
+
+			if value, ok := effect.Meta.(battle.ActionEffectStat); ok {
+				if value.Stat != stat {
+					continue
+				}
+
+				if value.IsPercent {
+					percentValue -= value.Value
+				} else {
+					statValue -= value.Value
+				}
+			}
+		}
+	}
+
+	tempValue := statValue
+
+	switch stat {
+	case battle.STAT_HP:
+		tempValue += p.GetMaxHP()
+	case battle.STAT_AD:
+		tempValue += p.GetATK()
+	case battle.STAT_SPD:
+		tempValue += p.GetSPD()
+	case battle.STAT_AGL:
+		tempValue += p.GetAGL()
+	case battle.STAT_AP:
+		tempValue += p.GetAP()
+	case battle.STAT_DEF:
+		tempValue += p.GetDEF()
+	case battle.STAT_MR:
+		tempValue += p.GetMR()
+	case battle.STAT_MANA:
+		tempValue += p.GetCurrentMana()
+	}
+
+	return tempValue + (tempValue * percentValue / 100)
+}
+
+func (p *Player) Cleanse() {
+	p.Stats.Effects.Cleanse()
+}
+
+func (p *Player) GetUpgrades(lvl int) []string {
+	return p.Inventory.LevelSkillsUpgrades[lvl]
+}
+
+func (p *Player) GetLvlSkill(lvl int) *types.PlayerSkill {
+	for _, skill := range p.Inventory.LevelSkills {
+		if skill.ForLevel == lvl {
+
+			return &types.PlayerSkill{
+				Name:        skill.Name,
+				Trigger:     *skill.Trigger,
+				Description: skill.Description,
+				Cost:        skill.Cost,
+				UUID:        uuid.Nil,
+				Action: func(source interface{}, target interface{}, fight interface{}) {
+					skill.Execute(source.(battle.PlayerEntity), target.(battle.Entity), fight.(*battle.Fight))
+				},
+				CD: skill.CD.Calc(skill, p.GetUpgrades(lvl)),
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *Player) GetSkill(skillUUID uuid.UUID) *types.PlayerSkill {
+	for _, skill := range p.Inventory.Skills {
+		if skill.UUID == skillUUID {
+			return skill
+		}
+	}
+
+	return nil
+}
+
+func (p *Player) GetUID() string {
+	return p.Meta.UserID
+}
+
+func (p *Player) SetCD(skillUUID uuid.UUID, value int) {
+	p.Inventory.CDS[skillUUID] = value
+}
+
+func (p *Player) GetCD(skillUUID uuid.UUID) int {
+	return p.Inventory.CDS[skillUUID]
 }
 
 func NewPlayer(name string, uid string) Player {

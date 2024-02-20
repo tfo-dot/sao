@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"sao/discord"
+	"sao/player"
+	"sao/player/inventory"
+	"sao/types"
 	"sao/world"
-	"sao/world/party"
 
 	"github.com/google/uuid"
 )
@@ -44,25 +46,49 @@ func main() {
 
 	discord.World = &world
 
-	world.RegisterNewPlayer("tfo", "344048874656366592")
+	testPlayer := world.RegisterNewPlayer("tfo", "344048874656366592")
 
-	for _, pl := range world.Players {
-		if pl.Name == "tfo" {
-
-			pUuid := uuid.New()
-
-			world.Parties[pUuid] = &party.Party{
-				Players: []uuid.UUID{pl.GetUUID()},
-				Roles: &map[party.PartyRole][]uuid.UUID{
-					party.Leader: {pl.GetUUID()},
+	testPlayer.Inventory.Items = append(testPlayer.Inventory.Items, &types.PlayerItem{
+		UUID:        uuid.New(),
+		Name:        "Mikstura",
+		Description: "Przywraca 25 punktów życia",
+		Count:       1,
+		MaxCount:    5,
+		TakesSlot:   true,
+		Stacks:      true,
+		Consume:     true,
+		Hidden:      false,
+		Stats:       map[int]int{},
+		Effects: []types.Skill{
+			{
+				Name: "Uzdrowienie",
+				Trigger: types.Trigger{
+					Type: types.TRIGGER_ACTIVE,
+					Event: &types.EventTriggerDetails{
+						TriggerType:   types.TRIGGER_NONE,
+						TargetType:    []types.TargetTag{types.TARGET_SELF},
+						TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+						TargetCount:   1,
+						Meta:          map[string]interface{}{},
+					},
 				},
-			}
+				Cost: 0,
+				Execute: func(source, target interface{}, fight *interface{}) {
+					source.(*player.Player).Heal(25)
+				},
+			},
+		},
+	})
 
-			pl.Meta.Party = &pUuid
-		}
+	err = testPlayer.Inventory.UnlockSkill(inventory.PathControl, 1, 1, testPlayer)
+
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	go discord.StartClient(string(botKey))
+
+	// world.PlayerSearch(testPlayer.GetUUID())
 
 	for {
 		continue

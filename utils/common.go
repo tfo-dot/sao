@@ -5,39 +5,37 @@ import (
 	"math/rand"
 )
 
-// Random element from slice
 func RandomElement[v any](slice []v) v {
 	return slice[rand.Intn(len(slice))]
 }
 
-func CalcReducedDamage(atk, def int) int {
-	if def < 0 {
-		return int(float32(atk) * float32(2.0-float32(100/(100-def))))
+func CalcReducedDamage(atk, reductionValue int) int {
+	if reductionValue == 0 {
+		return atk
+	}
+
+	if reductionValue < 0 {
+		return int(float32(atk) * float32(2.0-float32(100/(100-reductionValue))))
 	} else {
-		return int(float32(atk) * float32(100/(100+def)))
+		return int(float32(atk) * float32(100/(100+reductionValue)))
 	}
 }
 
 // Random number
 func RandomNumber(min, max int) int {
-	return rand.Intn(max-min) + min
+	return rand.Intn(max+1-min) + min
 }
 
 func PercentOf(value, percent int) int {
 	return int(math.Round(float64(value) * float64(percent) / 100.0))
 }
 
-func ReadStringWithOffset(offset int, buf []byte) (int, string) {
-	strLen := int(buf[offset])
+func Map[v any, r any](slice []v, mapFunc func(v) r) []r {
+	result := make([]r, len(slice))
 
-	return offset + 1 + strLen, string(buf[offset+1 : offset+1+strLen])
-}
+	for i, v := range slice {
+		result[i] = mapFunc(v)
+	}
 
-func WriteStringWithOffset(buf []byte, offset int, str string) int {
-	buf[offset] = byte(len(str))
-	offset++
-
-	copy(buf[offset:offset+len(str)], str)
-
-	return offset + len(str)
+	return result
 }

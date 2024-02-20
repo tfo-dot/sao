@@ -9,19 +9,21 @@ import (
 )
 
 type PlayerInventory struct {
-	Gold        int
-	Capacity    int
-	Items       []PlayerItem
-	CDS         map[uuid.UUID]int
-	Skills      []types.PlayerSkill
-	LevelSkills map[int]PSkill
+	Gold                int
+	Capacity            int
+	Items               []*types.PlayerItem
+	CDS                 map[uuid.UUID]int
+	Skills              []*types.PlayerSkill
+	LevelSkillsCDS      map[int]int
+	LevelSkills         map[int]PlayerSkill
+	LevelSkillsUpgrades map[int][]string
 }
 
 func (inv PlayerInventory) GetStat(stat battle.Stat) int {
 	value := 0
 
 	for _, item := range inv.Items {
-		val, exists := item.Stats[stat]
+		val, exists := item.Stats[int(stat)]
 
 		if exists {
 			value += val
@@ -31,7 +33,7 @@ func (inv PlayerInventory) GetStat(stat battle.Stat) int {
 	return value
 }
 
-func (inv PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}) {
+func (inv PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, target interface{}, fightInstance *interface{}) {
 	for i, item := range inv.Items {
 		if item.UUID == itemUuid {
 			if item.Consume && item.Count <= 0 {
@@ -42,7 +44,7 @@ func (inv PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}) {
 				item.Count--
 			}
 
-			inv.Items[i].UseItem(owner)
+			inv.Items[i].UseItem(owner, target, fightInstance)
 
 			if item.Count == 0 && item.Consume {
 				inv.Items = append(inv.Items[:i], inv.Items[i+1:]...)
@@ -77,14 +79,37 @@ func (inv PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, p
 	return errors.New("SKILL_NOT_FOUND")
 }
 
+func (inv PlayerInventory) UpgradeSkill(path SkillPath, lvl int, upgradeName string) error {
+	if _, exists := inv.LevelSkills[lvl]; !exists {
+		return errors.New("SKILL_NOT_UNLOCKED")
+	}
+
+	for _, skill := range AVAILABLE_SKILLS {
+		if skill.Path == path && skill.ForLevel == lvl {
+			for _, upgrade := range skill.Upgrades {
+				if upgrade.Name == upgradeName {
+					if _, exists := inv.LevelSkillsUpgrades[lvl]; !exists {
+						inv.LevelSkillsUpgrades[lvl] = []string{}
+					}
+
+					inv.LevelSkillsUpgrades[lvl] = append(inv.LevelSkillsUpgrades[lvl], upgrade.Name)
+					return nil
+				}
+			}
+		}
+	}
+
+	return errors.New("SKILL_NOT_FOUND")
+}
+
 func GetDefaultInventory() PlayerInventory {
 	return PlayerInventory{
 		Gold:        0,
 		Capacity:    10,
-		Items:       []PlayerItem{},
+		Items:       []*types.PlayerItem{},
 		CDS:         map[uuid.UUID]int{},
-		Skills:      []types.PlayerSkill{},
-		LevelSkills: map[int]PSkill{},
+		Skills:      []*types.PlayerSkill{},
+		LevelSkills: map[int]PlayerSkill{},
 	}
 }
 
@@ -101,38 +126,5 @@ func (inv *PlayerInventory) UseSkill(skillUuid uuid.UUID, owner, target, fightIn
 
 			return
 		}
-	}
-}
-
-type PlayerItem struct {
-	UUID        uuid.UUID
-	Name        string
-	Description string
-	TakesSlot   bool
-	Stacks      bool
-	Consume     bool
-	Count       int
-	MaxCount    int
-	Hidden      bool
-	Stats       map[battle.Stat]int
-	Effects     []types.Skill
-}
-
-func (item *PlayerItem) UseItem(owner interface{}) {
-
-	if item.Count < 0 {
-		return
-	}
-
-	if item.Consume {
-		item.Count--
-	}
-
-	for _, effect := range item.Effects {
-		if effect.Trigger.Type == types.TRIGGER_PASSIVE {
-			continue
-		}
-
-		effect.Execute(owner, nil, nil)
 	}
 }
