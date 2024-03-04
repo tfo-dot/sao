@@ -5,6 +5,7 @@ import (
 	"sao/battle"
 	"sao/player/inventory"
 	"sao/utils"
+	"sao/world/party"
 	"strings"
 
 	"github.com/disgoorg/disgo/discord"
@@ -96,7 +97,10 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						return
 					}
 
-					World.Parties[partyUuid].Players = append(World.Parties[partyUuid].Players, pl.GetUUID())
+					World.Parties[partyUuid].Players = append(World.Parties[partyUuid].Players, &party.PartyEntry{
+						PlayerUuid: pl.GetUUID(),
+						Role:       party.None,
+					})
 
 					pl.Meta.Party = &partyUuid
 

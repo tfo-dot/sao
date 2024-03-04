@@ -140,119 +140,89 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 		partyData := w.Parties[*player.Meta.Party]
 		partyMemberCount := len(partyData.Players)
 
-		for role, members := range *partyData.Roles {
-			switch role {
-			case party.Leader:
-				for _, member := range members {
-					resolvedMember := w.Players[member]
+		for _, member := range partyData.Players {
+			effects := make([]battle.ActionEffect, 0)
 
-					if _, exists := entityMap[member]; exists {
-						continue
-					}
-
-					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
-				}
+			switch member.Role {
 			case party.DPS:
-				for _, member := range members {
-					resolvedMember := w.Players[member]
-
-					if _, exists := entityMap[member]; exists {
-						continue
-					}
-
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_ADAPTIVE,
-							Value:     10 + (partyMemberCount-1)*5,
-							IsPercent: true,
-						},
-					})
-
-					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
-				}
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_ADAPTIVE,
+						Value:     10 + (partyMemberCount-1)*5,
+						IsPercent: true,
+					},
+				})
 			case party.Tank:
-				for _, member := range members {
-					resolvedMember := w.Players[member]
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_DEF,
+						Value:     25,
+						IsPercent: false,
+					},
+				})
 
-					if _, exists := entityMap[member]; exists {
-						continue
-					}
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_MR,
+						Value:     25,
+						IsPercent: false,
+					},
+				})
 
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_DEF,
-							Value:     25,
-							IsPercent: false,
-						},
-					})
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_HP,
+						Value:     (partyMemberCount - 1) * 5,
+						IsPercent: true,
+					},
+				})
 
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_MR,
-							Value:     25,
-							IsPercent: false,
-						},
-					})
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_DEF,
+						Value:     (partyMemberCount - 1) * 5,
+						IsPercent: true,
+					},
+				})
 
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_HP,
-							Value:     (partyMemberCount - 1) * 5,
-							IsPercent: true,
-						},
-					})
-
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_DEF,
-							Value:     (partyMemberCount - 1) * 5,
-							IsPercent: true,
-						},
-					})
-
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_MR,
-							Value:     (partyMemberCount - 1) * 5,
-							IsPercent: true,
-						},
-					})
-
-					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
-				}
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_MR,
+						Value:     (partyMemberCount - 1) * 5,
+						IsPercent: true,
+					},
+				})
 			case party.Support:
-				for _, member := range members {
-					resolvedMember := w.Players[member]
-
-					if _, exists := entityMap[member]; exists {
-						continue
-					}
-
-					resolvedMember.ApplyEffect(battle.ActionEffect{
-						Effect:   battle.EFFECT_STAT_INC,
-						Duration: -1,
-						Meta: battle.ActionEffectStat{
-							Stat:      battle.STAT_HEAL_POWER,
-							Value:     15 + (partyMemberCount-1)*5,
-							IsPercent: true,
-						},
-					})
-
-					entityMap[member] = battle.EntityEntry{Entity: resolvedMember, Side: 0}
-				}
+				effects = append(effects, battle.ActionEffect{
+					Effect:   battle.EFFECT_STAT_INC,
+					Duration: -1,
+					Meta: battle.ActionEffectStat{
+						Stat:      battle.STAT_HEAL_POWER,
+						Value:     15 + (partyMemberCount-1)*5,
+						IsPercent: true,
+					},
+				})
 			}
+
+			resolvedUser := w.Players[member.PlayerUuid]
+
+			for _, effect := range effects {
+				resolvedUser.ApplyEffect(effect)
+			}
+
+			entityMap[resolvedUser.GetUUID()] = battle.EntityEntry{Entity: resolvedUser, Side: 0}
 		}
 	} else {
 		entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
