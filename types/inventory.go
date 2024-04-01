@@ -133,3 +133,29 @@ func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *in
 		effect.Execute(owner, target, fight)
 	}
 }
+
+type ItemType int
+
+const (
+	ITEM_OTHER ItemType = iota
+	ITEM_MATERIAL
+)
+
+type Ingredient struct {
+	UUID  uuid.UUID
+	Name  string
+	Count int
+}
+
+type Recipe struct {
+	UUID        uuid.UUID
+	Name        string
+	Description string
+	Ingredients []WithCount[uuid.UUID]
+	Product     WithCount[uuid.UUID]
+}
+
+type WithCount[T any] struct {
+	Item  T
+	Count int
+}

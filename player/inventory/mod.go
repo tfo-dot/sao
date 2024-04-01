@@ -12,11 +12,21 @@ type PlayerInventory struct {
 	Gold                int
 	Capacity            int
 	Items               []*types.PlayerItem
-	CDS                 map[uuid.UUID]int
+	Ingredients         map[uuid.UUID]*types.Ingredient
 	Skills              []*types.PlayerSkill
+	CDS                 map[uuid.UUID]int
 	LevelSkillsCDS      map[int]int
 	LevelSkills         map[int]PlayerSkill
 	LevelSkillsUpgrades map[int][]string
+}
+
+func (inv PlayerInventory) AddIngredient(ingredient *types.Ingredient) {
+	if _, exists := inv.Ingredients[ingredient.UUID]; exists {
+		inv.Ingredients[ingredient.UUID].Count += ingredient.Count
+		return
+	}
+
+	inv.Ingredients[ingredient.UUID] = ingredient
 }
 
 func (inv PlayerInventory) GetStat(stat battle.Stat) int {

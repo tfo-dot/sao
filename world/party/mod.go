@@ -4,6 +4,7 @@ import "github.com/google/uuid"
 
 type Party struct {
 	Players []*PartyEntry
+	Leader  uuid.UUID
 }
 
 type PartyEntry struct {
@@ -14,8 +15,7 @@ type PartyEntry struct {
 type PartyRole int
 
 const (
-	Leader PartyRole = iota
-	DPS
+	DPS PartyRole = iota
 	Support
 	Tank
 	None

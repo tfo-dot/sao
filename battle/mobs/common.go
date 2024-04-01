@@ -160,9 +160,15 @@ func (m *MobEntity) IsAuto() bool {
 }
 
 func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) int {
-	currentHP := m.HP
+	startingHP := m.HP
 
 	for _, dmg := range dmg.Damage {
+		//Skip shield and such
+		if dmg.Type == battle.DMG_TRUE {
+			m.HP -= dmg.Value
+			continue
+		}
+
 		rawDmg := dmg.Value
 
 		switch dmg.Type {
@@ -172,10 +178,36 @@ func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) int {
 			rawDmg = utils.CalcReducedDamage(dmg.Value, m.GetMR())
 		}
 
-		m.HP -= rawDmg
+		m.HP -= m.DamageShields(rawDmg)
 	}
 
-	return currentHP - m.HP
+	return startingHP - m.HP
+}
+
+func (m *MobEntity) DamageShields(dmg int) int {
+	leftOverDmg := dmg
+	idxToRemove := make([]int, 0)
+
+	for idx, effect := range m.Effects {
+		if effect.Effect == battle.EFFECT_SHIELD {
+			newShieldValue := effect.Value - leftOverDmg
+
+			if newShieldValue <= 0 {
+				leftOverDmg = newShieldValue * -1
+
+				idxToRemove = append(idxToRemove, idx)
+			} else {
+				effect.Value = newShieldValue
+				leftOverDmg = 0
+			}
+		}
+	}
+
+	for _, idx := range idxToRemove {
+		m.Effects = append(m.Effects[:idx], m.Effects[idx+1:]...)
+	}
+
+	return leftOverDmg
 }
 
 func (m *MobEntity) Action(f *battle.Fight) int {

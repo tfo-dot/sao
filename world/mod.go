@@ -330,22 +330,91 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 		switch battle.FightMessage(msgType) {
 		case battle.MSG_FIGHT_END:
 			wonSideIDX := fight.Entities.SidesLeft()[0]
+			wonEntities := fight.Entities.FromSide(wonSideIDX)
 
-			allLoot := make([]battle.Loot, 0)
+			overallXp := 0
+			overallGold := 0
+			lootedItems := make([]battle.Loot, 0)
 
 			for _, entity := range fight.Entities {
 				if entity.Side == wonSideIDX {
 					continue
 				}
 
-				allLoot = append(allLoot, entity.Entity.GetLoot()...)
+				lootList := entity.Entity.GetLoot()
+
+				for _, loot := range lootList {
+					switch loot.Type {
+					case battle.LOOT_EXP:
+						overallXp += (*loot.Meta)["value"].(int)
+					case battle.LOOT_GOLD:
+						overallGold += (*loot.Meta)["value"].(int)
+					case battle.LOOT_ITEM:
+						lootedItems = append(lootedItems, loot)
+					}
+				}
 			}
 
-			wonEntities := fight.Entities.FromSide(wonSideIDX)
+			partyUuid := wonEntities[0].(battle.PlayerEntity).GetParty()
 
-			for _, entity := range wonEntities {
-				if !entity.IsAuto() {
-					entity.(battle.PlayerEntity).ReceiveMultipleLoot(allLoot)
+			if partyUuid != nil {
+				partyData := w.Parties[*partyUuid]
+				partyLeader := w.Players[partyData.Leader]
+
+				for _, member := range partyData.Players {
+					player := w.Players[member.PlayerUuid]
+
+					player.AddEXP(overallXp / len(partyData.Players))
+					player.AddGold(overallGold / len(partyData.Players))
+				}
+
+				for _, loot := range lootedItems {
+					itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
+
+					if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
+						itemObj := Items[itemUuid]
+
+						itemObj.Count = (*loot.Meta)["count"].(int)
+
+						partyLeader.Inventory.Items = append(partyLeader.Inventory.Items, &itemObj)
+					} else {
+						ingredient := Ingredients[itemUuid]
+
+						ingredient.Count = (*loot.Meta)["count"].(int)
+
+						partyLeader.Inventory.AddIngredient(&ingredient)
+					}
+				}
+			} else {
+				for _, entity := range wonEntities {
+					entityUuid := entity.GetUUID()
+
+					if entity.IsAuto() {
+						continue
+					}
+
+					player := w.Players[entityUuid]
+
+					player.AddEXP(overallXp)
+					player.AddGold(overallGold)
+
+					for _, loot := range lootedItems {
+						itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
+
+						if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
+							itemObj := Items[itemUuid]
+
+							itemObj.Count = (*loot.Meta)["count"].(int)
+
+							player.Inventory.Items = append(player.Inventory.Items, &itemObj)
+						} else {
+							ingredient := Ingredients[itemUuid]
+
+							ingredient.Count = (*loot.Meta)["count"].(int)
+
+							player.Inventory.AddIngredient(&ingredient)
+						}
+					}
 				}
 			}
 

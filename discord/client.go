@@ -397,9 +397,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			partyMembersText := ""
 
-			party := World.Parties[*playerChar.Meta.Party]
+			partyObj := World.Parties[*playerChar.Meta.Party]
 
-			for _, member := range party.Players {
+			for _, member := range partyObj.Players {
 				memberObj := World.Players[member.PlayerUuid]
 
 				partyMembersText += fmt.Sprintf("<@%s> - %s\n", memberObj.Meta.UserID, memberObj.GetName())
@@ -411,29 +411,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			embed.AddField("Członkowie", partyMembersText, false)
 
-			//TODO group by role
+			partyLeader := World.Players[partyObj.Leader]
 
-			// for _, entry := range party.Players {
-
-			// 	if len(party.Players) == 0 {
-			// 		embed.AddField(RoleToString[entry.Role], "Brak", false)
-			// 		continue
-			// 	}
-
-			// 	playersText := ""
-
-			// 	for _, player := range players {
-			// 		playerObj := World.Players[player]
-
-			// 		playersText += fmt.Sprintf("<@%s> - %s\n", playerObj.Meta.UserID, playerObj.GetName())
-			// 	}
-
-			// 	if playersText[len(playersText)-1] == '\n' {
-			// 		playersText = playersText[:len(playersText)-1]
-			// 	}
-
-			// 	embed.AddField(RoleToString[role], playersText, false)
-			// }
+			embed.AddField("Lider", fmt.Sprintf("<@%s> - %s\n", partyLeader.Meta.UserID, partyLeader.GetName()), false)
 
 			event.CreateMessage(
 				discord.
@@ -468,17 +448,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			part := World.Parties[*playerChar.Meta.Party]
 
-			for _, entry := range part.Players {
-				if entry.PlayerUuid == playerChar.GetUUID() && entry.Role != party.Leader {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Nie jesteś liderem").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
+			if playerChar.GetUUID() != part.Leader {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie jesteś liderem").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
 			}
 
 			mentionedUser := data.User("gracz")
@@ -554,17 +532,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			part := World.Parties[*playerChar.Meta.Party]
 
-			for _, entry := range part.Players {
-				if entry.PlayerUuid == playerChar.GetUUID() && entry.Role != party.Leader {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Nie jesteś liderem").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
+			if playerChar.GetUUID() != part.Leader {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie jesteś liderem").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
 			}
 
 			mentionedUser := data.User("gracz")
@@ -631,17 +607,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			part := World.Parties[*playerChar.Meta.Party]
 
-			for _, entry := range part.Players {
-				if entry.PlayerUuid == playerChar.GetUUID() && entry.Role != party.Leader {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Nie możesz opuścić party będąc liderem").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
+			if playerChar.GetUUID() != part.Leader {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie jesteś liderem").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
 			}
 
 			for i, partyMember := range World.Parties[*playerChar.Meta.Party].Players {
@@ -676,17 +650,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			part := World.Parties[*playerChar.Meta.Party]
 
-			for _, entry := range part.Players {
-				if entry.PlayerUuid == playerChar.GetUUID() && entry.Role != party.Leader {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Nie jesteś liderem").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
+			if playerChar.GetUUID() != part.Leader {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie jesteś liderem").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
 			}
 
 			mentionedUser := data.User("gracz")
@@ -732,7 +704,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						if partyMember.PlayerUuid == pl.GetUUID() {
 							switch role {
 							case "Lider":
-								World.Parties[*playerChar.Meta.Party].Players[i].Role = party.Leader
+								World.Parties[*playerChar.Meta.Party].Leader = pl.GetUUID()
 							case "DPS":
 								World.Parties[*playerChar.Meta.Party].Players[i].Role = party.DPS
 							case "Support":
@@ -767,17 +739,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			part := World.Parties[*playerChar.Meta.Party]
 
-			for _, entry := range part.Players {
-				if entry.PlayerUuid == playerChar.GetUUID() && entry.Role != party.Leader {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Nie jesteś liderem").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
+			if playerChar.GetUUID() != part.Leader {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie jesteś liderem").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
 			}
 
 			uuid := *playerChar.Meta.Party

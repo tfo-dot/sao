@@ -12,6 +12,7 @@ const (
 	MSG_ACTION_NEEDED FightMessage = iota
 	MSG_FIGHT_START
 	MSG_FIGHT_END
+	MSG_ENTITY_RESCUE
 	MSG_ENTITY_DIED
 )
 
@@ -187,6 +188,7 @@ type Entity interface {
 
 	Action(*Fight) int
 	TakeDMG(ActionDamage) int
+	DamageShields(int) int
 
 	Heal(int)
 	RestoreMana(int)
@@ -234,6 +236,8 @@ type PlayerEntity interface {
 	GetAllItems() []*types.PlayerItem
 	AddItem(*types.PlayerItem)
 	RemoveItem(int)
+
+	GetParty() *uuid.UUID
 }
 
 type EntitySort struct {

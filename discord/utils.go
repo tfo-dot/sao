@@ -15,10 +15,10 @@ var PathToString = map[inventory.SkillPath]string{
 }
 
 var RoleToString = map[party.PartyRole]string{
-	party.Leader:  "Lider",
 	party.DPS:     "DPS",
 	party.Support: "Support",
 	party.Tank:    "Tank",
+	party.None:    "Brak",
 }
 
 var (

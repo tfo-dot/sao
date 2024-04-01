@@ -107,36 +107,29 @@ func (p *Player) Action(f *battle.Fight) int {
 	return 0
 }
 
-func (p *Player) GetShields() int {
-	shieldValue := 0
-
-	for _, effect := range p.Stats.Effects {
-		if effect.Effect == battle.EFFECT_SHIELD {
-			shieldValue += effect.Value
-		}
-	}
-
-	return shieldValue
-}
-
 func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
-	currentHP := p.Stats.HP
+	startingHP := p.Stats.HP
 
 	for _, dmg := range dmgList.Damage {
-		updatedDmg := dmg.Value
+		//Skip shield and such
+		if dmg.Type == battle.DMG_TRUE {
+			p.Stats.HP -= dmg.Value
+			continue
+		}
+
+		rawDmg := dmg.Value
 
 		switch dmg.Type {
 		case battle.DMG_PHYSICAL:
-			updatedDmg = utils.CalcReducedDamage(dmg.Value, p.GetDEF())
+			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetDEF())
 		case battle.DMG_MAGICAL:
-			updatedDmg = utils.CalcReducedDamage(dmg.Value, p.GetMR())
+			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetMR())
 		}
 
-		p.Stats.HP -= updatedDmg
+		p.Stats.HP -= p.DamageShields(rawDmg)
 	}
 
-	//DMG TAKEN NOT THE SAME AS DMG DEALT
-	return currentHP - p.Stats.HP
+	return startingHP - p.Stats.HP
 }
 
 func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) (int, bool) {
@@ -145,6 +138,32 @@ func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) (int, bool) {
 	}
 
 	return p.TakeDMG(dmg), false
+}
+
+func (p *Player) DamageShields(dmg int) int {
+	leftOverDmg := dmg
+	idxToRemove := make([]int, 0)
+
+	for idx, effect := range p.Stats.Effects {
+		if effect.Effect == battle.EFFECT_SHIELD {
+			newShieldValue := effect.Value - leftOverDmg
+
+			if newShieldValue <= 0 {
+				leftOverDmg = newShieldValue * -1
+
+				idxToRemove = append(idxToRemove, idx)
+			} else {
+				effect.Value = newShieldValue
+				leftOverDmg = 0
+			}
+		}
+	}
+
+	for _, idx := range idxToRemove {
+		p.Stats.Effects = append(p.Stats.Effects[:idx], p.Stats.Effects[idx+1:]...)
+	}
+
+	return leftOverDmg
 }
 
 func (p *Player) AddEXP(value int) {
@@ -436,6 +455,10 @@ func (p *Player) SetCD(skillUUID uuid.UUID, value int) {
 
 func (p *Player) GetCD(skillUUID uuid.UUID) int {
 	return p.Inventory.CDS[skillUUID]
+}
+
+func (p *Player) GetParty() *uuid.UUID {
+	return p.Meta.Party
 }
 
 func NewPlayer(name string, uid string) Player {
