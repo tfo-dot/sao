@@ -150,9 +150,14 @@ type Ingredient struct {
 type Recipe struct {
 	UUID        uuid.UUID
 	Name        string
-	Description string
 	Ingredients []WithCount[uuid.UUID]
-	Product     WithCount[uuid.UUID]
+	Product     ResultItem
+}
+
+type ResultItem struct {
+	UUID  uuid.UUID
+	Type  ItemType
+	Count int
 }
 
 type WithCount[T any] struct {

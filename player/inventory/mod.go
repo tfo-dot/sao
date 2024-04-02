@@ -29,7 +29,56 @@ func (inv PlayerInventory) AddIngredient(ingredient *types.Ingredient) {
 	inv.Ingredients[ingredient.UUID] = ingredient
 }
 
-func (inv PlayerInventory) GetStat(stat battle.Stat) int {
+func (inv PlayerInventory) Craft(recipe types.Recipe) error {
+	for _, ingredient := range recipe.Ingredients {
+		if inv.Ingredients[ingredient.Item].Count < ingredient.Count {
+			return errors.New("MISSING_INGREDIENT")
+		}
+	}
+
+	for _, ingredient := range recipe.Ingredients {
+		inv.Ingredients[ingredient.Item].Count -= ingredient.Count
+	}
+
+	//TODO add result item to inventory
+
+	return nil
+
+}
+
+func (inv PlayerInventory) HasIngredients(ingredients []types.Ingredient) bool {
+	for _, ingredient := range ingredients {
+		entry, exists := inv.Ingredients[ingredient.UUID]
+
+		if !exists || ingredient.Count == 0 {
+			return false
+		}
+
+		if entry.Count < ingredient.Count {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (inv PlayerInventory) RemoveIngredients(ingredients []types.Ingredient) {
+	for _, ingredient := range ingredients {
+		entry, exists := inv.Ingredients[ingredient.UUID]
+
+		if !exists {
+			continue
+		}
+
+		entry.Count -= ingredient.Count
+
+		if entry.Count <= 0 {
+			delete(inv.Ingredients, ingredient.UUID)
+		}
+	}
+}
+
+func (inv PlayerInventory) GetStat(stat types.Stat) int {
 	value := 0
 
 	for _, item := range inv.Items {
@@ -114,12 +163,15 @@ func (inv PlayerInventory) UpgradeSkill(path SkillPath, lvl int, upgradeName str
 
 func GetDefaultInventory() PlayerInventory {
 	return PlayerInventory{
-		Gold:        0,
-		Capacity:    10,
-		Items:       []*types.PlayerItem{},
-		CDS:         map[uuid.UUID]int{},
-		Skills:      []*types.PlayerSkill{},
-		LevelSkills: map[int]PlayerSkill{},
+		Gold:                0,
+		Capacity:            10,
+		Ingredients:         map[uuid.UUID]*types.Ingredient{},
+		Items:               []*types.PlayerItem{},
+		CDS:                 map[uuid.UUID]int{},
+		Skills:              []*types.PlayerSkill{},
+		LevelSkills:         map[int]PlayerSkill{},
+		LevelSkillsCDS:      map[int]int{},
+		LevelSkillsUpgrades: map[int][]string{},
 	}
 }
 

@@ -2,6 +2,7 @@ package mobs
 
 import (
 	"sao/battle"
+	"sao/types"
 	"sao/utils"
 
 	"github.com/google/uuid"
@@ -270,7 +271,7 @@ func (m *MobEntity) TriggerAllEffects() []battle.ActionEffect {
 	return expiredEffects
 }
 
-func (m *MobEntity) GetStat(stat battle.Stat) int {
+func (m *MobEntity) GetStat(stat types.Stat) int {
 	statValue := 0
 	percentValue := 0
 
@@ -309,21 +310,21 @@ func (m *MobEntity) GetStat(stat battle.Stat) int {
 	tempValue := statValue
 
 	switch stat {
-	case battle.STAT_SPD:
+	case types.STAT_SPD:
 		tempValue += m.SPD
-	case battle.STAT_AGL:
+	case types.STAT_AGL:
 		tempValue += m.GetAGL()
-	case battle.STAT_AD:
+	case types.STAT_AD:
 		tempValue += m.GetATK()
-	case battle.STAT_DEF:
+	case types.STAT_DEF:
 		tempValue += m.GetDEF()
-	case battle.STAT_MR:
+	case types.STAT_MR:
 		tempValue += m.GetMR()
-	case battle.STAT_MANA:
+	case types.STAT_MANA:
 		tempValue += m.GetCurrentMana()
-	case battle.STAT_AP:
+	case types.STAT_AP:
 		tempValue += m.GetAP()
-	case battle.STAT_HEAL_POWER:
+	case types.STAT_HEAL_POWER:
 		tempValue += 0
 	}
 

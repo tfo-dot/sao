@@ -322,7 +322,7 @@ func (f *Fight) HandleAction(act Action) {
 					Effect:   EFFECT_STAT_INC,
 					Duration: 1,
 					Meta: &map[string]interface{}{
-						"stat":     STAT_DEF,
+						"stat":     types.STAT_DEF,
 						"percent":  20,
 						"duration": 1,
 					},
@@ -337,7 +337,7 @@ func (f *Fight) HandleAction(act Action) {
 					Effect:   EFFECT_STAT_INC,
 					Duration: 0,
 					Meta: &map[string]interface{}{
-						"stat":     STAT_DEF,
+						"stat":     types.STAT_MR,
 						"percent":  20,
 						"duration": 1,
 					},

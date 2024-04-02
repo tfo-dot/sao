@@ -195,12 +195,44 @@ var (
 			},
 		},
 		discord.SlashCommandCreate{
-			Name:        "ratuj",
-			Description: "Ratuj gracza",
+			Name:        "stwórz",
+			Description: "Stwórz przedmiot",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionString{
+					Name:         "nazwa",
+					Description:  "Nazwa przedmiotu",
+					Required:     true,
+					Autocomplete: true,
+				},
+				discord.ApplicationCommandOptionInt{
+					Name:        "ilość",
+					Description: "Ilość przedmiotów",
+				},
+			},
 		},
 		discord.SlashCommandCreate{
-			Name:        "speedrun",
-			Description: "Czas przyśpieszyć!",
+			Name:        "furia",
+			Description: "Zarządzaj furiami",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "pokaż",
+					Description: "Pokaż swoje furie",
+				},
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "ulepsz",
+					Description: "Ulepsz furie kolejny tier",
+				},
+			},
+		},
+		discord.SlashCommandCreate{
+			Name:        "sklep",
+			Description: "Zarządzaj sklepami",
+			Options: []discord.ApplicationCommandOption{
+				discord.ApplicationCommandOptionSubCommand{
+					Name:        "pokaż",
+					Description: "Pokazuje sklepy w danej lokalizacji",
+				},
+			},
 		},
 	}
 )

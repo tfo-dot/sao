@@ -23,7 +23,8 @@ type FloorMap map[string]location.Floor
 
 type World struct {
 	Players  map[uuid.UUID]*player.Player
-	NPCs     map[uuid.UUID]npc.NPC
+	NPCs     map[uuid.UUID]*npc.NPC
+	Stores   map[uuid.UUID]*npc.NPCStore
 	Floors   FloorMap
 	Fights   map[uuid.UUID]battle.Fight
 	Entities map[uuid.UUID]*battle.Entity
@@ -72,9 +73,30 @@ func CreateWorld(testMode bool) World {
 		fmt.Printf("Loaded floor %v\n", floor)
 	}
 
+	testStore := npc.NPCStore{
+		RestockInterval: *calendar.StartCalendar(),
+		LastRestock:     *calendar.StartCalendar(),
+		Uuid:            uuid.New(),
+		Name:            "Warzywniak babci stasi",
+		Stock:           []npc.Stock{},
+	}
+
+	npcMap := map[uuid.UUID]*npc.NPC{
+		uuid.New(): {
+			Name:     "Babcia stasia",
+			Location: types.PlayerLocation{FloorName: "dev", LocationName: "Rynek"},
+			Store:    &testStore,
+		},
+	}
+
+	storeMap := map[uuid.UUID]*npc.NPCStore{
+		testStore.Uuid: &testStore,
+	}
+
 	return World{
 		make(map[uuid.UUID]*player.Player),
-		make(map[uuid.UUID]npc.NPC),
+		npcMap,
+		storeMap,
 		floorMap,
 		make(map[uuid.UUID]battle.Fight),
 		make(map[uuid.UUID]*battle.Entity),
@@ -149,7 +171,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_ADAPTIVE,
+						Stat:      types.STAT_ADAPTIVE,
 						Value:     10 + (partyMemberCount-1)*5,
 						IsPercent: true,
 					},
@@ -159,7 +181,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_DEF,
+						Stat:      types.STAT_DEF,
 						Value:     25,
 						IsPercent: false,
 					},
@@ -169,7 +191,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_MR,
+						Stat:      types.STAT_MR,
 						Value:     25,
 						IsPercent: false,
 					},
@@ -179,7 +201,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_HP,
+						Stat:      types.STAT_HP,
 						Value:     (partyMemberCount - 1) * 5,
 						IsPercent: true,
 					},
@@ -189,7 +211,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_DEF,
+						Stat:      types.STAT_DEF,
 						Value:     (partyMemberCount - 1) * 5,
 						IsPercent: true,
 					},
@@ -199,7 +221,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_MR,
+						Stat:      types.STAT_MR,
 						Value:     (partyMemberCount - 1) * 5,
 						IsPercent: true,
 					},
@@ -209,7 +231,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
 					Meta: battle.ActionEffectStat{
-						Stat:      battle.STAT_HEAL_POWER,
+						Stat:      types.STAT_HEAL_POWER,
 						Value:     15 + (partyMemberCount-1)*5,
 						IsPercent: true,
 					},

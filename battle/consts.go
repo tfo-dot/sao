@@ -16,21 +16,6 @@ const (
 	MSG_ENTITY_DIED
 )
 
-type Stat int
-
-const (
-	STAT_HP Stat = iota
-	STAT_SPD
-	STAT_AGL
-	STAT_AD
-	STAT_DEF
-	STAT_MR
-	STAT_MANA
-	STAT_AP
-	STAT_HEAL_POWER
-	STAT_ADAPTIVE
-)
-
 type LootType int
 
 const (
@@ -120,7 +105,7 @@ type ActionEffectHeal struct {
 }
 
 type ActionEffectStat struct {
-	Stat      Stat
+	Stat      types.Stat
 	Value     int
 	IsPercent bool
 }
@@ -175,7 +160,7 @@ type Entity interface {
 	GetCurrentHP() int
 	GetMaxHP() int
 
-	GetStat(Stat) int
+	GetStat(types.Stat) int
 
 	GetSPD() int
 	GetATK() int
@@ -216,9 +201,6 @@ type DodgeEntity interface {
 
 type PlayerEntity interface {
 	DodgeEntity
-
-	ReceiveLoot(Loot)
-	ReceiveMultipleLoot([]Loot)
 
 	GetUID() string
 

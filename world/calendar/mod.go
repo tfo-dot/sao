@@ -1,5 +1,7 @@
 package calendar
 
+import "fmt"
+
 type Month int
 
 const (
@@ -82,7 +84,7 @@ func StartCalendar() *Calendar {
 	return &Calendar{
 		Day:   1,
 		Month: JAN,
-		Year:  0,
+		Year:  1,
 		Time:  Time{0, 0},
 	}
 }
@@ -94,4 +96,8 @@ func (c *Calendar) Copy() *Calendar {
 		Year:  c.Year,
 		Time:  c.Time,
 	}
+}
+
+func (c *Calendar) String() string {
+	return fmt.Sprintf("%d/%d/%d %d:%d", c.Day, c.Month+1, c.Year, c.Time.Hour, c.Time.Tick)
 }

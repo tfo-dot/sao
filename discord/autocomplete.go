@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"sao/world"
 	"strings"
 
 	"github.com/disgoorg/disgo/discord"
@@ -69,5 +70,24 @@ func AutocompleteHandler(event *events.AutocompleteInteractionCreate) {
 		}
 
 		event.AutocompleteResult(choices)
+	case "stwórz":
+		itemOption := event.Data.String("nazwa")
+
+		choices := make([]discord.AutocompleteChoice, 0)
+
+		for _, item := range world.Recipes {
+			if strings.HasPrefix(item.Name, itemOption) {
+				choices = append(choices, discord.AutocompleteChoiceString{
+					Name:  item.Name,
+					Value: item.UUID.String(),
+				})
+			}
+		}
+
+		if len(choices) > 25 {
+			event.AutocompleteResult(choices[:25])
+		} else {
+			event.AutocompleteResult(choices)
+		}
 	}
 }

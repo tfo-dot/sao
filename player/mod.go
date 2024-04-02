@@ -3,12 +3,11 @@ package player
 import (
 	"sao/battle"
 	"sao/battle/mobs"
-	"sao/navel"
 	"sao/player/inventory"
-	"sao/player/location"
 	"sao/player/xp"
 	"sao/types"
 	"sao/utils"
+	"sao/world/fury"
 
 	"github.com/google/uuid"
 )
@@ -23,12 +22,13 @@ type PlayerStats struct {
 }
 
 type PlayerMeta struct {
-	Location      location.PlayerLocation
+	Location      types.PlayerLocation
 	OwnUUID       uuid.UUID
 	UserID        string
-	Navel         *navel.Navel
 	FightInstance *uuid.UUID
 	Party         *uuid.UUID
+	//Array just in case someone will have multiple furies
+	Fury []*fury.Fury
 }
 
 type Player struct {
@@ -43,8 +43,21 @@ func (p *Player) GetCurrentMana() int {
 	return p.Stats.CurrentMana
 }
 
+func (p *Player) GetFuryStat(stat types.Stat) int {
+	value := 0
+
+	for _, fury := range p.Meta.Fury {
+		statValue, ok := fury.GetStats()[stat]
+		if ok {
+			value += statValue
+		}
+	}
+
+	return value
+}
+
 func (p *Player) GetMaxMana() int {
-	return 10 + p.Inventory.GetStat(battle.STAT_MANA)
+	return 10 + p.Inventory.GetStat(types.STAT_MANA) + p.GetFuryStat(types.STAT_MANA)
 }
 
 func (p *Player) GetUUID() uuid.UUID {
@@ -56,7 +69,7 @@ func (p *Player) GetCurrentHP() int {
 }
 
 func (p *Player) GetMaxHP() int {
-	return 100 + ((p.XP.Level - 1) * 10) + p.Inventory.GetStat(battle.STAT_HP)
+	return 100 + ((p.XP.Level - 1) * 10) + p.Inventory.GetStat(types.STAT_HP) + p.GetFuryStat(types.STAT_HP)
 }
 
 func (p *Player) Heal(val int) {
@@ -67,12 +80,45 @@ func (p *Player) Heal(val int) {
 	}
 }
 
+func (p *Player) GetAdaptiveType() types.AdaptiveType {
+	atk := p.GetATKWithoutAdaptive()
+	ap := p.GetAPWithoutAdaptive()
+
+	if atk > ap || atk == ap {
+		return types.ADAPTIVE_ATK
+	} else {
+		return types.ADAPTIVE_AP
+	}
+}
+
 func (p *Player) GetATK() int {
-	return 40 + ((p.XP.Level - 1) * 15) + p.Inventory.GetStat(battle.STAT_AD)
+	adaptiveAtk := p.Inventory.GetStat(types.STAT_ADAPTIVE)
+	if p.GetAdaptiveType() != types.ADAPTIVE_ATK {
+		adaptiveAtk = 0
+	}
+
+	return 40 + ((p.XP.Level - 1) * 15) + p.GetATKWithoutAdaptive() + adaptiveAtk
+}
+
+func (p *Player) GetATKWithoutAdaptive() int {
+	return p.Inventory.GetStat(types.STAT_AD) + p.GetFuryStat(types.STAT_AD)
+}
+
+func (p *Player) GetAPWithoutAdaptive() int {
+	return p.Inventory.GetStat(types.STAT_AP) + p.GetFuryStat(types.STAT_AP)
+}
+
+func (p *Player) GetAP() int {
+	adaptiveAp := p.Inventory.GetStat(types.STAT_ADAPTIVE)
+	if p.GetAdaptiveType() != types.ADAPTIVE_AP {
+		adaptiveAp = 0
+	}
+
+	return p.Inventory.GetStat(types.STAT_AP) + p.GetFuryStat(types.STAT_AP) + adaptiveAp
 }
 
 func (p *Player) GetSPD() int {
-	return p.Stats.SPD + p.Inventory.GetStat(battle.STAT_SPD)
+	return p.Stats.SPD + p.Inventory.GetStat(types.STAT_SPD) + p.GetFuryStat(types.STAT_SPD)
 }
 
 func (p *Player) IsAuto() bool {
@@ -80,19 +126,15 @@ func (p *Player) IsAuto() bool {
 }
 
 func (p *Player) GetDEF() int {
-	return p.Inventory.GetStat(battle.STAT_DEF)
+	return p.Inventory.GetStat(types.STAT_DEF) + p.GetFuryStat(types.STAT_DEF)
 }
 
 func (p *Player) GetMR() int {
-	return p.Inventory.GetStat(battle.STAT_MR)
+	return p.Inventory.GetStat(types.STAT_MR) + p.GetFuryStat(types.STAT_MR)
 }
 
 func (p *Player) GetAGL() int {
-	return p.Stats.AGL + p.Inventory.GetStat(battle.STAT_AGL)
-}
-
-func (p *Player) GetAP() int {
-	return p.Inventory.GetStat(battle.STAT_AP)
+	return p.Stats.AGL + p.Inventory.GetStat(types.STAT_AGL) + p.GetFuryStat(types.STAT_AGL)
 }
 
 func (p *Player) SetDefendingState(state bool) {
@@ -103,9 +145,7 @@ func (p *Player) GetDefendingState() bool {
 	return p.Stats.Defending
 }
 
-func (p *Player) Action(f *battle.Fight) int {
-	return 0
-}
+func (p *Player) Action(f *battle.Fight) int { return 0 }
 
 func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 	startingHP := p.Stats.HP
@@ -189,21 +229,6 @@ func (p *Player) AddGold(value int) {
 
 func (p *Player) GetLoot() []battle.Loot {
 	return nil
-}
-
-func (p *Player) ReceiveLoot(loot battle.Loot) {
-	switch loot.Type {
-	case battle.LOOT_GOLD:
-		p.AddGold((*loot.Meta)["value"].(int))
-	case battle.LOOT_EXP:
-		p.AddEXP((*loot.Meta)["value"].(int))
-	}
-}
-
-func (p *Player) ReceiveMultipleLoot(loot []battle.Loot) {
-	for _, l := range loot {
-		p.ReceiveLoot(l)
-	}
 }
 
 func (p *Player) GetName() string {
@@ -323,6 +348,23 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 		})
 	}
 
+	//TODO handle transition
+	// for _, furry := range p.Meta.Fury {
+	// 	for _, skill := range furry.GetSkills() {
+	// 		tempArr = append(tempArr, &types.PlayerSkill{
+	// 			Name:        skill.Name,
+	// 			Description: skill.Description,
+	// 			Trigger:     *skill.Trigger,
+	// 			Cost:        skill.Cost,
+	// 			UUID:        uuid.Nil,
+	// 			Action: func(source interface{}, target interface{}, fight interface{}) {
+	// 				skill.Execute(source.(battle.PlayerEntity), target.(battle.Entity), fight.(*battle.Fight))
+	// 			},
+	// 			CD: skill.CD.Calc(skill, p.GetUpgrades(skill.ForLevel)),
+	// 		})
+	// 	}
+	// }
+
 	return []types.PlayerSkill{}
 }
 
@@ -346,7 +388,7 @@ func (p *Player) RestoreMana(value int) {
 	}
 }
 
-func (p *Player) GetStat(stat battle.Stat) int {
+func (p *Player) GetStat(stat types.Stat) int {
 	statValue := 0
 	percentValue := 0
 
@@ -385,21 +427,21 @@ func (p *Player) GetStat(stat battle.Stat) int {
 	tempValue := statValue
 
 	switch stat {
-	case battle.STAT_HP:
+	case types.STAT_HP:
 		tempValue += p.GetMaxHP()
-	case battle.STAT_AD:
+	case types.STAT_AD:
 		tempValue += p.GetATK()
-	case battle.STAT_SPD:
+	case types.STAT_SPD:
 		tempValue += p.GetSPD()
-	case battle.STAT_AGL:
+	case types.STAT_AGL:
 		tempValue += p.GetAGL()
-	case battle.STAT_AP:
+	case types.STAT_AP:
 		tempValue += p.GetAP()
-	case battle.STAT_DEF:
+	case types.STAT_DEF:
 		tempValue += p.GetDEF()
-	case battle.STAT_MR:
+	case types.STAT_MR:
 		tempValue += p.GetMR()
-	case battle.STAT_MANA:
+	case types.STAT_MANA:
 		tempValue += p.GetCurrentMana()
 	}
 
@@ -466,7 +508,7 @@ func NewPlayer(name string, uid string) Player {
 		name,
 		xp.PlayerXP{Level: 1, Exp: 0},
 		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), false, 10},
-		PlayerMeta{location.DefaultLocation(), uuid.New(), uid, nil, nil, nil},
+		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 	}
 }

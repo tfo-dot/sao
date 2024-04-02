@@ -81,7 +81,7 @@ var AVAILABLE_SKILLS = []PlayerSkill{
 						Duration: 1,
 						Value:    10,
 						Meta: &map[string]interface{}{
-							"stat": battle.STAT_SPD,
+							"stat": types.STAT_SPD,
 						},
 					})
 				}
@@ -103,7 +103,7 @@ var AVAILABLE_SKILLS = []PlayerSkill{
 								Duration: 1,
 								Value:    10,
 								Meta: &map[string]interface{}{
-									"stat": battle.STAT_SPD,
+									"stat": types.STAT_SPD,
 								},
 							})
 						},
@@ -328,7 +328,7 @@ var AVAILABLE_SKILLS = []PlayerSkill{
 				Duration: duration,
 				Value:    0,
 				Meta: battle.ActionEffectStat{
-					Stat:      battle.STAT_SPD,
+					Stat:      types.STAT_SPD,
 					Value:     value,
 					IsPercent: false,
 				},
@@ -339,7 +339,7 @@ var AVAILABLE_SKILLS = []PlayerSkill{
 				Duration: duration,
 				Value:    value,
 				Meta: battle.ActionEffectStat{
-					Stat:      battle.STAT_AGL,
+					Stat:      types.STAT_AGL,
 					Value:     value,
 					IsPercent: false,
 				},
@@ -369,7 +369,7 @@ var AVAILABLE_SKILLS = []PlayerSkill{
 							MaxCount:    1,
 							Hidden:      true,
 							Stats: map[int]int{
-								int(battle.STAT_HEAL_POWER): 10,
+								int(types.STAT_HEAL_POWER): 10,
 							},
 						})
 					},
@@ -392,7 +392,7 @@ var AVAILABLE_SKILLS = []PlayerSkill{
 					MaxCount:    1,
 					Hidden:      true,
 					Stats: map[int]int{
-						int(battle.STAT_MANA): 5,
+						int(types.STAT_MANA): 5,
 					},
 				})
 			},

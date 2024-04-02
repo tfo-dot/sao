@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sao/player"
 	"sao/player/inventory"
+	"sao/types"
 	"sao/world"
+	"sao/world/npc"
 	"sao/world/party"
 
 	"github.com/disgoorg/disgo"
@@ -14,6 +16,7 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/snowflake/v2"
+	"github.com/google/uuid"
 )
 
 var World *world.World
@@ -819,5 +822,278 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				Build(),
 		)
 		return
+	case "stwórz":
+		itemUuid, valid := uuid.Parse(data.String("nazwa"))
+
+		if valid != nil {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Nie znaleziono receptury? (XD)").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		recipe, exists := world.Recipes[itemUuid]
+
+		if !exists {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Nie znaleziono receptury? (XD)").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		err := playerChar.Inventory.Craft(recipe)
+
+		if err.Error() == "MISSING_INGREDIENT" {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Brakuje składników").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		event.CreateMessage(
+			discord.
+				NewMessageCreateBuilder().
+				SetContentf("Stworzono przedmiot\n%s x%d", recipe.Name, recipe.Product.Count).
+				SetEphemeral(true).
+				Build(),
+		)
+	case "furia":
+		switch *data.SubCommandName {
+		case "pokaż":
+			if len(playerChar.Meta.Fury) == 0 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie masz furii").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			message := discord.NewMessageCreateBuilder()
+
+			for _, fury := range playerChar.Meta.Fury {
+				embed := discord.NewEmbedBuilder()
+
+				embed.AddField("Nazwa", fury.Name, true)
+
+				levelTxt := fmt.Sprint(fury.XP.LVL)
+
+				if fury.XP.LVL == 10 {
+					levelTxt += " - czas na kolejny tier!"
+				} else {
+					levelTxt += fmt.Sprintf(" %d/%d", fury.XP.XP, fury.NextLvlXPGauge())
+				}
+
+				embed.AddField("Poziom", levelTxt, true)
+				embed.AddField("Umiejętności", "Brak", false)
+
+				statsText := ""
+
+				furyStats := fury.GetStats()
+
+				if len(furyStats) == 0 {
+					statsText = "Brak"
+				} else {
+					for stat, value := range furyStats {
+						statsText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
+					}
+				}
+
+				embed.AddField("Statystyki", statsText, false)
+
+				embed.AddField("Aktualny tier", fmt.Sprint(fury.CurrentTier), true)
+
+				if fury.CurrentTier == len(fury.Tiers) {
+					embed.AddField("Kolejny tier?", "Brak", true)
+				} else {
+					nextTier := fury.Tiers[fury.CurrentTier]
+
+					nextTierText := "Tier: " + fmt.Sprint(fury.CurrentTier+1) + "\nPotrzebne składniki: "
+
+					if len(nextTier.Ingredients) == 0 {
+						nextTierText += "Brak"
+					} else {
+						for _, ingredient := range nextTier.Ingredients {
+							nextTierText += fmt.Sprintf("\n- %s x%d", ingredient.Name, ingredient.Count)
+						}
+					}
+
+					nextTierText += "\n"
+
+					if len(nextTier.Skills) == 0 {
+						nextTierText += "Brak nowych umiejętności\n"
+					} else {
+						nextTierText += "Nowe umiejętności: \n"
+
+						for _, skill := range nextTier.Skills {
+							nextTierText += "-" + skill.Name + "\n"
+						}
+					}
+
+					if len(nextTier.Stats) == 0 {
+						nextTierText += "Brak nowych statystyk\n"
+					} else {
+						nextTierText += "Nowe statystyki: \n"
+
+						for stat, value := range nextTier.Stats {
+							nextTierText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
+						}
+					}
+
+					embed.AddField("Kolejny tier?", nextTierText, false)
+				}
+
+				message.AddEmbeds(embed.Build())
+			}
+
+			event.CreateMessage(message.Build())
+		case "ulepsz":
+			if len(playerChar.Meta.Fury) == 0 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie masz furii").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			if len(playerChar.Meta.Fury) == 1 {
+				playerFury := playerChar.Meta.Fury[0]
+
+				if playerFury.CurrentTier == len(playerFury.Tiers) {
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Osiągnięto maksymalny tier").
+							SetEphemeral(true).
+							Build(),
+					)
+					return
+				}
+
+				if playerFury.XP.LVL < 10 {
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Nie osiągnięto maksymalnego poziomu na danym tierze").
+							SetEphemeral(true).
+							Build(),
+					)
+					return
+				}
+
+				nextTier := playerFury.Tiers[playerFury.CurrentTier]
+
+				if len(nextTier.Ingredients) == 0 {
+					playerFury.CurrentTier++
+					playerFury.XP.LVL = 1
+					playerFury.XP.XP = 0
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Ulepszono furie na kolejny tier!").
+							SetEphemeral(true).
+							Build(),
+					)
+				} else {
+					if playerChar.Inventory.HasIngredients(nextTier.Ingredients) {
+						playerChar.Inventory.RemoveIngredients(nextTier.Ingredients)
+
+						playerFury.CurrentTier++
+						playerFury.XP.LVL = 1
+						playerFury.XP.XP = 0
+
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Ulepszono furie na kolejny tier!").
+								SetEphemeral(true).
+								Build(),
+						)
+					} else {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Brakuje składników").
+								SetEphemeral(true).
+								Build(),
+						)
+					}
+				}
+			}
+		}
+	case "sklep":
+		switch *data.SubCommandName {
+		case "pokaż":
+			playerLocation := playerChar.Meta.Location
+
+			storesInLocation := make([]*npc.NPCStore, 0)
+
+			for _, npcObject := range World.NPCs {
+				if playerLocation == npcObject.Location {
+					storesInLocation = append(storesInLocation, npcObject.Store)
+				}
+			}
+
+			if len(storesInLocation) == 0 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie ma sklepów w tej lokalizacji").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			if len(storesInLocation) > 25 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("<@344048874656366592> incydent sklepowy").
+						Build(),
+				)
+				return
+			}
+
+			messageBuilder := discord.NewMessageCreateBuilder()
+
+			for i := 0; i < (len(storesInLocation)/5)+1; i++ {
+				var stores []*npc.NPCStore
+
+				if len(storesInLocation) < i*5+5 {
+					stores = storesInLocation[i*5:]
+				} else {
+					stores = storesInLocation[i*5 : i*5+5]
+				}
+
+				buttonArray := make([]discord.InteractiveComponent, 0)
+
+				for _, store := range stores {
+					buttonArray = append(buttonArray, discord.NewPrimaryButton(store.Name, "shop/show/"+store.Uuid.String()))
+				}
+
+				messageBuilder.AddActionRow(buttonArray...)
+			}
+
+			event.CreateMessage(messageBuilder.Build())
+		}
 	}
 }

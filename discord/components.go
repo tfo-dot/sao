@@ -449,4 +449,26 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			return
 		}
 	}
+
+	if strings.HasPrefix(customId, "shop") {
+		segments := strings.Split(customId, "/")
+		action := segments[1]
+
+		switch action {
+		case "show":
+			store := World.Stores[uuid.MustParse(segments[2])]
+
+			message := discord.NewMessageCreateBuilder()
+
+			embed := discord.NewEmbedBuilder()
+
+			embed.SetTitle("Sklep: " + store.Name)
+
+			embed.SetDescription(store.LastRestock.String())
+
+			message.AddEmbeds(embed.Build())
+
+			event.CreateMessage(message.Build())
+		}
+	}
 }
