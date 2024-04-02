@@ -4,14 +4,80 @@ import (
 	"fmt"
 	"sao/battle"
 	"sao/player/inventory"
+	"sao/types"
 	"sao/utils"
+	"sao/world"
+	"sao/world/npc"
 	"sao/world/party"
+	"strconv"
 	"strings"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/google/uuid"
 )
+
+func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
+
+	if event.Data.CustomID != "shop/buy" {
+		return
+	}
+
+	var componentCustomId string
+
+	for _, comp := range event.Data.Components {
+		componentCustomId = comp.ID()
+	}
+
+	segments := strings.Split(componentCustomId, "/")
+	store := World.Stores[uuid.MustParse(segments[2])]
+	itemIdx, _ := strconv.Atoi(segments[3])
+
+	stringInput, _ := event.Data.TextInputComponent(componentCustomId)
+
+	amount, _ := strconv.Atoi(stringInput.Value)
+	stockItem := store.Stock[itemIdx]
+
+	fmt.Printf("CustomID: %s\n", componentCustomId)
+	fmt.Printf("Buying %d of %s\n", amount, stockItem.ItemUUID.String())
+
+	event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Zakupiono").Build())
+
+	if stockItem.Quantity < amount {
+		event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Za mało towaru").Build())
+		return
+	}
+
+	player := World.GetPlayer(event.User().ID.String())
+
+	if player == nil {
+		event.CreateMessage(noCharMessage)
+		return
+	}
+
+	if player.Inventory.Gold < stockItem.Price*amount {
+		event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Za mało pieniędzy").Build())
+		return
+	}
+
+	player.Inventory.Gold -= stockItem.Price * amount
+
+	for i := 0; i < amount; i++ {
+		if stockItem.ItemType == types.ITEM_MATERIAL {
+			item := world.Ingredients[stockItem.ItemUUID]
+
+			item.Count = amount
+
+			player.Inventory.AddIngredient(&item)
+		} else {
+			fmt.Println("Normal item add not implemented")
+			//TODO normal item add
+		}
+	}
+
+	stockItem.Quantity -= amount
+	event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Zakupiono").Build())
+}
 
 func ComponentHandler(event *events.ComponentInteractionCreate) {
 	customId := event.ComponentInteraction.Data.CustomID()
@@ -456,7 +522,10 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 		switch action {
 		case "show":
-			store := World.Stores[uuid.MustParse(segments[2])]
+			page, _ := strconv.Atoi(segments[2])
+			pageStart := (page - 1) * 5
+			pageEnd := page * 5
+			store := World.Stores[uuid.MustParse(segments[3])]
 
 			message := discord.NewMessageCreateBuilder()
 
@@ -464,11 +533,75 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			embed.SetTitle("Sklep: " + store.Name)
 
-			embed.SetDescription(store.LastRestock.String())
+			var pageStock []npc.Stock
+
+			if pageEnd > len(store.Stock) {
+				pageStock = store.Stock[pageStart:]
+			} else {
+				pageStock = store.Stock[pageStart:pageEnd]
+			}
+
+			productButtons := make([]discord.InteractiveComponent, 0)
+
+			for itemIdx, stock := range pageStock {
+				var itemName string
+
+				if stock.ItemType == types.ITEM_MATERIAL {
+					itemName = world.Ingredients[stock.ItemUUID].Name
+				} else {
+					itemName = world.Items[stock.ItemUUID].Name
+				}
+
+				productButton := discord.NewPrimaryButton(itemName, "shop/buy/"+segments[3]+"/"+fmt.Sprint(itemIdx))
+
+				if stock.Quantity <= 0 {
+					productButton = productButton.AsDisabled()
+				}
+
+				embed.AddField(itemName, fmt.Sprintf("Cena: %d\nIlość: %d/%d", stock.Price, stock.Quantity, stock.Limit), true)
+				productButtons = append(productButtons, productButton)
+			}
+
+			embed.SetFooterTextf("Ostatnia dostawa %s, strona %d/%d", store.LastRestock.String(), 1, 1)
 
 			message.AddEmbeds(embed.Build())
+			message.AddActionRow(productButtons...)
+
+			prevPageButton := discord.NewPrimaryButton("Poprzednia strona", "shop/show/"+fmt.Sprint(page-1)+"/"+segments[3])
+
+			if page-1 < 1 {
+				prevPageButton = prevPageButton.AsDisabled()
+			}
+
+			nextPageButton := discord.NewPrimaryButton("Następna strona", "shop/show/"+fmt.Sprint(page+1)+"/"+segments[3])
+
+			if pageEnd > len(store.Stock) {
+				nextPageButton = nextPageButton.AsDisabled()
+			}
+
+			message.AddActionRow(prevPageButton, nextPageButton)
 
 			event.CreateMessage(message.Build())
+		case "buy":
+			store := World.Stores[uuid.MustParse(segments[2])]
+			itemIdx, _ := strconv.Atoi(segments[3])
+
+			stockItem := store.Stock[itemIdx]
+
+			if stockItem.Quantity <= 0 {
+				event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Brak towaru").Build())
+				return
+			}
+
+			modal := discord.NewModalCreateBuilder()
+
+			modal.SetTitle("Kupno")
+			modal.SetCustomID("shop/buy")
+			modal.AddActionRow(
+				discord.NewShortTextInput("shop/buy/"+segments[2]+"/"+fmt.Sprint(itemIdx), "Ilość"),
+			)
+
+			event.Modal(modal.Build())
 		}
 	}
 }

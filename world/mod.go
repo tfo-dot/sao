@@ -78,7 +78,15 @@ func CreateWorld(testMode bool) World {
 		LastRestock:     *calendar.StartCalendar(),
 		Uuid:            uuid.New(),
 		Name:            "Warzywniak babci stasi",
-		Stock:           []npc.Stock{},
+		Stock: []npc.Stock{
+			{
+				ItemType: types.ITEM_MATERIAL,
+				ItemUUID: uuid.MustParse("00000000-0000-0000-0000-000000000000"),
+				Price:    1,
+				Quantity: 10,
+				Limit:    10,
+			},
+		},
 	}
 
 	npcMap := map[uuid.UUID]*npc.NPC{

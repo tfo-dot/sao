@@ -31,6 +31,7 @@ func StartClient(token string) {
 		bot.WithEventListenerFunc(commandListener),
 		bot.WithEventListenerFunc(AutocompleteHandler),
 		bot.WithEventListenerFunc(ComponentHandler),
+		bot.WithEventListenerFunc(ModalSubmitHandler),
 	)
 
 	if err != nil {
@@ -1087,7 +1088,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				buttonArray := make([]discord.InteractiveComponent, 0)
 
 				for _, store := range stores {
-					buttonArray = append(buttonArray, discord.NewPrimaryButton(store.Name, "shop/show/"+store.Uuid.String()))
+					buttonArray = append(buttonArray, discord.NewPrimaryButton(store.Name, "shop/show/1/"+store.Uuid.String()))
 				}
 
 				messageBuilder.AddActionRow(buttonArray...)
