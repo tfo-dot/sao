@@ -38,8 +38,10 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 	amount, _ := strconv.Atoi(stringInput.Value)
 	stockItem := store.Stock[itemIdx]
 
-	fmt.Printf("CustomID: %s\n", componentCustomId)
-	fmt.Printf("Buying %d of %s\n", amount, stockItem.ItemUUID.String())
+	if amount <= 0 {
+		event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Nieprawidłowa ilość").Build())
+		return
+	}
 
 	event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Zakupiono").Build())
 
@@ -61,6 +63,7 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 	}
 
 	player.Inventory.Gold -= stockItem.Price * amount
+	stockItem.Quantity -= amount
 
 	for i := 0; i < amount; i++ {
 		if stockItem.ItemType == types.ITEM_MATERIAL {
@@ -70,12 +73,14 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 
 			player.Inventory.AddIngredient(&item)
 		} else {
-			fmt.Println("Normal item add not implemented")
-			//TODO normal item add
+			item := world.Items[stockItem.ItemUUID]
+
+			item.Count = amount
+
+			player.Inventory.AddItem(&item)
 		}
 	}
 
-	stockItem.Quantity -= amount
 	event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Zakupiono").Build())
 }
 
@@ -533,7 +538,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			embed.SetTitle("Sklep: " + store.Name)
 
-			var pageStock []npc.Stock
+			var pageStock []*npc.Stock
 
 			if pageEnd > len(store.Stock) {
 				pageStock = store.Stock[pageStart:]

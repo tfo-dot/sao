@@ -18,7 +18,7 @@ type NPCStore struct {
 	Name            string
 	RestockInterval calendar.Calendar
 	LastRestock     calendar.Calendar
-	Stock           []Stock
+	Stock           []*Stock
 }
 
 type Stock struct {

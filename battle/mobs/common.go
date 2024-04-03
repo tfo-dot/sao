@@ -218,10 +218,20 @@ func (m *MobEntity) Action(f *battle.Fight) int {
 		return 0
 	}
 
-	f.ActionChannel <- battle.Action{
-		Event:  battle.ACTION_ATTACK,
-		Source: m.UUID,
-		Target: utils.RandomElement(enemies).GetUUID(),
+	if m.HasEffect(battle.EFFECT_TAUNTED) {
+		effect := m.GetEffect(battle.EFFECT_TAUNTED)
+
+		f.ActionChannel <- battle.Action{
+			Event:  battle.ACTION_ATTACK,
+			Source: m.UUID,
+			Target: effect.Meta.(uuid.UUID),
+		}
+	} else {
+		f.ActionChannel <- battle.Action{
+			Event:  battle.ACTION_ATTACK,
+			Source: m.UUID,
+			Target: utils.RandomElement(enemies).GetUUID(),
+		}
 	}
 
 	return 1

@@ -20,7 +20,7 @@ type PlayerInventory struct {
 	LevelSkillsUpgrades map[int][]string
 }
 
-func (inv PlayerInventory) AddIngredient(ingredient *types.Ingredient) {
+func (inv *PlayerInventory) AddIngredient(ingredient *types.Ingredient) {
 	if _, exists := inv.Ingredients[ingredient.UUID]; exists {
 		inv.Ingredients[ingredient.UUID].Count += ingredient.Count
 		return
@@ -29,7 +29,7 @@ func (inv PlayerInventory) AddIngredient(ingredient *types.Ingredient) {
 	inv.Ingredients[ingredient.UUID] = ingredient
 }
 
-func (inv PlayerInventory) Craft(recipe types.Recipe) error {
+func (inv *PlayerInventory) Craft(recipe types.Recipe) error {
 	for _, ingredient := range recipe.Ingredients {
 		if inv.Ingredients[ingredient.Item].Count < ingredient.Count {
 			return errors.New("MISSING_INGREDIENT")
@@ -43,7 +43,23 @@ func (inv PlayerInventory) Craft(recipe types.Recipe) error {
 	//TODO add result item to inventory
 
 	return nil
+}
 
+func (inv *PlayerInventory) AddItem(item *types.PlayerItem) {
+	for _, invItem := range inv.Items {
+		if invItem.UUID == item.UUID && invItem.Stacks && invItem.Count < invItem.MaxCount {
+			if invItem.Count+item.Count > invItem.MaxCount {
+				item.Count -= invItem.MaxCount - invItem.Count
+				invItem.Count = invItem.MaxCount
+			} else {
+				invItem.Count += item.Count
+				return
+			}
+		}
+	}
+
+	//This will bite me in the ass later
+	inv.Items = append(inv.Items, item)
 }
 
 func (inv PlayerInventory) HasIngredients(ingredients []types.Ingredient) bool {
@@ -62,7 +78,7 @@ func (inv PlayerInventory) HasIngredients(ingredients []types.Ingredient) bool {
 	return true
 }
 
-func (inv PlayerInventory) RemoveIngredients(ingredients []types.Ingredient) {
+func (inv *PlayerInventory) RemoveIngredients(ingredients []types.Ingredient) {
 	for _, ingredient := range ingredients {
 		entry, exists := inv.Ingredients[ingredient.UUID]
 
@@ -92,7 +108,7 @@ func (inv PlayerInventory) GetStat(stat types.Stat) int {
 	return value
 }
 
-func (inv PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, target interface{}, fightInstance *interface{}) {
+func (inv *PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, target interface{}, fightInstance *interface{}) {
 	for i, item := range inv.Items {
 		if item.UUID == itemUuid {
 			if item.Consume && item.Count <= 0 {
@@ -112,7 +128,7 @@ func (inv PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, target
 	}
 }
 
-func (inv PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, player battle.PlayerEntity) error {
+func (inv *PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, player battle.PlayerEntity) error {
 	if lvl > playerLvl {
 		return errors.New("PLAYER_LVL_TOO_LOW")
 	}
@@ -138,7 +154,7 @@ func (inv PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, p
 	return errors.New("SKILL_NOT_FOUND")
 }
 
-func (inv PlayerInventory) UpgradeSkill(path SkillPath, lvl int, upgradeName string) error {
+func (inv *PlayerInventory) UpgradeSkill(path SkillPath, lvl int, upgradeName string) error {
 	if _, exists := inv.LevelSkills[lvl]; !exists {
 		return errors.New("SKILL_NOT_UNLOCKED")
 	}

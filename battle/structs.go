@@ -297,15 +297,31 @@ func (f *Fight) HandleAction(act Action) {
 		meta := act.Meta.(ActionEffect)
 
 		if meta.Duration == 0 {
-			switch meta.Effect {
-			case EFFECT_HEAL:
+			if meta.Effect == EFFECT_HEAL {
 				f.Entities[act.Target].Entity.Heal(meta.Value)
-			case EFFECT_STAT_INC:
-				f.Entities[act.Target].Entity.ApplyEffect(meta)
+				return
 			}
+
+			f.Entities[act.Target].Entity.ApplyEffect(meta)
+
+			return
 		}
 
-		f.Entities[act.Target].Entity.ApplyEffect(act.Meta.(ActionEffect))
+		if meta.Effect == EFFECT_TAUNT {
+			for _, entity := range f.GetEnemiesFor(act.Target) {
+				newEffect := ActionEffect{
+					Effect:   EFFECT_TAUNTED,
+					Duration: meta.Duration,
+					Meta:     act.Target,
+					Value:    0,
+					Uuid:     uuid.New(),
+				}
+
+				entity.ApplyEffect(newEffect)
+			}
+		} else {
+			f.Entities[act.Target].Entity.ApplyEffect(act.Meta.(ActionEffect))
+		}
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 

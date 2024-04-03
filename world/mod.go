@@ -73,20 +73,20 @@ func CreateWorld(testMode bool) World {
 		fmt.Printf("Loaded floor %v\n", floor)
 	}
 
+	stockItem := npc.Stock{
+		ItemType: types.ITEM_MATERIAL,
+		ItemUUID: uuid.MustParse("00000000-0000-0000-0000-000000000000"),
+		Price:    1,
+		Quantity: 10,
+		Limit:    10,
+	}
+
 	testStore := npc.NPCStore{
 		RestockInterval: *calendar.StartCalendar(),
 		LastRestock:     *calendar.StartCalendar(),
 		Uuid:            uuid.New(),
 		Name:            "Warzywniak babci stasi",
-		Stock: []npc.Stock{
-			{
-				ItemType: types.ITEM_MATERIAL,
-				ItemUUID: uuid.MustParse("00000000-0000-0000-0000-000000000000"),
-				Price:    1,
-				Quantity: 10,
-				Limit:    10,
-			},
-		},
+		Stock:           []*npc.Stock{&stockItem},
 	}
 
 	npcMap := map[uuid.UUID]*npc.NPC{
@@ -234,6 +234,14 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 						IsPercent: true,
 					},
 				})
+
+				if partyMemberCount > 2 {
+					effects = append(effects, battle.ActionEffect{
+						Effect:   battle.EFFECT_TAUNT,
+						Duration: -1,
+						Meta:     nil,
+					})
+				}
 			case party.Support:
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
@@ -524,6 +532,25 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			if err != nil {
 				panic(err)
+			}
+
+			if player.HasEffect(battle.EFFECT_TAUNTED) {
+				effect := player.GetEffect(battle.EFFECT_TAUNTED)
+
+				fight.ActionChannel <- battle.Action{
+					Event:  battle.ACTION_ATTACK,
+					Source: player.GetUUID(),
+					Target: effect.Meta.(uuid.UUID),
+				}
+
+				w.DChannel <- types.DiscordMessageStruct{
+					ChannelID: fight.Location.CID,
+					MessageContent: discord.NewMessageCreateBuilder().
+						SetContentf("<@%v> jest zmuszony do ataku! Pomijamy turę!", player.GetUID()).
+						Build(),
+				}
+
+				continue
 			}
 
 			attackButton := discord.NewPrimaryButton("Atak", "f/attack")
