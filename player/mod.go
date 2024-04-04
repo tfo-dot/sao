@@ -27,6 +27,7 @@ type PlayerMeta struct {
 	UserID        string
 	FightInstance *uuid.UUID
 	Party         *uuid.UUID
+	Transaction   *uuid.UUID
 	//Array just in case someone will have multiple furies
 	Fury []*fury.Fury
 }
@@ -508,7 +509,7 @@ func NewPlayer(name string, uid string) Player {
 		name,
 		xp.PlayerXP{Level: 1, Exp: 0},
 		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), false, 10},
-		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil},
+		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 	}
 }

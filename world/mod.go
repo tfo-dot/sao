@@ -2,7 +2,9 @@ package world
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"sao/battle"
 	"sao/battle/mobs"
@@ -13,6 +15,8 @@ import (
 	"sao/world/location"
 	"sao/world/npc"
 	"sao/world/party"
+	"sao/world/tournament"
+	"sao/world/transaction"
 	"time"
 
 	"github.com/disgoorg/disgo/discord"
@@ -22,16 +26,18 @@ import (
 type FloorMap map[string]location.Floor
 
 type World struct {
-	Players  map[uuid.UUID]*player.Player
-	NPCs     map[uuid.UUID]*npc.NPC
-	Stores   map[uuid.UUID]*npc.NPCStore
-	Floors   FloorMap
-	Fights   map[uuid.UUID]battle.Fight
-	Entities map[uuid.UUID]*battle.Entity
-	Time     *calendar.Calendar
-	Parties  map[uuid.UUID]*party.Party
-	TestMode bool
-	DChannel chan types.DiscordMessageStruct
+	Players      map[uuid.UUID]*player.Player
+	Transactions map[uuid.UUID]*transaction.Transaction
+	NPCs         map[uuid.UUID]*npc.NPC
+	Stores       map[uuid.UUID]*npc.NPCStore
+	Floors       FloorMap
+	Tournaments  map[uuid.UUID]*tournament.Tournament
+	Fights       map[uuid.UUID]battle.Fight
+	Entities     map[uuid.UUID]*battle.Entity
+	Time         *calendar.Calendar
+	Parties      map[uuid.UUID]*party.Party
+	TestMode     bool
+	DChannel     chan types.DiscordMessageStruct
 }
 
 func CreateWorld(testMode bool) World {
@@ -103,9 +109,11 @@ func CreateWorld(testMode bool) World {
 
 	return World{
 		make(map[uuid.UUID]*player.Player),
+		make(map[uuid.UUID]*transaction.Transaction),
 		npcMap,
 		storeMap,
 		floorMap,
+		make(map[uuid.UUID]*tournament.Tournament),
 		make(map[uuid.UUID]battle.Fight),
 		make(map[uuid.UUID]*battle.Entity),
 		calendar.StartCalendar(),
@@ -654,4 +662,229 @@ func (w *World) GetPlayer(uid string) *player.Player {
 	}
 
 	return nil
+}
+
+func (w *World) RegisterTournament(tournament tournament.Tournament) {
+	w.Tournaments[tournament.Uuid] = &tournament
+
+	var playerText string = ""
+	if tournament.MaxPlayers == -1 {
+		playerText = "Nieograniczona"
+	} else {
+		playerText = fmt.Sprintf("%v/%v", len(tournament.Participants), tournament.MaxPlayers)
+	}
+
+	w.DChannel <- types.DiscordMessageStruct{
+		ChannelID: "1225150345009827841",
+		MessageContent: discord.NewMessageCreateBuilder().
+			AddEmbeds(discord.NewEmbedBuilder().
+				SetTitle("Nowy turniej!").
+				SetDescriptionf("Zapisy na turniej `%v` otwarte", tournament.Name).
+				SetFooterText("Ilość miejsc: " + playerText).
+				Build()).
+			AddActionRow(
+				discord.NewPrimaryButton("Dołącz", "t/join/"+tournament.Uuid.String()),
+			).
+			Build(),
+	}
+}
+
+func (w *World) JoinTournament(uuid uuid.UUID, player *player.Player) error {
+	tournamentObj := w.Tournaments[uuid]
+
+	if tournamentObj == nil {
+		return errors.New("tournament not found")
+	}
+
+	if tournamentObj.State != tournament.Waiting {
+		return errors.New("tournament running")
+	}
+
+	if tournamentObj.MaxPlayers != -1 && len(tournamentObj.Participants) >= tournamentObj.MaxPlayers {
+		return errors.New("tournament is full")
+	}
+
+	tournamentObj.Participants = append(tournamentObj.Participants, player.GetUUID())
+
+	return nil
+}
+
+func (w *World) StartTournament(tUuid uuid.UUID) error {
+	tournamentObj := w.Tournaments[tUuid]
+
+	if tournamentObj == nil {
+		return errors.New("tournament not found")
+	}
+
+	if tournamentObj.State != tournament.Waiting {
+		return errors.New("tournament running")
+	}
+
+	if tournamentObj.MaxPlayers != -1 && len(tournamentObj.Participants) < 2 {
+		return errors.New("not enough players")
+	}
+
+	tournamentObj.State = tournament.Running
+
+	switch tournamentObj.Type {
+	case tournament.SingleElimination:
+		matches := make([]*tournament.TournamentMatch, 0)
+
+		var participants []uuid.UUID
+
+		if len(tournamentObj.Participants)%2 != 0 {
+			luckyPlayer := utils.RandomNumber(0, len(tournamentObj.Participants)-1)
+
+			matches = append(matches, &tournament.TournamentMatch{
+				Players: []uuid.UUID{tournamentObj.Participants[luckyPlayer]},
+				Winner:  &tournamentObj.Participants[luckyPlayer],
+				State:   tournament.FinishedMatch,
+			})
+
+			participants = append(participants[:luckyPlayer], participants[luckyPlayer+1:]...)
+		}
+
+		//Hackery shuffle
+		for i := range participants {
+			j := rand.Intn(i + 1)
+			participants[i], participants[j] = participants[j], participants[i]
+		}
+
+		for i := 0; i < len(participants); i += 2 {
+			matches = append(matches, &tournament.TournamentMatch{
+				Players: []uuid.UUID{participants[i], participants[i+1]},
+				Winner:  nil,
+				State:   tournament.BeforeMatch,
+			})
+		}
+
+		tournamentObj.Stages = append(tournamentObj.Stages, &tournament.TournamentStage{
+			Matches: matches,
+		})
+	}
+
+	return nil
+}
+
+func (w *World) FinishMatch(tUuid uuid.UUID, winner uuid.UUID) {
+	tournamentObj := w.Tournaments[tUuid]
+
+	if tournamentObj == nil {
+		return
+	}
+
+	if tournamentObj.State != tournament.Running {
+		return
+	}
+
+	stage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
+
+	for _, match := range stage.Matches {
+
+		for _, player := range match.Players {
+			if player == winner {
+				match.Winner = &winner
+
+				match.State = tournament.FinishedMatch
+			}
+		}
+	}
+
+	if len(stage.Matches) == 1 {
+		tournamentObj.State = tournament.Finished
+	}
+}
+
+func (w *World) NextStage(tUuid uuid.UUID) {
+	tournamentObj := w.Tournaments[tUuid]
+
+	if tournamentObj == nil {
+		return
+	}
+
+	if tournamentObj.State != tournament.Running {
+		return
+	}
+
+	stage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
+
+	//check if all matches finished
+	for _, match := range stage.Matches {
+		if match.State != tournament.FinishedMatch {
+			return
+		}
+	}
+
+	//check if there is only one match
+	if len(stage.Matches) == 1 {
+		return
+	}
+
+	//create new stage
+	newMatches := make([]*tournament.TournamentMatch, 0)
+
+	for i := 0; i < len(stage.Matches); i += 2 {
+		newMatches = append(newMatches, &tournament.TournamentMatch{
+			Players: []uuid.UUID{*stage.Matches[i].Winner, *stage.Matches[i+1].Winner},
+			Winner:  nil,
+			State:   tournament.BeforeMatch,
+		})
+	}
+
+	tournamentObj.Stages = append(tournamentObj.Stages, &tournament.TournamentStage{
+		Matches: newMatches,
+	})
+}
+
+func (w *World) CreatePendingTransaction(left, right uuid.UUID) *transaction.Transaction {
+	tUuid := uuid.New()
+
+	w.Transactions[tUuid] = &transaction.Transaction{
+		Uuid:      tUuid,
+		LeftSide:  &transaction.TransactionSide{Who: left},
+		RightSide: &transaction.TransactionSide{Who: right},
+		State:     transaction.TransactionPending,
+	}
+
+	return w.Transactions[tUuid]
+}
+
+func (w *World) InitTrade(tUuid uuid.UUID) {
+	transactionObj := w.Transactions[tUuid]
+
+	if transactionObj == nil {
+		return
+	}
+
+	if transactionObj.State != transaction.TransactionPending {
+		return
+	}
+
+	transactionObj.State = transaction.TransactionProgress
+
+	w.DChannel <- types.DiscordMessageStruct{
+		ChannelID:      w.Players[transactionObj.LeftSide.Who].GetUID(),
+		MessageContent: discord.NewMessageCreateBuilder().SetContent("Transakcja rozpoczęta!").Build(),
+		DM:             true,
+	}
+
+	w.DChannel <- types.DiscordMessageStruct{
+		ChannelID:      w.Players[transactionObj.RightSide.Who].GetUID(),
+		MessageContent: discord.NewMessageCreateBuilder().SetContent("Transakcja rozpoczęta!").Build(),
+		DM:             true,
+	}
+}
+
+func (w *World) RejectTrade(tUuid uuid.UUID) {
+	transactionObj := w.Transactions[tUuid]
+
+	if transactionObj == nil {
+		return
+	}
+
+	if transactionObj.State != transaction.TransactionPending {
+		return
+	}
+
+	delete(w.Transactions, tUuid)
 }

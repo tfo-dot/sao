@@ -3,12 +3,14 @@ package discord
 import (
 	"fmt"
 	"sao/battle"
+	"sao/player"
 	"sao/player/inventory"
 	"sao/types"
 	"sao/utils"
 	"sao/world"
 	"sao/world/npc"
 	"sao/world/party"
+	"sao/world/transaction"
 	"strconv"
 	"strings"
 
@@ -18,7 +20,6 @@ import (
 )
 
 func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
-
 	if event.Data.CustomID != "shop/buy" {
 		return
 	}
@@ -608,5 +609,141 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			event.Modal(modal.Build())
 		}
+	}
+
+	if strings.HasPrefix(customId, "t") {
+		segments := strings.Split(customId, "/")
+		action := segments[1]
+
+		switch action {
+		case "join":
+			tournamentUuid := uuid.MustParse(segments[2])
+
+			var playerChar *player.Player
+
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == event.Member().User.ID.String() {
+					playerChar = pl
+					break
+				}
+			}
+
+			if playerChar == nil {
+				event.CreateMessage(noCharMessage)
+				return
+			}
+
+			for _, user := range World.Tournaments[tournamentUuid].Participants {
+				if user == playerChar.GetUUID() {
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent("Jesteś już zapisany").
+							SetEphemeral(true).
+							Build(),
+					)
+				}
+			}
+
+			World.Tournaments[tournamentUuid].Participants = append(World.Tournaments[tournamentUuid].Participants, playerChar.GetUUID())
+
+			var playerText string = ""
+			if World.Tournaments[tournamentUuid].MaxPlayers == -1 {
+				playerText = "Nieograniczona"
+			} else {
+				playerText = fmt.Sprintf("%v/%v", len(World.Tournaments[tournamentUuid].Participants), World.Tournaments[tournamentUuid].MaxPlayers)
+			}
+
+			event.UpdateMessage(
+				discord.NewMessageUpdateBuilder().
+					SetEmbeds(discord.NewEmbedBuilder().
+						SetTitle("Nowy turniej!").
+						SetDescriptionf("Zapisy na turniej `%v` otwarte!", World.Tournaments[tournamentUuid].Name).
+						SetFooterText("Ilość miejsc: " + playerText).
+						Build()).
+					Build(),
+			)
+		}
+	}
+
+	if strings.HasPrefix(customId, "trade") {
+		segments := strings.Split(customId, "|")
+
+		tradeUuid := uuid.MustParse(segments[1])
+
+		if segments[0] == "trade/res" {
+			trade := World.Transactions[tradeUuid]
+
+			if trade == nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Transakcja nie istnieje").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			if trade.State != transaction.TransactionPending {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Transakcja już została zaakceptowana").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			trade.State = transaction.TransactionProgress
+
+			World.InitTrade(tradeUuid)
+
+			event.UpdateMessage(
+				discord.
+					NewMessageUpdateBuilder().
+					ClearContainerComponents().
+					ClearEmbeds().
+					SetContent("Odrzucono transakcję").
+					Build(),
+			)
+		} else {
+			trade := World.Transactions[tradeUuid]
+
+			if trade == nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Transakcja nie istnieje").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			if trade.State != transaction.TransactionPending {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Transakcja już została zaakceptowana").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			World.RejectTrade(tradeUuid)
+
+			event.UpdateMessage(
+				discord.
+					NewMessageUpdateBuilder().
+					ClearContainerComponents().
+					ClearEmbeds().
+					SetContent("Odrzucono transakcję").
+					Build(),
+			)
+		}
+
 	}
 }

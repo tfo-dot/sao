@@ -9,6 +9,7 @@ import (
 	"sao/world"
 	"sao/world/npc"
 	"sao/world/party"
+	"sao/world/tournament"
 
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
@@ -87,7 +88,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		}
 	}
 
-	if playerChar == nil && data.CommandName() != "create" {
+	if playerChar == nil && (data.CommandName() != "create" || data.CommandName() != "turniej") {
 		event.CreateMessage(noCharMessage)
 		return
 	}
@@ -515,7 +516,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				event.CreateMessage(
 					discord.
 						NewMessageCreateBuilder().
-						SetContent("Wysłano zaproszenie").
+						SetContent("Wysłano zaproszenie do party").
 						SetEphemeral(true).
 						Build(),
 				)
@@ -1095,6 +1096,130 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			event.CreateMessage(messageBuilder.Build())
+		}
+	case "turniej":
+		switch *data.SubCommandName {
+		case "stwórz":
+			if !isAdmin(member) {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie masz uprawnień do tej komendy").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			tournamentName := data.String("nazwa")
+			maxCount, isMaxCountPresent := data.OptInt("max")
+			tournamentType := tournament.TournamentType(data.Int("typ"))
+
+			if !isMaxCountPresent {
+				maxCount = -1
+			}
+
+			tournament := tournament.Tournament{
+				Uuid:         uuid.New(),
+				Name:         tournamentName,
+				Type:         tournamentType,
+				MaxPlayers:   maxCount,
+				Participants: make([]uuid.UUID, 0),
+				State:        tournament.Waiting,
+			}
+
+			World.RegisterTournament(tournament)
+
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Turniej stworzony").
+					SetEphemeral(true).
+					Build(),
+			)
+		}
+	case "handel":
+		switch *data.SubCommandName {
+		case "nowy":
+			if playerChar.Meta.Transaction != nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Już masz otwartą ofertę!").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			secondUser := data.User("gracz")
+
+			secondPlayer := World.GetPlayer(secondUser.ID.String())
+
+			if secondPlayer == nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Gracz nie ma postaci").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			if secondPlayer.Meta.Transaction != nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Gracz ma otwartą ofertę").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			ch, error := event.Client().Rest().CreateDMChannel(secondUser.ID)
+
+			if error != nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie można wysłać wiadomości do gracza").
+						SetEphemeral(true).
+						Build(),
+				)
+			}
+
+			chID := ch.ID()
+
+			tempTrans := World.CreatePendingTransaction(playerChar.GetUUID(), secondPlayer.GetUUID())
+
+			_, error = event.Client().Rest().CreateMessage(chID, discord.NewMessageCreateBuilder().
+				SetContent(fmt.Sprintf("<@%s> (%s) zaprasza cię handlu!", user.ID.String(), playerChar.GetName())).
+				AddActionRow(
+					discord.NewPrimaryButton("Akceptuj", "trade/res|"+tempTrans.Uuid.String()),
+					discord.NewDangerButton("Odrzuć", "trade/rej|"+tempTrans.Uuid.String()),
+				).
+				Build(),
+			)
+
+			if error != nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie można wysłać wiadomości do gracza").
+						SetEphemeral(true).
+						Build(),
+				)
+			} else {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Wysłano zaproszenie do handlu").
+						SetEphemeral(true).
+						Build(),
+				)
+			}
 		}
 	}
 }
