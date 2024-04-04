@@ -60,13 +60,19 @@ func worldMessageListener() {
 			return
 		}
 
-		snowflake, err := snowflake.Parse(msg.ChannelID)
+		snowflake := snowflake.MustParse(msg.ChannelID)
 
-		if err != nil {
-			panic(err)
+		if msg.DM {
+			ch, err := (*Client).Rest().CreateDMChannel(snowflake)
+
+			if err != nil {
+				return
+			}
+
+			snowflake = ch.ID()
 		}
 
-		_, err = (*Client).Rest().CreateMessage(snowflake, msg.MessageContent)
+		_, err := (*Client).Rest().CreateMessage(snowflake, msg.MessageContent)
 
 		if err != nil {
 			panic(err)

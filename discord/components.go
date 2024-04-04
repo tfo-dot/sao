@@ -744,6 +744,5 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 					Build(),
 			)
 		}
-
 	}
 }
