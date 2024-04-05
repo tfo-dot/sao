@@ -1,11 +1,9 @@
 package world
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/player"
@@ -41,44 +39,6 @@ type World struct {
 }
 
 func CreateWorld(testMode bool) World {
-	floorMap := make(FloorMap, 1)
-
-	pathToRes := "./data/release/world/floors/"
-
-	if testMode {
-		pathToRes = "./data/test/world/floors/"
-	}
-
-	files, err := os.ReadDir(pathToRes)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		f, err := os.Open(pathToRes + file.Name())
-
-		if err != nil {
-			panic(err)
-		}
-
-		var floor location.Floor
-
-		err = json.NewDecoder(f).Decode(&floor)
-
-		if err != nil {
-			panic(err)
-		}
-
-		floorMap[floor.Name] = floor
-
-		fmt.Printf("Loaded floor %v\n", floor)
-	}
-
 	stockItem := npc.Stock{
 		ItemType: types.ITEM_MATERIAL,
 		ItemUUID: uuid.MustParse("00000000-0000-0000-0000-000000000000"),
@@ -112,7 +72,7 @@ func CreateWorld(testMode bool) World {
 		make(map[uuid.UUID]*transaction.Transaction),
 		npcMap,
 		storeMap,
-		floorMap,
+		location.GetFloors(testMode),
 		make(map[uuid.UUID]*tournament.Tournament),
 		make(map[uuid.UUID]battle.Fight),
 		make(map[uuid.UUID]*battle.Entity),

@@ -41,8 +41,6 @@ func main() {
 
 	discord.World = &world
 
-	world.RegisterNewPlayer("tfo", "344048874656366592")
-
 	go discord.StartClient(string(botKey))
 
 	for {

@@ -40,3 +40,45 @@ type LocationEffect struct {
 	Value  int
 	Meta   *map[string]interface{}
 }
+
+func GetFloors(test bool) map[string]Floor {
+	if test {
+		return map[string]Floor{
+			"dev": {
+				Name:     "dev",
+				CID:      "1162450076438900958",
+				Default:  "Las",
+				Unlocked: false,
+				Locations: []Location{
+					{
+						Name:     "Rynek",
+						CID:      "1162450122249076756",
+						CityPart: true,
+						Effects:  []LocationEffect{},
+						TP:       true,
+						Unlocked: true,
+					},
+					{
+						Name:     "Las",
+						CID:      "1162450159251234876",
+						CityPart: false,
+						Enemies: []EnemyMeta{
+							{
+								MinNum: 1,
+								MaxNum: 3,
+								Enemy:  "LV0_Rycerz",
+							},
+						},
+						Effects:  []LocationEffect{},
+						TP:       false,
+						Unlocked: false,
+					},
+				},
+				Effects: []LocationEffect{},
+			},
+		}
+	} else {
+		//TODO fill this
+		return map[string]Floor{}
+	}
+}
