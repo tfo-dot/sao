@@ -268,7 +268,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			event.UpdateMessage(messageUpdateClearComponents)
 
-			fight.ActionChannel <- battle.Action{
+			fight.PlayerActions <- battle.Action{
 				Event:  battle.ACTION_ATTACK,
 				Source: player.GetUUID(),
 				Target: playerEnemies[0].GetUUID(),
@@ -286,7 +286,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		case "defend":
 			event.UpdateMessage(messageUpdateClearComponents)
 
-			fight.ActionChannel <- battle.Action{
+			fight.PlayerActions <- battle.Action{
 				Event:  battle.ACTION_DEFEND,
 				Source: player.GetUUID(),
 				Target: player.GetUUID(),
@@ -338,7 +338,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 					)
 
 					if skill.GetTrigger().Event.TargetCount == -1 {
-						fight.ActionChannel <- battle.Action{
+						fight.PlayerActions <- battle.Action{
 							Event:  battle.ACTION_SKILL,
 							Source: player.GetUUID(),
 							Target: uuid.Nil,
@@ -400,7 +400,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 							Build(),
 					)
 
-					fight.ActionChannel <- battle.Action{
+					fight.PlayerActions <- battle.Action{
 						Event:  battle.ACTION_SKILL,
 						Source: player.GetUUID(),
 						Target: uuid.Nil,
@@ -471,7 +471,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 								Build(),
 						)
 
-						fight.ActionChannel <- battle.Action{
+						fight.PlayerActions <- battle.Action{
 							Event:  battle.ACTION_ITEM,
 							Source: player.GetUUID(),
 							Target: player.GetUUID(),
@@ -506,7 +506,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		case "escape":
 			event.UpdateMessage(messageUpdateClearComponents)
 
-			fight.ActionChannel <- battle.Action{
+			fight.PlayerActions <- battle.Action{
 				Event:  battle.ACTION_RUN,
 				Source: player.GetUUID(),
 				Target: player.GetUUID(),

@@ -146,7 +146,7 @@ func (p *Player) GetDefendingState() bool {
 	return p.Stats.Defending
 }
 
-func (p *Player) Action(f *battle.Fight) int { return 0 }
+func (p *Player) Action(f *battle.Fight) []battle.Action { return []battle.Action{} }
 
 func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 	startingHP := p.Stats.HP
@@ -245,10 +245,6 @@ func (p *Player) ApplyEffect(e battle.ActionEffect) {
 	p.Stats.Effects = append(p.Stats.Effects, e)
 }
 
-func (p *Player) HasEffect(e battle.Effect) bool {
-	return p.Stats.Effects.HasEffect(e)
-}
-
 func (p *Player) GetEffect(effect battle.Effect) *battle.ActionEffect {
 	return p.Stats.Effects.GetEffect(effect)
 }
@@ -266,15 +262,15 @@ func (p *Player) GetAllEffects() []battle.ActionEffect {
 }
 
 func (p *Player) CanAttack() bool {
-	return !(p.HasEffect(battle.EFFECT_DISARM) || p.HasEffect(battle.EFFECT_STUN))
+	return !(p.GetEffect(battle.EFFECT_DISARM) != nil || p.GetEffect(battle.EFFECT_STUN) != nil)
 }
 
 func (p *Player) CanDodgeNow() bool {
-	return !(p.HasEffect(battle.EFFECT_STUN) || p.HasEffect(battle.EFFECT_ROOT) || p.HasEffect(battle.EFFECT_GROUND) || p.HasEffect(battle.EFFECT_BLIND))
+	return !(p.GetEffect(battle.EFFECT_STUN) != nil || p.GetEffect(battle.EFFECT_ROOT) != nil || p.GetEffect(battle.EFFECT_GROUND) != nil || p.GetEffect(battle.EFFECT_BLIND) != nil)
 }
 
 func (p *Player) CanDefend() bool {
-	return !(p.HasEffect(battle.EFFECT_STUN) || p.HasEffect(battle.EFFECT_ROOT))
+	return !(p.GetEffect(battle.EFFECT_STUN) != nil || p.GetEffect(battle.EFFECT_ROOT) != nil)
 }
 
 func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
@@ -282,7 +278,7 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	if p.HasEffect(battle.EFFECT_SILENCE) {
+	if p.GetEffect(battle.EFFECT_SILENCE) != nil {
 		return false
 	}
 
@@ -302,7 +298,7 @@ func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
 		return false
 	}
 
-	if p.HasEffect(battle.EFFECT_SILENCE) {
+	if p.GetEffect(battle.EFFECT_SILENCE) != nil {
 		return false
 	}
 
@@ -318,36 +314,23 @@ func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
 }
 
 func (p *Player) GetAllSkills() []types.PlayerSkill {
-	tempArr := p.Inventory.Skills
+	tempArr := make([]types.PlayerSkill, 0)
+
+	tempArr = append(tempArr, p.Inventory.Skills...)
 
 	for _, item := range p.Inventory.Items {
-		for _, effect := range item.Effects {
-			tempArr = append(tempArr, effect)
-		}
+		tempArr = append(tempArr, item.Effects...)
 	}
 
 	for _, skill := range p.Inventory.LevelSkills {
 		tempArr = append(tempArr, skill)
 	}
 
-	//TODO handle transition
-	// for _, furry := range p.Meta.Fury {
-	// 	for _, skill := range furry.GetSkills() {
-	// 		tempArr = append(tempArr, &types.PlayerSkill{
-	// 			Name:        skill.Name,
-	// 			Description: skill.Description,
-	// 			Trigger:     *skill.Trigger,
-	// 			Cost:        skill.Cost,
-	// 			UUID:        uuid.Nil,
-	// 			Action: func(source interface{}, target interface{}, fight interface{}) {
-	// 				skill.Execute(source.(battle.PlayerEntity), target.(battle.Entity), fight.(*battle.Fight))
-	// 			},
-	// 			CD: skill.CD.Calc(skill, p.GetUpgrades(skill.ForLevel)),
-	// 		})
-	// 	}
-	// }
+	for _, skill := range p.Meta.Fury {
+		tempArr = append(tempArr, skill.GetSkills()...)
+	}
 
-	return []types.PlayerSkill{}
+	return tempArr
 }
 
 func (p *Player) AddItem(item *types.PlayerItem) {

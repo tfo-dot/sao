@@ -23,16 +23,6 @@ type MobEntity struct {
 
 type EffectList []battle.ActionEffect
 
-func (e EffectList) HasEffect(effect battle.Effect) bool {
-	for _, eff := range e {
-		if eff.Effect == effect {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (e EffectList) GetEffect(effect battle.Effect) *battle.ActionEffect {
 	for _, eff := range e {
 		if eff.Effect == effect {
@@ -211,30 +201,32 @@ func (m *MobEntity) DamageShields(dmg int) int {
 	return leftOverDmg
 }
 
-func (m *MobEntity) Action(f *battle.Fight) int {
+func (m *MobEntity) Action(f *battle.Fight) []battle.Action {
 	enemies := f.GetEnemiesFor(m.UUID)
 
 	if len(enemies) == 0 {
-		return 0
+		return []battle.Action{}
 	}
 
-	if m.HasEffect(battle.EFFECT_TAUNTED) {
-		effect := m.GetEffect(battle.EFFECT_TAUNTED)
+	tauntEffect := m.GetEffect(battle.EFFECT_TAUNTED)
 
-		f.ActionChannel <- battle.Action{
-			Event:  battle.ACTION_ATTACK,
-			Source: m.UUID,
-			Target: effect.Meta.(uuid.UUID),
+	if tauntEffect != nil {
+		return []battle.Action{
+			{
+				Event:  battle.ACTION_ATTACK,
+				Source: m.UUID,
+				Target: tauntEffect.Meta.(uuid.UUID),
+			},
 		}
-	} else {
-		f.ActionChannel <- battle.Action{
+	}
+
+	return []battle.Action{
+		{
 			Event:  battle.ACTION_ATTACK,
 			Source: m.UUID,
 			Target: utils.RandomElement(enemies).GetUUID(),
-		}
+		},
 	}
-
-	return 1
 }
 
 func (m *MobEntity) GetUUID() uuid.UUID {
@@ -251,10 +243,6 @@ func (m *MobEntity) CanDodge() bool {
 
 func (m *MobEntity) ApplyEffect(e battle.ActionEffect) {
 	m.Effects = append(m.Effects, e)
-}
-
-func (m *MobEntity) HasEffect(e battle.Effect) bool {
-	return m.Effects.HasEffect(e)
 }
 
 func (m *MobEntity) GetEffect(effect battle.Effect) *battle.ActionEffect {

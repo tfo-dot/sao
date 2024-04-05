@@ -158,7 +158,7 @@ type Entity interface {
 	GetCurrentMana() int
 	GetAP() int
 
-	Action(*Fight) int
+	Action(*Fight) []Action
 	TakeDMG(ActionDamage) int
 	DamageShields(int) int
 
@@ -174,7 +174,6 @@ type Entity interface {
 	GetUUID() uuid.UUID
 
 	ApplyEffect(ActionEffect)
-	HasEffect(Effect) bool
 	GetEffect(Effect) *ActionEffect
 	GetAllEffects() []ActionEffect
 	TriggerAllEffects() []ActionEffect

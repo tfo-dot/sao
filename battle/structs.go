@@ -16,11 +16,11 @@ type Fight struct {
 	Entities        EntityMap
 	SpeedMap        map[uuid.UUID]int
 	StartTime       *calendar.Calendar
-	ActionChannel   chan Action
 	ExternalChannel chan []byte
 	DiscordChannel  chan types.DiscordMessageStruct
 	Effects         []ActionEffect
 	Location        *location.Location
+	PlayerActions   chan Action
 }
 
 type EntityMap map[uuid.UUID]EntityEntry
@@ -67,6 +67,30 @@ func (mp EntityMap) FromSide(side int) []Entity {
 	return entities
 }
 
+func (f *Fight) IsFinished() bool {
+	return len(f.Entities.SidesLeft()) <= 1
+}
+
+func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []Entity {
+	entitySide := f.Entities[uuid].Side
+
+	enemiesList := make([]Entity, 0)
+
+	for _, entry := range f.Entities {
+		if entry.Side == entitySide {
+			continue
+		}
+
+		if entry.Entity.GetCurrentHP() <= 0 {
+			continue
+		}
+
+		enemiesList = append(enemiesList, entry.Entity)
+	}
+
+	return enemiesList
+}
+
 func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrigger) {
 	entityEntry, exists := f.Entities[entityUuid]
 
@@ -74,13 +98,13 @@ func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrig
 		return
 	}
 
-	sourceEntity := entityEntry.Entity
-
-	if sourceEntity.IsAuto() {
+	if entityEntry.Entity.IsAuto() {
 		return
 	}
 
-	for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
+	sourceEntity := entityEntry.Entity.(PlayerEntity)
+
+	for _, skill := range sourceEntity.GetAllSkills() {
 		if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 			continue
 		}
@@ -90,11 +114,11 @@ func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrig
 		}
 
 		if skill.GetCD() != 0 {
-			sourceEntity.(PlayerEntity).SetCD(skill.GetUUID(), skill.GetCD())
+			sourceEntity.SetCD(skill.GetUUID(), skill.GetCD())
 		}
 
 		if skill.GetCost() != 0 {
-			sourceEntity.(PlayerEntity).RestoreMana(-skill.GetCost())
+			sourceEntity.RestoreMana(-skill.GetCost())
 		}
 
 		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.GetTrigger().Event)
@@ -124,13 +148,13 @@ func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.
 		return
 	}
 
-	sourceEntity := entityEntry.Entity
-
-	if sourceEntity.IsAuto() {
+	if entityEntry.Entity.IsAuto() {
 		return
 	}
 
-	for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
+	sourceEntity := entityEntry.Entity.(PlayerEntity)
+
+	for _, skill := range sourceEntity.GetAllSkills() {
 		if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 			continue
 		}
@@ -144,11 +168,11 @@ func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.
 		}
 
 		if skill.GetCD() != 0 {
-			sourceEntity.(PlayerEntity).SetCD(skill.GetUUID(), skill.GetCD())
+			sourceEntity.SetCD(skill.GetUUID(), skill.GetCD())
 		}
 
 		if skill.GetCost() != 0 {
-			sourceEntity.(PlayerEntity).RestoreMana(-skill.GetCost())
+			sourceEntity.RestoreMana(-skill.GetCost())
 		}
 
 		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.GetTrigger().Event)
@@ -171,47 +195,9 @@ func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.
 	}
 }
 
-func (f *Fight) DispatchActionAttack(act Action) (int, bool) {
-	sourceEntity := f.Entities[act.Source]
-
-	tempMeta := act.Meta
-
-	if _, ok := tempMeta.(ActionDamage); !ok {
-		tempMeta = ActionDamage{
-			Damage: []Damage{{
-				Value:    sourceEntity.Entity.GetATK(),
-				Type:     DMG_PHYSICAL,
-				CanDodge: true,
-			}},
-			CanDodge: true,
-		}
-	}
-
-	meta := tempMeta.(ActionDamage)
-
-	canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
-
-	dodged := false
-	atk := 0
-
-	if canDodge {
-		atk, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(meta)
-	} else {
-		atk = f.Entities[act.Target].Entity.TakeDMG(meta)
-	}
-
-	if !dodged {
-		f.TriggerPassive(act.Source, types.TRIGGER_HIT)
-	}
-
-	return atk, dodged
-}
-
 func (f *Fight) HandleAction(act Action) {
 	switch act.Event {
 	case ACTION_ATTACK:
-		dmgDealt, dodged := f.DispatchActionAttack(act)
-
 		sourceEntity := f.Entities[act.Source]
 
 		tempMeta := act.Meta
@@ -227,12 +213,26 @@ func (f *Fight) HandleAction(act Action) {
 				},
 				CanDodge: true,
 			}
-
 		}
 
 		meta := tempMeta.(ActionDamage)
 
 		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK)
+
+		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
+
+		dodged := false
+		dmgDealt := 0
+
+		if canDodge {
+			dmgDealt, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(meta)
+		} else {
+			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
+		}
+
+		if !dodged {
+			f.TriggerPassive(act.Source, types.TRIGGER_HIT)
+		}
 
 		messageBuilder := discord.NewMessageCreateBuilder()
 
@@ -277,10 +277,10 @@ func (f *Fight) HandleAction(act Action) {
 
 		messageBuilder.AddEmbeds(tempEmbed.Build())
 
-		if sourceEntity.Entity.HasEffect(EFFECT_VAMP) && !dodged {
-			effect := sourceEntity.Entity.GetEffect(EFFECT_VAMP)
+		vampEffect := sourceEntity.Entity.GetEffect(EFFECT_VAMP)
 
-			value := utils.PercentOf(dmgDealt, effect.Value)
+		if vampEffect != nil && !dodged {
+			value := utils.PercentOf(dmgDealt, vampEffect.Value)
 
 			sourceEntity.Entity.Heal(value)
 
@@ -542,11 +542,26 @@ func (f *Fight) HandleAction(act Action) {
 			return hpValue < e.GetCurrentHP()
 		})
 	case ACTION_COUNTER:
-		dmgDealt, dodged := f.DispatchActionAttack(act)
-
 		sourceEntity := f.Entities[act.Source]
 
+		f.TriggerPassive(act.Source, types.TRIGGER_COUNTER)
+
 		meta := act.Meta.(ActionDamage)
+
+		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
+
+		dodged := false
+		dmgDealt := 0
+
+		if canDodge {
+			dmgDealt, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(meta)
+		} else {
+			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
+		}
+
+		if !dodged {
+			f.TriggerPassive(act.Source, types.TRIGGER_HIT)
+		}
 
 		messageBuilder := discord.NewMessageCreateBuilder()
 
@@ -572,10 +587,10 @@ func (f *Fight) HandleAction(act Action) {
 			}
 		}
 
-		if sourceEntity.Entity.HasEffect(EFFECT_VAMP) && !dodged {
-			effect := sourceEntity.Entity.GetEffect(EFFECT_VAMP)
+		vampEffect := sourceEntity.Entity.GetEffect(EFFECT_VAMP)
 
-			value := utils.PercentOf(dmgDealt, effect.Value)
+		if vampEffect != nil && !dodged {
+			value := utils.PercentOf(dmgDealt, vampEffect.Value)
 
 			sourceEntity.Entity.Heal(value)
 
@@ -594,10 +609,6 @@ func (f *Fight) HandleAction(act Action) {
 					).
 					Build(),
 			)
-		}
-
-		if !dodged {
-			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK)
 		}
 
 		messageBuilder.AddEmbeds(tempEmbed.Build())
@@ -727,26 +738,26 @@ func (f *Fight) HandleAction(act Action) {
 				f.ExternalChannel <- []byte{byte(MSG_FIGHT_END)}
 			}
 		}
-	default:
-		fmt.Printf("Unknown action %d\n", act.Event)
-		panic("Not implemented (actions)")
+	}
+}
+
+func (f *Fight) TriggerAll(triggerType types.SkillTrigger) {
+	for entityUuid := range f.Entities {
+		f.TriggerPassive(entityUuid, triggerType)
 	}
 }
 
 func (f *Fight) Init() {
 	f.SpeedMap = make(map[uuid.UUID]int)
-	f.ActionChannel = make(chan Action, 10)
 
 	for _, entity := range f.Entities {
 		f.SpeedMap[entity.Entity.GetUUID()] = entity.Entity.GetSPD()
 	}
 
 	f.ExternalChannel = make(chan []byte)
+	f.PlayerActions = make(chan Action, 10)
 
-	//FIGHT START EVENT
-	for entityUuid := range f.Entities {
-		f.TriggerPassive(entityUuid, types.TRIGGER_FIGHT_START)
-	}
+	f.TriggerAll(types.TRIGGER_FIGHT_START)
 }
 
 func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDetails) []uuid.UUID {
@@ -849,13 +860,11 @@ func (f *Fight) Run() {
 
 				f.ExternalChannel <- packet
 
-				f.HandleAction(<-f.ActionChannel)
+				f.HandleAction(<-f.PlayerActions)
 			} else {
-				if !(entity.HasEffect(EFFECT_DISARM) || entity.HasEffect(EFFECT_STUN) || entity.HasEffect(EFFECT_STUN) || entity.HasEffect(EFFECT_ROOT) || entity.HasEffect(EFFECT_GROUND) || entity.HasEffect(EFFECT_BLIND)) {
-					actionNum := entity.Action(f)
-
-					for i := 0; i < actionNum; i++ {
-						f.HandleAction(<-f.ActionChannel)
+				if !(entity.GetEffect(EFFECT_DISARM) != nil || entity.GetEffect(EFFECT_STUN) != nil || entity.GetEffect(EFFECT_STUN) != nil || entity.GetEffect(EFFECT_ROOT) != nil || entity.GetEffect(EFFECT_GROUND) != nil || entity.GetEffect(EFFECT_BLIND) != nil) {
+					for _, action := range entity.Action(f) {
+						f.HandleAction(action)
 					}
 				} else {
 					f.DiscordChannel <- types.DiscordMessageStruct{
@@ -870,7 +879,6 @@ func (f *Fight) Run() {
 							).Build(),
 					}
 				}
-
 			}
 
 			entity.TriggerAllEffects()
@@ -883,34 +891,6 @@ func (f *Fight) Run() {
 		}
 	}
 
-	//FIGHT END EVENT
-	for entityUuid := range f.Entities {
-		f.TriggerPassive(entityUuid, types.TRIGGER_FIGHT_END)
-	}
-
+	f.TriggerAll(types.TRIGGER_FIGHT_END)
 	f.ExternalChannel <- []byte{byte(MSG_FIGHT_END)}
-}
-
-func (f *Fight) IsFinished() bool {
-	return len(f.Entities.SidesLeft()) <= 1
-}
-
-func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []Entity {
-	entitySide := f.Entities[uuid].Side
-
-	enemiesList := make([]Entity, 0)
-
-	for _, entry := range f.Entities {
-		if entry.Side == entitySide {
-			continue
-		}
-
-		if entry.Entity.GetCurrentHP() <= 0 {
-			continue
-		}
-
-		enemiesList = append(enemiesList, entry.Entity)
-	}
-
-	return enemiesList
 }

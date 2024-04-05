@@ -502,10 +502,10 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				panic(err)
 			}
 
-			if player.HasEffect(battle.EFFECT_TAUNTED) {
+			if player.GetEffect(battle.EFFECT_TAUNTED) != nil {
 				effect := player.GetEffect(battle.EFFECT_TAUNTED)
 
-				fight.ActionChannel <- battle.Action{
+				fight.PlayerActions <- battle.Action{
 					Event:  battle.ACTION_ATTACK,
 					Source: player.GetUUID(),
 					Target: effect.Meta.(uuid.UUID),
