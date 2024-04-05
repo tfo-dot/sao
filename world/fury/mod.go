@@ -17,7 +17,7 @@ type Fury struct {
 
 type FuryTier struct {
 	Stats       map[types.Stat]int
-	Skills      []types.Skill
+	Skills      []types.PlayerSkill
 	Ingredients []types.Ingredient
 }
 
@@ -64,8 +64,8 @@ func (f *Fury) GetStats() map[types.Stat]int {
 	return baseStats
 }
 
-func (f *Fury) GetSkills() []types.Skill {
-	skills := []types.Skill{}
+func (f *Fury) GetSkills() []types.PlayerSkill {
+	skills := []types.PlayerSkill{}
 
 	for i := 0; i < f.CurrentTier; i++ {
 		skills = append(skills, f.Tiers[i].Skills...)

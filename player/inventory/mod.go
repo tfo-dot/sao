@@ -13,10 +13,10 @@ type PlayerInventory struct {
 	Capacity            int
 	Items               []*types.PlayerItem
 	Ingredients         map[uuid.UUID]*types.Ingredient
-	Skills              []*types.PlayerSkill
+	Skills              []types.PlayerSkill
 	CDS                 map[uuid.UUID]int
 	LevelSkillsCDS      map[int]int
-	LevelSkills         map[int]PlayerSkill
+	LevelSkills         map[int]PlayerSkillLevel
 	LevelSkillsUpgrades map[int][]string
 }
 
@@ -128,7 +128,7 @@ func (inv *PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, targe
 	}
 }
 
-func (inv *PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, player battle.PlayerEntity) error {
+func (inv *PlayerInventory) UnlockSkill(path types.SkillPath, lvl int, playerLvl int, player *battle.PlayerEntity) error {
 	if lvl > playerLvl {
 		return errors.New("PLAYER_LVL_TOO_LOW")
 	}
@@ -137,44 +137,45 @@ func (inv *PlayerInventory) UnlockSkill(path SkillPath, lvl int, playerLvl int, 
 		return errors.New("SKILL_ALREADY_UNLOCKED")
 	}
 
-	for _, skill := range AVAILABLE_SKILLS {
-		if skill.Path == path && skill.ForLevel == lvl {
-			inv.LevelSkills[lvl] = skill
+	skill, skillExists := AVAILABLE_SKILLS[path][lvl]
 
-			if skill.OnEvent != nil {
-				if fn, exists := (*skill.OnEvent)[types.CUSTOM_TRIGGER_UNLOCK]; exists {
-					fn(&player)
-				}
-			}
-
-			return nil
-		}
+	if !skillExists {
+		return errors.New("SKILL_NOT_FOUND")
 	}
 
-	return errors.New("SKILL_NOT_FOUND")
+	inv.LevelSkills[lvl] = skill
+
+	skillEvents := skill.GetEvents()
+
+	if effect, effectExists := skillEvents[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
+		var tempPlayer interface{} = player
+
+		effect(&tempPlayer)
+	}
+
+	return nil
 }
 
-func (inv *PlayerInventory) UpgradeSkill(path SkillPath, lvl int, upgradeName string) error {
+func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeName string) error {
 	if _, exists := inv.LevelSkills[lvl]; !exists {
 		return errors.New("SKILL_NOT_UNLOCKED")
 	}
 
-	for _, skill := range AVAILABLE_SKILLS {
-		if skill.Path == path && skill.ForLevel == lvl {
-			for _, upgrade := range skill.Upgrades {
-				if upgrade.Name == upgradeName {
-					if _, exists := inv.LevelSkillsUpgrades[lvl]; !exists {
-						inv.LevelSkillsUpgrades[lvl] = []string{}
-					}
+	skill, skillExists := inv.LevelSkills[lvl]
 
-					inv.LevelSkillsUpgrades[lvl] = append(inv.LevelSkillsUpgrades[lvl], upgrade.Name)
-					return nil
-				}
-			}
-		}
+	if !skillExists {
+		return errors.New("SKILL_NOT_FOUND")
 	}
 
-	return errors.New("SKILL_NOT_FOUND")
+	if exists := skill.HasUpgrade(upgradeName); !exists {
+		return errors.New("UPGRADE_NOT_FOUND")
+	}
+
+	skill.UnlockUpgrade(upgradeName)
+
+	inv.LevelSkillsUpgrades[lvl] = append(inv.LevelSkillsUpgrades[lvl], upgradeName)
+
+	return nil
 }
 
 func GetDefaultInventory() PlayerInventory {
@@ -184,23 +185,23 @@ func GetDefaultInventory() PlayerInventory {
 		Ingredients:         map[uuid.UUID]*types.Ingredient{},
 		Items:               []*types.PlayerItem{},
 		CDS:                 map[uuid.UUID]int{},
-		Skills:              []*types.PlayerSkill{},
-		LevelSkills:         map[int]PlayerSkill{},
+		Skills:              []types.PlayerSkill{},
+		LevelSkills:         map[int]PlayerSkillLevel{},
 		LevelSkillsCDS:      map[int]int{},
 		LevelSkillsUpgrades: map[int][]string{},
 	}
 }
 
-func (inv *PlayerInventory) UseSkill(skillUuid uuid.UUID, owner, target, fightInstance interface{}) {
+func (inv *PlayerInventory) UseSkill(skillUuid uuid.UUID, owner, target interface{}, fightInstance *interface{}) {
 	for _, skill := range inv.Skills {
-		if skill.Trigger.Type != types.TRIGGER_ACTIVE {
+		if skill.GetTrigger().Type != types.TRIGGER_ACTIVE {
 			continue
 		}
 
-		if skill.UUID == skillUuid {
-			skill.Action(owner, target, fightInstance)
+		if skill.GetUUID() == skillUuid {
+			skill.Execute(owner, target, fightInstance)
 
-			inv.CDS[skill.UUID] = skill.CD
+			inv.CDS[skill.GetUUID()] = skill.GetCD()
 
 			return
 		}

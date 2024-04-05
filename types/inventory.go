@@ -4,22 +4,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type Skill struct {
-	Name    string
-	Trigger Trigger
-	Cost    int
-	//ACTUALLY, shouldn't it be all pointers?
-	Execute func(source, target interface{}, fight *interface{})
-}
+type PlayerSkill interface {
+	GetName() string
+	GetDescription() string
+	GetUUID() uuid.UUID
 
-type PlayerSkill struct {
-	Name        string
-	Description string
-	Trigger     Trigger
-	Cost        int
-	UUID        uuid.UUID
-	CD          int
-	Action      func(source, target, fight interface{})
+	GetCD() int
+	GetCost() int
+
+	GetTrigger() Trigger
+
+	Execute(owner, target interface{}, fightInstance *interface{})
+	GetEvents() map[CustomTrigger]func(owner *interface{})
 }
 
 type SkillTriggerType int
@@ -112,8 +108,17 @@ type PlayerItem struct {
 	MaxCount    int
 	Hidden      bool
 	Stats       map[int]int
-	Effects     []Skill
+	Effects     []PlayerSkill
 }
+
+type SkillPath int
+
+const (
+	PathControl SkillPath = iota
+	PathEndurance
+	PathDamage
+	PathMobility
+)
 
 func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *interface{}) {
 
@@ -126,7 +131,7 @@ func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *in
 	}
 
 	for _, effect := range item.Effects {
-		if effect.Trigger.Type == TRIGGER_PASSIVE {
+		if effect.GetTrigger().Type == TRIGGER_PASSIVE {
 			continue
 		}
 

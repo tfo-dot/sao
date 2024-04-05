@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sao/battle"
 	"sao/player"
-	"sao/player/inventory"
 	"sao/types"
 	"sao/utils"
 	"sao/world"
@@ -91,17 +90,17 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 	if strings.HasPrefix(customId, "su") {
 		data := strings.Split(customId, "|")
 
-		path := inventory.SkillPath(0)
+		path := types.SkillPath(0)
 
 		switch data[1] {
 		case "0":
-			path = inventory.PathControl
+			path = types.PathControl
 		case "1":
-			path = inventory.PathDamage
+			path = types.PathDamage
 		case "2":
-			path = inventory.PathEndurance
+			path = types.PathEndurance
 		case "3":
-			path = inventory.PathMobility
+			path = types.PathMobility
 		}
 
 		lvl := 0
@@ -112,7 +111,9 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 		for _, pl := range World.Players {
 			if pl.Meta.UserID == userSnowflake {
-				res := pl.Inventory.UnlockSkill(path, lvl, pl.XP.Level, pl)
+				var tempPlayer battle.PlayerEntity = pl
+
+				res := pl.Inventory.UnlockSkill(path, lvl, pl.XP.Level, &tempPlayer)
 
 				if res == nil {
 					event.UpdateMessage(
@@ -305,7 +306,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			for _, skill := range player.Inventory.LevelSkills {
 				if player.CanUseLvlSkill(skill) {
-					options = append(options, discord.NewStringSelectMenuOption(skill.Name, fmt.Sprint(skill.ForLevel)))
+					options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), fmt.Sprint(skill.GetLevel())))
 				}
 			}
 
@@ -328,7 +329,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			rawSkillUuid := event.ComponentInteraction.StringSelectMenuInteractionData().Values[0]
 
 			for _, skill := range player.Inventory.LevelSkills {
-				if fmt.Sprint(skill.ForLevel) == rawSkillUuid {
+				if fmt.Sprint(skill.GetLevel()) == rawSkillUuid {
 					event.UpdateMessage(
 						discord.
 							NewMessageUpdateBuilder().
@@ -336,14 +337,14 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 							Build(),
 					)
 
-					if skill.Trigger.Event.TargetCount == -1 {
+					if skill.GetTrigger().Event.TargetCount == -1 {
 						fight.ActionChannel <- battle.Action{
 							Event:  battle.ACTION_SKILL,
 							Source: player.GetUUID(),
 							Target: uuid.Nil,
 							Meta: battle.ActionSkillMeta{
 								IsForLevel: true,
-								Lvl:        skill.ForLevel,
+								Lvl:        skill.GetLevel(),
 								SkillUuid:  uuid.Nil,
 								Targets: utils.Map(
 									fight.GetEnemiesFor(player.GetUUID()),
@@ -378,7 +379,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 											"Wybierz cel umiejętności",
 											options...,
 										).
-										WithMaxValues(skill.Trigger.Event.TargetCount),
+										WithMaxValues(skill.GetTrigger().Event.TargetCount),
 								).
 								Build(),
 						)
@@ -391,7 +392,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			rawSkillUuid := meta
 
 			for _, skill := range player.Inventory.LevelSkills {
-				if fmt.Sprint(skill.ForLevel) == rawSkillUuid {
+				if fmt.Sprint(skill.GetLevel()) == rawSkillUuid {
 					event.UpdateMessage(
 						discord.
 							NewMessageUpdateBuilder().
@@ -405,7 +406,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						Target: uuid.Nil,
 						Meta: battle.ActionSkillMeta{
 							IsForLevel: true,
-							Lvl:        skill.ForLevel,
+							Lvl:        skill.GetLevel(),
 							SkillUuid:  uuid.Nil,
 							Targets: utils.Map(
 								event.ComponentInteraction.StringSelectMenuInteractionData().Values,

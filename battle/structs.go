@@ -21,7 +21,6 @@ type Fight struct {
 	DiscordChannel  chan types.DiscordMessageStruct
 	Effects         []ActionEffect
 	Location        *location.Location
-	EventHandlers   map[uuid.UUID]types.Skill
 }
 
 type EntityMap map[uuid.UUID]EntityEntry
@@ -29,16 +28,6 @@ type EntityMap map[uuid.UUID]EntityEntry
 type EntityEntry struct {
 	Entity Entity
 	Side   int
-}
-
-func (f Fight) GetEntity(uuid uuid.UUID) (Entity, int) {
-	entry, ok := f.Entities[uuid]
-
-	if ok {
-		return entry.Entity, entry.Side
-	}
-
-	return nil, -1
 }
 
 func (mp EntityMap) SidesLeft() []int {
@@ -78,7 +67,7 @@ func (mp EntityMap) FromSide(side int) []Entity {
 	return entities
 }
 
-func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrigger, additionalCheck func(Entity, types.PlayerSkill) bool) {
+func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrigger) {
 	entityEntry, exists := f.Entities[entityUuid]
 
 	if !exists {
@@ -92,30 +81,26 @@ func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrig
 	}
 
 	for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
-		if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+		if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 			continue
 		}
 
-		if skill.Trigger.Event.TriggerType != triggerType {
+		if skill.GetTrigger().Event.TriggerType != triggerType {
 			continue
 		}
 
-		if !additionalCheck(sourceEntity, skill) {
-			continue
+		if skill.GetCD() != 0 {
+			sourceEntity.(PlayerEntity).SetCD(skill.GetUUID(), skill.GetCD())
 		}
 
-		if skill.CD != 0 {
-			sourceEntity.(PlayerEntity).SetCD(skill.UUID, skill.CD)
+		if skill.GetCost() != 0 {
+			sourceEntity.(PlayerEntity).RestoreMana(-skill.GetCost())
 		}
 
-		if skill.Cost != 0 {
-			sourceEntity.(PlayerEntity).RestoreMana(-skill.Cost)
-		}
+		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.GetTrigger().Event)
 
-		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.Trigger.Event)
-
-		if skill.Trigger.Event.TargetCount != -1 {
-			count := skill.Trigger.Event.TargetCount
+		if skill.GetTrigger().Event.TargetCount != -1 {
+			count := skill.GetTrigger().Event.TargetCount
 
 			if count > len(targets) {
 				count = len(targets)
@@ -124,8 +109,64 @@ func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrig
 			targets = targets[:count]
 		}
 
+		var tempFight interface{} = f
+
 		for _, target := range targets {
-			skill.Action(sourceEntity, f.Entities[target].Entity, f)
+			skill.Execute(sourceEntity, f.Entities[target].Entity, &tempFight)
+		}
+	}
+}
+
+func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.SkillTrigger, additionalCheck func(Entity, types.PlayerSkill) bool) {
+	entityEntry, exists := f.Entities[entityUuid]
+
+	if !exists {
+		return
+	}
+
+	sourceEntity := entityEntry.Entity
+
+	if sourceEntity.IsAuto() {
+		return
+	}
+
+	for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
+		if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
+			continue
+		}
+
+		if skill.GetTrigger().Event.TriggerType != triggerType {
+			continue
+		}
+
+		if !additionalCheck(sourceEntity, skill) {
+			continue
+		}
+
+		if skill.GetCD() != 0 {
+			sourceEntity.(PlayerEntity).SetCD(skill.GetUUID(), skill.GetCD())
+		}
+
+		if skill.GetCost() != 0 {
+			sourceEntity.(PlayerEntity).RestoreMana(-skill.GetCost())
+		}
+
+		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.GetTrigger().Event)
+
+		if skill.GetTrigger().Event.TargetCount != -1 {
+			count := skill.GetTrigger().Event.TargetCount
+
+			if count > len(targets) {
+				count = len(targets)
+			}
+
+			targets = targets[:count]
+		}
+
+		var tempFight interface{} = f
+
+		for _, target := range targets {
+			skill.Execute(sourceEntity, f.Entities[target].Entity, &tempFight)
 		}
 	}
 }
@@ -160,7 +201,7 @@ func (f *Fight) DispatchActionAttack(act Action) (int, bool) {
 	}
 
 	if !dodged {
-		f.TriggerPassive(act.Source, types.TRIGGER_HIT, func(e Entity, ps types.PlayerSkill) bool { return true })
+		f.TriggerPassive(act.Source, types.TRIGGER_HIT)
 	}
 
 	return atk, dodged
@@ -191,7 +232,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := tempMeta.(ActionDamage)
 
-		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK, func(e Entity, ps types.PlayerSkill) bool { return true })
+		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK)
 
 		messageBuilder := discord.NewMessageCreateBuilder()
 
@@ -325,7 +366,7 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 
-		f.TriggerPassive(act.Source, types.TRIGGER_DEFEND, func(e Entity, ps types.PlayerSkill) bool { return true })
+		f.TriggerPassive(act.Source, types.TRIGGER_DEFEND)
 
 		if !entity.Entity.IsAuto() {
 			entity.Entity.(PlayerEntity).SetDefendingState(true)
@@ -365,22 +406,22 @@ func (f *Fight) HandleAction(act Action) {
 
 		if !sourceEntity.Entity.IsAuto() {
 			for _, skill := range sourceEntity.Entity.(PlayerEntity).GetAllSkills() {
-				if skill.Trigger.Type == types.TRIGGER_ACTIVE {
+				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 					continue
 				}
 
-				if skill.Trigger.Event.TriggerType != types.TRIGGER_MANA {
+				if skill.GetTrigger().Event.TriggerType != types.TRIGGER_MANA {
 					continue
 				}
 
-				if skill.Trigger.Event.Meta["value"].(int) > sourceEntity.Entity.GetCurrentMana() {
+				if skill.GetTrigger().Event.Meta["value"].(int) > sourceEntity.Entity.GetCurrentMana() {
 					continue
 				}
 
-				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.Trigger.Event)
+				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.GetTrigger().Event)
 
-				if skill.Trigger.Event.TargetCount != -1 {
-					count := skill.Trigger.Event.TargetCount
+				if skill.GetTrigger().Event.TargetCount != -1 {
+					count := skill.GetTrigger().Event.TargetCount
 
 					if count > len(targets) {
 						count = len(targets)
@@ -394,7 +435,9 @@ func (f *Fight) HandleAction(act Action) {
 
 					beforeSkillHP := targetEntity.Entity.GetCurrentHP()
 
-					skill.Action(sourceEntity.Entity, targetEntity, f)
+					var tempFight interface{} = f
+
+					skill.Execute(sourceEntity.Entity, targetEntity, &tempFight)
 
 					//Check if it's dmg skill so it doesn't trigger on heal/barrier etc
 					if !targetEntity.Entity.IsAuto() && beforeSkillHP > targetEntity.Entity.GetCurrentHP() {
@@ -425,16 +468,18 @@ func (f *Fight) HandleAction(act Action) {
 			if skillUsageMeta.IsForLevel {
 				skill := sourceEntity.Entity.(PlayerEntity).GetLvlSkill(skillUsageMeta.Lvl)
 
-				if skill.Trigger.Type != types.TRIGGER_ACTIVE {
+				if skill.GetTrigger().Type != types.TRIGGER_ACTIVE {
 					return
 				}
 
+				var tempFight interface{} = f
+
 				if act.Target == uuid.Nil {
 					for _, target := range skillUsageMeta.Targets {
-						skill.Action(sourceEntity.Entity, f.Entities[target].Entity, f)
+						skill.Execute(sourceEntity.Entity, f.Entities[target].Entity, &tempFight)
 					}
 				} else {
-					skill.Action(sourceEntity.Entity, f.Entities[act.Target].Entity, f)
+					skill.Execute(sourceEntity.Entity, f.Entities[act.Target].Entity, &tempFight)
 				}
 
 				f.DiscordChannel <- types.DiscordMessageStruct{
@@ -447,7 +492,7 @@ func (f *Fight) HandleAction(act Action) {
 								SetDescriptionf(
 									"%s użył %s!\n",
 									sourceEntity.Entity.GetName(),
-									skill.Name,
+									skill.GetName(),
 								).
 								Build(),
 						).
@@ -470,28 +515,28 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		if targetEntity.Entity.GetCurrentHP() <= 0 {
-			f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE, func(e Entity, ps types.PlayerSkill) bool { return true })
+			f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE)
 		}
 
-		f.TriggerPassive(act.Source, types.TRIGGER_HIT, func(e Entity, ps types.PlayerSkill) bool {
+		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HIT, func(e Entity, ps types.PlayerSkill) bool {
 			hpValue := 0
 
-			if ps.Trigger.Event.Meta["value"] != nil {
-				hpValue = ps.Trigger.Event.Meta["value"].(int)
+			if ps.GetTrigger().Event.Meta["value"] != nil {
+				hpValue = ps.GetTrigger().Event.Meta["value"].(int)
 			} else {
-				hpValue = (ps.Trigger.Event.Meta["percent"].(int) * e.GetMaxHP() / 100)
+				hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetMaxHP() / 100)
 			}
 
 			return hpValue < e.GetCurrentHP()
 		})
 
-		f.TriggerPassive(act.Source, types.TRIGGER_HIT, func(e Entity, ps types.PlayerSkill) bool {
+		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HIT, func(e Entity, ps types.PlayerSkill) bool {
 			hpValue := 0
 
-			if ps.Trigger.Event.Meta["value"] != nil {
-				hpValue = ps.Trigger.Event.Meta["value"].(int)
+			if ps.GetTrigger().Event.Meta["value"] != nil {
+				hpValue = ps.GetTrigger().Event.Meta["value"].(int)
 			} else {
-				hpValue = (ps.Trigger.Event.Meta["percent"].(int) * e.GetMaxHP() / 100)
+				hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetMaxHP() / 100)
 			}
 
 			return hpValue < e.GetCurrentHP()
@@ -552,7 +597,7 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		if !dodged {
-			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK, func(e Entity, ps types.PlayerSkill) bool { return true })
+			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK)
 		}
 
 		messageBuilder.AddEmbeds(tempEmbed.Build())
@@ -635,7 +680,8 @@ func (f *Fight) HandleAction(act Action) {
 				).Build(),
 		}
 	case ACTION_RUN:
-		entity, side := f.GetEntity(act.Source)
+		entity := f.Entities[act.Source].Entity
+		side := f.Entities[act.Source].Side
 
 		if utils.RandomNumber(0, 100) < entity.GetAGL() {
 			f.DiscordChannel <- types.DiscordMessageStruct{
@@ -699,12 +745,13 @@ func (f *Fight) Init() {
 
 	//FIGHT START EVENT
 	for entityUuid := range f.Entities {
-		f.TriggerPassive(entityUuid, types.TRIGGER_FIGHT_START, func(e Entity, ps types.PlayerSkill) bool { return true })
+		f.TriggerPassive(entityUuid, types.TRIGGER_FIGHT_START)
 	}
 }
 
 func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDetails) []uuid.UUID {
-	sourceEntity, sourceSide := f.GetEntity(source)
+	sourceEntity := f.Entities[source].Entity
+	sourceSide := f.Entities[source].Side
 
 	if len(trigger.TargetType) == 1 && trigger.TargetType[0] == types.TARGET_SELF {
 		return []uuid.UUID{source}
@@ -768,7 +815,7 @@ func (f *Fight) Run() {
 		turnList := make([]uuid.UUID, 0)
 
 		for uuid, speed := range f.SpeedMap {
-			entity, _ := f.GetEntity(uuid)
+			entity := f.Entities[uuid].Entity
 
 			f.SpeedMap[uuid] = speed + entity.GetSPD()
 
@@ -786,13 +833,13 @@ func (f *Fight) Run() {
 		}
 
 		for _, entityUuid := range turnList {
-			entity, _ := f.GetEntity(entityUuid)
+			entity := f.Entities[entityUuid].Entity
 
 			if entity.GetCurrentHP() <= 0 {
 				continue
 			}
 
-			f.TriggerPassive(entityUuid, types.TRIGGER_TURN, func(e Entity, ps types.PlayerSkill) bool { return true })
+			f.TriggerPassive(entityUuid, types.TRIGGER_TURN)
 
 			if !entity.IsAuto() {
 				bytes, _ := entity.GetUUID().MarshalBinary()
@@ -826,23 +873,7 @@ func (f *Fight) Run() {
 
 			}
 
-			expired := entity.TriggerAllEffects()
-
-			for _, effect := range expired {
-				if effect.Uuid != uuid.Nil {
-					effectHandler, exists := f.EventHandlers[effect.Uuid]
-
-					if exists {
-						delete(f.EventHandlers, effect.Uuid)
-
-						caster := effectHandler.Trigger.Event.Meta["source"]
-
-						effectHandler.Execute(f.Entities[caster.(uuid.UUID)].Entity, f.Entities[entityUuid].Entity, nil)
-
-						continue
-					}
-				}
-			}
+			entity.TriggerAllEffects()
 		}
 
 		for _, entry := range f.Entities {
@@ -854,7 +885,7 @@ func (f *Fight) Run() {
 
 	//FIGHT END EVENT
 	for entityUuid := range f.Entities {
-		f.TriggerPassive(entityUuid, types.TRIGGER_FIGHT_END, func(e Entity, ps types.PlayerSkill) bool { return true })
+		f.TriggerPassive(entityUuid, types.TRIGGER_FIGHT_END)
 	}
 
 	f.ExternalChannel <- []byte{byte(MSG_FIGHT_END)}
@@ -865,12 +896,12 @@ func (f *Fight) IsFinished() bool {
 }
 
 func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []Entity {
-	_, userSide := f.GetEntity(uuid)
+	entitySide := f.Entities[uuid].Side
 
 	enemiesList := make([]Entity, 0)
 
 	for _, entry := range f.Entities {
-		if entry.Side == userSide {
+		if entry.Side == entitySide {
 			continue
 		}
 

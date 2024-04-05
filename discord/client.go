@@ -243,7 +243,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			for _, skill := range playerChar.Inventory.Skills {
-				embed.AddField(skill.Name, skill.Description, false)
+				embed.AddField(skill.GetName(), skill.GetDescription(), false)
 			}
 
 			if len(playerChar.Inventory.LevelSkills) == 0 {
@@ -252,8 +252,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			for _, skill := range playerChar.Inventory.LevelSkills {
 				embed.AddField(
-					fmt.Sprintf("%s (LVL: %d)", skill.Name, skill.ForLevel),
-					fmt.Sprintf("Ścieżka: %s\n\n%s", PathToString[skill.Path], skill.Description),
+					fmt.Sprintf("%s (LVL: %d)", skill.GetName(), skill.GetLevel()),
+					fmt.Sprintf("Ścieżka: %s\n\n%s", PathToString[skill.GetPath()], skill.GetDescription()),
 					false,
 				)
 			}
@@ -278,10 +278,12 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		case "odblokuj":
 			lvl := data.Int("lvl")
 
-			skillList := make([]inventory.PlayerSkill, 0)
+			skillList := make([]inventory.PlayerSkillLevel, 0)
 
-			for _, skill := range inventory.AVAILABLE_SKILLS {
-				if skill.ForLevel == lvl {
+			for _, skillTree := range inventory.AVAILABLE_SKILLS {
+				skill, exists := skillTree[lvl]
+
+				if exists {
 					skillList = append(skillList, skill)
 				}
 			}
@@ -316,19 +318,19 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 				upgradeMsg := ""
 
-				for _, upgrade := range skill.Upgrades {
-					upgradeMsg += fmt.Sprintf("\n- %s - %s", upgrade.Name, upgrade.Description)
+				for _, upgrade := range skill.GetUpgrades() {
+					upgradeMsg += fmt.Sprintf("\n- %s - %s", upgrade.GetName(), upgrade.GetDescription())
 				}
 
 				embed.AddField(
-					skill.Name,
-					fmt.Sprintf("Ścieżka: %s\n\n%s\nUlepszenia:%s", PathToString[skill.Path], skill.Description, upgradeMsg),
+					skill.GetName(),
+					fmt.Sprintf("Ścieżka: %s\n\n%s\nUlepszenia:%s", PathToString[skill.GetPath()], skill.GetDescription(), upgradeMsg),
 					false,
 				)
 
 				buttons = append(buttons, discord.NewPrimaryButton(
-					skill.Name,
-					fmt.Sprintf("su|%d|%d", skill.Path, skill.ForLevel),
+					skill.GetName(),
+					fmt.Sprintf("su|%d|%d", skill.GetPath(), skill.GetLevel()),
 				))
 			}
 
@@ -948,7 +950,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						nextTierText += "Nowe umiejętności: \n"
 
 						for _, skill := range nextTier.Skills {
-							nextTierText += "-" + skill.Name + "\n"
+							nextTierText += "-" + skill.GetName() + "\n"
 						}
 					}
 

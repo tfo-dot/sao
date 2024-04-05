@@ -278,7 +278,7 @@ func (p *Player) CanDefend() bool {
 }
 
 func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
-	if skill.Trigger.Type == types.TRIGGER_PASSIVE {
+	if skill.GetTrigger().Type == types.TRIGGER_PASSIVE {
 		return false
 	}
 
@@ -286,19 +286,19 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	if p.Inventory.CDS[skill.UUID] > 0 {
+	if p.Inventory.CDS[skill.GetUUID()] > 0 {
 		return false
 	}
 
-	if p.GetCurrentMana() < skill.Cost {
+	if p.GetCurrentMana() < skill.GetCost() {
 		return false
 	}
 
 	return true
 }
 
-func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkill) bool {
-	if skill.Trigger.Type == types.TRIGGER_PASSIVE {
+func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
+	if skill.GetTrigger().Type == types.TRIGGER_PASSIVE {
 		return false
 	}
 
@@ -306,11 +306,11 @@ func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkill) bool {
 		return false
 	}
 
-	if p.Inventory.LevelSkillsCDS[skill.ForLevel] > 0 {
+	if p.Inventory.LevelSkillsCDS[skill.GetLevel()] > 0 {
 		return false
 	}
 
-	if p.GetCurrentMana() < skill.Cost {
+	if p.GetCurrentMana() < skill.GetCost() {
 		return false
 	}
 
@@ -322,31 +322,12 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 
 	for _, item := range p.Inventory.Items {
 		for _, effect := range item.Effects {
-
-			tempArr = append(tempArr, &types.PlayerSkill{
-				Name:    effect.Name,
-				Trigger: effect.Trigger,
-				Cost:    0,
-				UUID:    item.UUID,
-				Action: func(source interface{}, target interface{}, fight interface{}) {
-					effect.Execute(source, target, fight.(*interface{}))
-				},
-			})
+			tempArr = append(tempArr, effect)
 		}
 	}
 
 	for _, skill := range p.Inventory.LevelSkills {
-		tempArr = append(tempArr, &types.PlayerSkill{
-			Name:        skill.Name,
-			Description: skill.Description,
-			Trigger:     *skill.Trigger,
-			Cost:        skill.Cost,
-			UUID:        uuid.Nil,
-			Action: func(source interface{}, target interface{}, fight interface{}) {
-				skill.Execute(source.(battle.PlayerEntity), target.(battle.Entity), fight.(*battle.Fight))
-			},
-			CD: skill.CD.Calc(skill, p.GetUpgrades(skill.ForLevel)),
-		})
+		tempArr = append(tempArr, skill)
 	}
 
 	//TODO handle transition
@@ -457,30 +438,20 @@ func (p *Player) GetUpgrades(lvl int) []string {
 	return p.Inventory.LevelSkillsUpgrades[lvl]
 }
 
-func (p *Player) GetLvlSkill(lvl int) *types.PlayerSkill {
-	for _, skill := range p.Inventory.LevelSkills {
-		if skill.ForLevel == lvl {
+func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
 
-			return &types.PlayerSkill{
-				Name:        skill.Name,
-				Trigger:     *skill.Trigger,
-				Description: skill.Description,
-				Cost:        skill.Cost,
-				UUID:        uuid.Nil,
-				Action: func(source interface{}, target interface{}, fight interface{}) {
-					skill.Execute(source.(battle.PlayerEntity), target.(battle.Entity), fight.(*battle.Fight))
-				},
-				CD: skill.CD.Calc(skill, p.GetUpgrades(lvl)),
-			}
-		}
+	skill, skillExists := p.Inventory.LevelSkills[lvl]
+
+	if !skillExists {
+		return nil
 	}
 
-	return nil
+	return skill
 }
 
-func (p *Player) GetSkill(skillUUID uuid.UUID) *types.PlayerSkill {
+func (p *Player) GetSkill(skillUUID uuid.UUID) types.PlayerSkill {
 	for _, skill := range p.Inventory.Skills {
-		if skill.UUID == skillUUID {
+		if skill.GetUUID() == skillUUID {
 			return skill
 		}
 	}

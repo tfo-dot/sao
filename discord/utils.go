@@ -1,17 +1,17 @@
 package discord
 
 import (
-	"sao/player/inventory"
+	"sao/types"
 	"sao/world/party"
 
 	"github.com/disgoorg/disgo/discord"
 )
 
-var PathToString = map[inventory.SkillPath]string{
-	inventory.PathControl:   "Kontrola",
-	inventory.PathDamage:    "Obrażenia",
-	inventory.PathEndurance: "Wytrzymałość",
-	inventory.PathMobility:  "Mobilność",
+var PathToString = map[types.SkillPath]string{
+	types.PathControl:   "Kontrola",
+	types.PathDamage:    "Obrażenia",
+	types.PathEndurance: "Wytrzymałość",
+	types.PathMobility:  "Mobilność",
 }
 
 var RoleToString = map[party.PartyRole]string{
