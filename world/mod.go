@@ -968,6 +968,10 @@ func (w *World) LoadBackup() {
 		return leftTime.Before(rightTime)
 	})
 
+	if len(allBackups) == 0 {
+		return
+	}
+
 	backupContent, err := os.ReadFile("./" + backupPath + "/" + allBackups[0].Name())
 
 	if err != nil {

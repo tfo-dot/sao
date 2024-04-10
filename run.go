@@ -37,13 +37,13 @@ func main() {
 
 	world := world.CreateWorld(os.Args[1] == "test")
 
+	world.LoadBackup()
+
 	go world.StartClock()
 
 	discord.World = &world
 
 	go discord.StartClient(string(botKey))
-
-	world.LoadBackup()
 
 	for {
 		continue
