@@ -73,3 +73,23 @@ func (f *Fury) GetSkills() []types.PlayerSkill {
 
 	return skills
 }
+
+func (f *Fury) Serialize() map[string]interface{} {
+	return map[string]interface{}{
+		"name":        f.Name,
+		"master":      f.Master,
+		"tiers":       f.Tiers,
+		"currentTier": f.CurrentTier,
+		"xp":          f.XP,
+	}
+}
+
+func Deserialize(data map[string]interface{}) *Fury {
+	return &Fury{
+		Name:        data["name"].(string),
+		Master:      data["master"].(*uuid.UUID),
+		Tiers:       data["tiers"].([]FuryTier),
+		CurrentTier: data["currentTier"].(int),
+		XP:          data["xp"].(FuryXP),
+	}
+}

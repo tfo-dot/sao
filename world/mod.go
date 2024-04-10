@@ -1,9 +1,11 @@
 package world
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/player"
@@ -15,6 +17,7 @@ import (
 	"sao/world/party"
 	"sao/world/tournament"
 	"sao/world/transaction"
+	"sort"
 	"time"
 
 	"github.com/disgoorg/disgo/discord"
@@ -47,16 +50,19 @@ func CreateWorld(testMode bool) World {
 		Limit:    10,
 	}
 
+	npcUuid := uuid.New()
+
 	testStore := npc.NPCStore{
 		RestockInterval: *calendar.StartCalendar(),
 		LastRestock:     *calendar.StartCalendar(),
 		Uuid:            uuid.New(),
+		NPCUuid:         npcUuid,
 		Name:            "Warzywniak babci stasi",
 		Stock:           []*npc.Stock{&stockItem},
 	}
 
 	npcMap := map[uuid.UUID]*npc.NPC{
-		uuid.New(): {
+		npcUuid: {
 			Name:     "Babcia stasia",
 			Location: types.PlayerLocation{FloorName: "dev", LocationName: "Rynek"},
 			Store:    &testStore,
@@ -256,7 +262,15 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 	go w.ListenForFight(fightUUID)
 }
 
+func (w *World) StartBackupClock() {
+	for range time.Tick(15 * time.Minute) {
+		w.CreateBackup()
+	}
+}
+
 func (w *World) StartClock() {
+	go w.StartBackupClock()
+
 	for range time.Tick(1 * time.Minute) {
 		w.Time.Tick()
 
@@ -847,4 +861,132 @@ func (w *World) RejectTrade(tUuid uuid.UUID) {
 	}
 
 	delete(w.Transactions, tUuid)
+}
+
+func (w *World) Serialize() map[string]interface{} {
+	playerData := make(map[uuid.UUID]map[string]interface{})
+
+	for _, player := range w.Players {
+		playerData[player.GetUUID()] = player.Serialize()
+	}
+
+	storeData := make([]map[string]interface{}, 0)
+
+	for _, store := range w.Stores {
+		storeData = append(storeData, map[string]interface{}{
+			"uuid":            store.Uuid,
+			"name":            store.Name,
+			"restockInterval": store.RestockInterval.Serialize(),
+			"lastRestock":     store.LastRestock.Serialize(),
+			"stock":           store.Stock,
+		})
+	}
+
+	return map[string]interface{}{
+		"players": playerData,
+		"stores":  storeData,
+		"time":    w.Time.Serialize(),
+		"test":    w.TestMode,
+	}
+}
+
+func (w *World) CreateBackup() {
+	backupPath := "backup"
+
+	if w.TestMode {
+		backupPath = "test" + backupPath
+	}
+
+	_, err := os.Stat(backupPath)
+
+	if os.IsNotExist(err) {
+		os.Mkdir(backupPath, os.ModePerm)
+	}
+
+	newBackupPath := fmt.Sprintf("%s/%v.json", backupPath, time.Now().Format("2006-01-02_15-04-05"))
+
+	backupFile, err := os.Create(newBackupPath)
+
+	if err != nil {
+		//HONESTLY I DON'T KNOW WHAT COULD HAPPEN HERE
+		panic(err)
+	}
+
+	defer backupFile.Close()
+
+	jsonFile, err := json.Marshal(w.Serialize())
+
+	if err != nil {
+		//HONESTLY I DON'T KNOW WHAT COULD HAPPEN HERE
+		panic(err)
+	}
+
+	backupFile.Write(jsonFile)
+}
+
+func (w *World) LoadBackup() {
+	backupPath := "backup"
+
+	if w.TestMode {
+		backupPath = "test" + backupPath
+	}
+
+	_, err := os.Stat(backupPath)
+
+	if os.IsNotExist(err) {
+		return
+	}
+
+	backupData := make(map[string]interface{})
+
+	allBackups, err := os.ReadDir(backupPath)
+
+	if err != nil {
+		//HONESTLY I DON'T KNOW WHAT COULD HAPPEN HERE
+		panic(err)
+	}
+
+	sort.Slice(allBackups, func(i, j int) bool {
+		leftName := allBackups[i].Name()
+		rightName := allBackups[j].Name()
+
+		leftName = leftName[:len(leftName)-5]
+		rightName = rightName[:len(rightName)-5]
+
+		leftTime, err := time.Parse("2006-01-02_15-04-05", leftName)
+
+		if err != nil {
+			panic(err)
+		}
+
+		rightTime, err := time.Parse("2006-01-02_15-04-05", rightName)
+
+		if err != nil {
+			panic(err)
+		}
+
+		return leftTime.Before(rightTime)
+	})
+
+	backupContent, err := os.ReadFile("./" + backupPath + "/" + allBackups[0].Name())
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = json.Unmarshal(backupContent, &backupData)
+
+	if err != nil {
+		panic(err)
+	}
+
+	w.Time = calendar.Deserialize(backupData["time"].(map[string]interface{}))
+
+	w.Players = make(map[uuid.UUID]*player.Player)
+
+	for _, playerData := range backupData["players"].(map[string]interface{}) {
+		player := player.Deserialize(playerData.(map[string]interface{}))
+
+		w.Players[player.GetUUID()] = player
+	}
 }

@@ -43,6 +43,8 @@ func main() {
 
 	go discord.StartClient(string(botKey))
 
+	world.LoadBackup()
+
 	for {
 		continue
 	}

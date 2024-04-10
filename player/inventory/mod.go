@@ -4,20 +4,102 @@ import (
 	"errors"
 	"sao/battle"
 	"sao/types"
+	"strconv"
 
 	"github.com/google/uuid"
 )
 
 type PlayerInventory struct {
 	Gold                int
-	Capacity            int
 	Items               []*types.PlayerItem
 	Ingredients         map[uuid.UUID]*types.Ingredient
-	Skills              []types.PlayerSkill
-	CDS                 map[uuid.UUID]int
 	LevelSkillsCDS      map[int]int
 	LevelSkills         map[int]PlayerSkillLevel
 	LevelSkillsUpgrades map[int][]string
+}
+
+func (inv *PlayerInventory) Serialize() map[string]interface{} {
+
+	lvlSkills := make([]int, 0)
+
+	for key := range inv.LevelSkills {
+		lvlSkills = append(lvlSkills, key)
+	}
+
+	return map[string]interface{}{
+		"gold":        inv.Gold,
+		"items":       inv.SerializeItems(),
+		"ingredients": inv.Ingredients,
+		"skills": map[string]interface{}{
+			"skills":   lvlSkills,
+			"upgrades": inv.LevelSkillsUpgrades,
+			"cds":      inv.LevelSkillsCDS,
+		},
+	}
+}
+
+func (inv *PlayerInventory) SerializeItems() []map[string]interface{} {
+	items := []map[string]interface{}{}
+
+	for _, item := range inv.Items {
+		items = append(items, map[string]interface{}{
+			"uuid":  item.UUID,
+			"count": item.Count,
+		})
+	}
+
+	return items
+}
+
+func DeserializeInventory(data map[string]interface{}) PlayerInventory {
+	inv := PlayerInventory{
+		Gold:                int(data["gold"].(float64)),
+		Items:               []*types.PlayerItem{},
+		Ingredients:         map[uuid.UUID]*types.Ingredient{},
+		LevelSkillsCDS:      map[int]int{},
+		LevelSkills:         map[int]PlayerSkillLevel{},
+		LevelSkillsUpgrades: map[int][]string{},
+	}
+
+	// for _, item := range data["items"].([]map[string]interface{}) {
+	// 	//TODO Resolve item tho
+	// 	inv.Items = append(inv.Items, &types.PlayerItem{
+	// 		UUID:  item["uuid"].(uuid.UUID),
+	// 		Count: int(item["count"].(float64)),
+	// 	})
+	// }
+
+	for _, ingredient := range data["ingredients"].(map[string]interface{}) {
+		ingredient := ingredient.(map[string]interface{})
+
+		inv.Ingredients[ingredient["uuid"].(uuid.UUID)] = &types.Ingredient{
+			UUID:  ingredient["uuid"].(uuid.UUID),
+			Name:  ingredient["name"].(string),
+			Count: int(ingredient["count"].(float64)),
+		}
+	}
+
+	lvlSKills := data["skills"].(map[string]interface{})
+
+	for _, skill := range lvlSKills["skills"].([]interface{}) {
+		skill := int(skill.(float64))
+
+		inv.LevelSkills[skill] = AVAILABLE_SKILLS[types.SkillPath(skill)][skill]
+	}
+
+	for key, value := range lvlSKills["cds"].(map[string]interface{}) {
+		key, _ := strconv.Atoi(key)
+
+		inv.LevelSkillsCDS[key] = int(value.(float64))
+	}
+
+	for key, value := range lvlSKills["upgrades"].(map[string]interface{}) {
+		key, _ := strconv.Atoi(key)
+
+		inv.LevelSkillsUpgrades[key] = value.([]string)
+	}
+
+	return inv
 }
 
 func (inv *PlayerInventory) AddIngredient(ingredient *types.Ingredient) {
@@ -181,29 +263,10 @@ func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeName string) error {
 func GetDefaultInventory() PlayerInventory {
 	return PlayerInventory{
 		Gold:                0,
-		Capacity:            10,
 		Ingredients:         map[uuid.UUID]*types.Ingredient{},
 		Items:               []*types.PlayerItem{},
-		CDS:                 map[uuid.UUID]int{},
-		Skills:              []types.PlayerSkill{},
 		LevelSkills:         map[int]PlayerSkillLevel{},
 		LevelSkillsCDS:      map[int]int{},
 		LevelSkillsUpgrades: map[int][]string{},
-	}
-}
-
-func (inv *PlayerInventory) UseSkill(skillUuid uuid.UUID, owner, target interface{}, fightInstance *interface{}) {
-	for _, skill := range inv.Skills {
-		if skill.GetTrigger().Type != types.TRIGGER_ACTIVE {
-			continue
-		}
-
-		if skill.GetUUID() == skillUuid {
-			skill.Execute(owner, target, fightInstance)
-
-			inv.CDS[skill.GetUUID()] = skill.GetCD()
-
-			return
-		}
 	}
 }

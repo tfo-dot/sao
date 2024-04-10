@@ -238,14 +238,6 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			embed := discord.NewEmbedBuilder()
 
-			if len(playerChar.Inventory.Skills) == 0 {
-				embed.AddField("Umiejętności", "Brak", false)
-			}
-
-			for _, skill := range playerChar.Inventory.Skills {
-				embed.AddField(skill.GetName(), skill.GetDescription(), false)
-			}
-
 			if len(playerChar.Inventory.LevelSkills) == 0 {
 				embed.AddField("Umiejętności za lvl", "Brak", false)
 			}
@@ -350,7 +342,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			embed := discord.NewEmbedBuilder()
 
 			if len(playerChar.Inventory.Items) == 0 {
-				embed.AddField("Przedmioty", fmt.Sprintf("%d/%d", 0, playerChar.Inventory.Capacity), false)
+				embed.AddField("Przedmioty", fmt.Sprintf("%d/10", 0), false)
 			} else {
 				count := 0
 
@@ -360,7 +352,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 					}
 				}
 
-				embed.AddField("Przedmioty", fmt.Sprintf("%d/%d", count, playerChar.Inventory.Capacity), false)
+				embed.AddField("Przedmioty", fmt.Sprintf("%d/10", count), false)
 			}
 
 			for _, item := range playerChar.Inventory.Items {

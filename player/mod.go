@@ -14,8 +14,6 @@ import (
 
 type PlayerStats struct {
 	HP          int
-	SPD         int
-	AGL         int
 	Effects     mobs.EffectList
 	Defending   bool
 	CurrentMana int
@@ -32,12 +30,101 @@ type PlayerMeta struct {
 	Fury []*fury.Fury
 }
 
+func (pM *PlayerMeta) SerializeFuries() []map[string]interface{} {
+	furies := make([]map[string]interface{}, 0)
+
+	for _, fury := range pM.Fury {
+		furies = append(furies, fury.Serialize())
+	}
+
+	return furies
+}
+
+func (pM *PlayerMeta) Serialize() map[string]interface{} {
+	return map[string]interface{}{
+		"location": []string{pM.Location.FloorName, pM.Location.LocationName},
+		"uuid":     pM.OwnUUID.String(),
+		"fury":     pM.SerializeFuries(),
+	}
+}
+
 type Player struct {
 	Name      string
 	XP        xp.PlayerXP
 	Stats     PlayerStats
 	Meta      PlayerMeta
 	Inventory inventory.PlayerInventory
+}
+
+func (p *Player) Serialize() map[string]interface{} {
+	return map[string]interface{}{
+		"name": p.Name,
+		"xp":   []int{p.XP.Level, p.XP.Exp},
+		"stats": map[string]interface{}{
+			"hp":           p.Stats.HP,
+			"current_mana": p.Stats.CurrentMana,
+			"effects":      p.Stats.Effects,
+		},
+		"meta":      p.Meta.Serialize(),
+		"inventory": p.Inventory.Serialize(),
+	}
+}
+
+func Deserialize(data map[string]interface{}) *Player {
+	return &Player{
+		data["name"].(string),
+		xp.PlayerXP{
+			Level: int(data["xp"].([]interface{})[0].(float64)),
+			Exp:   int(data["xp"].([]interface{})[1].(float64)),
+		},
+		PlayerStats{
+			int(data["stats"].(map[string]interface{})["hp"].(float64)),
+			DeserializeEffects(data["stats"].(map[string]interface{})["effects"].([]interface{})),
+			false,
+			int(data["stats"].(map[string]interface{})["current_mana"].(float64)),
+		},
+		*DeserializeMeta(data["meta"].(map[string]interface{})),
+		inventory.DeserializeInventory(data["inventory"].(map[string]interface{})),
+	}
+}
+
+func DeserializeEffects(data []interface{}) mobs.EffectList {
+	temp := make(mobs.EffectList, 0)
+
+	if len(data) == 0 {
+		return temp
+	}
+
+	for _, effect := range data {
+		effect := effect.(map[string]interface{})
+
+		temp = append(temp, battle.ActionEffect{
+			Effect: battle.Effect(effect["effect"].(float64)),
+			Value:  int(effect["value"].(float64)),
+			Meta:   effect["meta"],
+		})
+	}
+
+	return temp
+}
+
+func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
+
+	deserializedFuries := make([]*fury.Fury, 0)
+
+	for _, furyData := range data["fury"].([]interface{}) {
+		deserializedFuries = append(deserializedFuries, fury.Deserialize(furyData.(map[string]interface{})))
+	}
+
+	return &PlayerMeta{
+		types.DefaultPlayerLocation(),
+		uuid.MustParse(data["uuid"].(string)),
+		"",
+		nil,
+		nil,
+		nil,
+		deserializedFuries,
+	}
 }
 
 func (p *Player) GetCurrentMana() int {
@@ -119,7 +206,7 @@ func (p *Player) GetAP() int {
 }
 
 func (p *Player) GetSPD() int {
-	return p.Stats.SPD + p.Inventory.GetStat(types.STAT_SPD) + p.GetFuryStat(types.STAT_SPD)
+	return 40 + p.Inventory.GetStat(types.STAT_SPD) + p.GetFuryStat(types.STAT_SPD)
 }
 
 func (p *Player) IsAuto() bool {
@@ -135,7 +222,7 @@ func (p *Player) GetMR() int {
 }
 
 func (p *Player) GetAGL() int {
-	return p.Stats.AGL + p.Inventory.GetStat(types.STAT_AGL) + p.GetFuryStat(types.STAT_AGL)
+	return 50 + p.Inventory.GetStat(types.STAT_AGL) + p.GetFuryStat(types.STAT_AGL)
 }
 
 func (p *Player) SetDefendingState(state bool) {
@@ -282,9 +369,9 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	if p.Inventory.CDS[skill.GetUUID()] > 0 {
-		return false
-	}
+	// if p.Inventory.[skill.GetUUID()] > 0 {
+	// 	return false
+	// }
 
 	if p.GetCurrentMana() < skill.GetCost() {
 		return false
@@ -315,8 +402,6 @@ func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
 
 func (p *Player) GetAllSkills() []types.PlayerSkill {
 	tempArr := make([]types.PlayerSkill, 0)
-
-	tempArr = append(tempArr, p.Inventory.Skills...)
 
 	for _, item := range p.Inventory.Items {
 		tempArr = append(tempArr, item.Effects...)
@@ -432,26 +517,16 @@ func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
 	return skill
 }
 
-func (p *Player) GetSkill(skillUUID uuid.UUID) types.PlayerSkill {
-	for _, skill := range p.Inventory.Skills {
-		if skill.GetUUID() == skillUUID {
-			return skill
-		}
-	}
-
-	return nil
-}
-
 func (p *Player) GetUID() string {
 	return p.Meta.UserID
 }
 
-func (p *Player) SetCD(skillUUID uuid.UUID, value int) {
-	p.Inventory.CDS[skillUUID] = value
+func (p *Player) GetLvlCD(lvl int) int {
+	return p.Inventory.LevelSkillsCDS[lvl]
 }
 
-func (p *Player) GetCD(skillUUID uuid.UUID) int {
-	return p.Inventory.CDS[skillUUID]
+func (p *Player) SetLvlCD(lvl int, value int) {
+	p.Inventory.LevelSkillsCDS[lvl] = value
 }
 
 func (p *Player) GetParty() *uuid.UUID {
@@ -462,7 +537,7 @@ func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
 		xp.PlayerXP{Level: 1, Exp: 0},
-		PlayerStats{100, 40, 50, make(mobs.EffectList, 0), false, 10},
+		PlayerStats{100, make(mobs.EffectList, 0), false, 10},
 		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 	}

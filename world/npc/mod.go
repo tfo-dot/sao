@@ -15,6 +15,7 @@ type NPC struct {
 
 type NPCStore struct {
 	Uuid            uuid.UUID
+	NPCUuid         uuid.UUID
 	Name            string
 	RestockInterval calendar.Calendar
 	LastRestock     calendar.Calendar

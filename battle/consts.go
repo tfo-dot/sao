@@ -193,10 +193,9 @@ type PlayerEntity interface {
 	GetAllSkills() []types.PlayerSkill
 	GetUpgrades(int) []string
 	GetLvlSkill(int) types.PlayerSkill
-	GetSkill(uuid.UUID) types.PlayerSkill
 
-	SetCD(uuid.UUID, int)
-	GetCD(uuid.UUID) int
+	SetLvlCD(int, int)
+	GetLvlCD(int) int
 
 	SetDefendingState(bool)
 	GetDefendingState() bool

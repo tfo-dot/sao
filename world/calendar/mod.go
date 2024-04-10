@@ -101,3 +101,27 @@ func (c *Calendar) Copy() *Calendar {
 func (c *Calendar) String() string {
 	return fmt.Sprintf("%d/%d/%d %d:%d", c.Day, c.Month+1, c.Year, c.Time.Hour, c.Time.Tick)
 }
+
+func (c *Calendar) Serialize() map[string]interface{} {
+	return map[string]interface{}{
+		"day":   c.Day,
+		"month": c.Month,
+		"year":  c.Year,
+		"time": map[string]int{
+			"hour": c.Time.Hour,
+			"tick": c.Time.Tick,
+		},
+	}
+}
+
+func Deserialize(data map[string]interface{}) *Calendar {
+	return &Calendar{
+		Day:   int(data["day"].(float64)),
+		Month: Month(data["month"].(float64)),
+		Year:  int(data["year"].(float64)),
+		Time: Time{
+			Hour: int(data["time"].(map[string]interface{})["hour"].(float64)),
+			Tick: int(data["time"].(map[string]interface{})["tick"].(float64)),
+		},
+	}
+}

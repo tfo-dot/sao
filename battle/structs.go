@@ -113,9 +113,10 @@ func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrig
 			continue
 		}
 
-		if skill.GetCD() != 0 {
-			sourceEntity.SetCD(skill.GetUUID(), skill.GetCD())
-		}
+		//TODO handle CD for lvl only skills
+		// if skill.GetCD() != 0 {
+		// 	sourceEntity.SetLvlCD(skill.GetUUID(), skill.GetCD())
+		// }
 
 		if skill.GetCost() != 0 {
 			sourceEntity.RestoreMana(-skill.GetCost())
@@ -167,9 +168,10 @@ func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.
 			continue
 		}
 
-		if skill.GetCD() != 0 {
-			sourceEntity.SetCD(skill.GetUUID(), skill.GetCD())
-		}
+		//TODO handle CD for lvl only skills
+		// if skill.GetCD() != 0 {
+		// 	sourceEntity.SetCD(skill.GetUUID(), skill.GetCD())
+		// }
 
 		if skill.GetCost() != 0 {
 			sourceEntity.RestoreMana(-skill.GetCost())
