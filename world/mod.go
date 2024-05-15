@@ -928,6 +928,13 @@ func (w *World) CreateBackup() {
 	}
 
 	backupFile.Write(jsonFile)
+
+	w.DChannel <- types.DiscordMessageStruct{
+		ChannelID: "1151922672595390588",
+		MessageContent: discord.NewMessageCreateBuilder().
+			SetContent("Backup zrobiony!").
+			Build(),
+	}
 }
 
 func (w *World) LoadBackup() {
@@ -1002,9 +1009,11 @@ func (w *World) LoadBackup() {
 
 	//TODO Load stores
 
-	for _, tData := range backupData["tournaments"].([]map[string]interface{}) {
-		parsedData := tournament.Deserialize(tData)
+	if tournamentData, ok := backupData["tournaments"].([]map[string]interface{}); !ok && len(tournamentData) > 0 {
+		for _, tData := range backupData["tournaments"].([]map[string]interface{}) {
+			parsedData := tournament.Deserialize(tData)
 
-		w.Tournaments[parsedData.Uuid] = &parsedData
+			w.Tournaments[parsedData.Uuid] = &parsedData
+		}
 	}
 }
