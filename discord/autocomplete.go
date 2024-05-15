@@ -1,7 +1,7 @@
 package discord
 
 import (
-	"sao/world"
+	"sao/data"
 	"strings"
 
 	"github.com/disgoorg/disgo/discord"
@@ -75,7 +75,7 @@ func AutocompleteHandler(event *events.AutocompleteInteractionCreate) {
 
 		choices := make([]discord.AutocompleteChoice, 0)
 
-		for _, item := range world.Recipes {
+		for _, item := range data.Recipes {
 			if strings.HasPrefix(item.Name, itemOption) {
 				choices = append(choices, discord.AutocompleteChoiceString{
 					Name:  item.Name,

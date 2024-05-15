@@ -14,8 +14,17 @@ type PlayerSkill interface {
 
 	GetTrigger() Trigger
 
+	IsLevelSkill() bool
+
 	Execute(owner, target interface{}, fightInstance *interface{})
 	GetEvents() map[CustomTrigger]func(owner *interface{})
+}
+
+type PlayerSkillLevel interface {
+	PlayerSkill
+
+	GetLevel() int
+	GetPath() SkillPath
 }
 
 type SkillTriggerType int

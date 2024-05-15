@@ -44,6 +44,7 @@ func (pM *PlayerMeta) Serialize() map[string]interface{} {
 	return map[string]interface{}{
 		"location": []string{pM.Location.FloorName, pM.Location.LocationName},
 		"uuid":     pM.OwnUUID.String(),
+		"uid":      pM.UserID,
 		"fury":     pM.SerializeFuries(),
 	}
 }
@@ -109,7 +110,6 @@ func DeserializeEffects(data []interface{}) mobs.EffectList {
 }
 
 func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
-
 	deserializedFuries := make([]*fury.Fury, 0)
 
 	for _, furyData := range data["fury"].([]interface{}) {
@@ -119,7 +119,7 @@ func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
 	return &PlayerMeta{
 		types.DefaultPlayerLocation(),
 		uuid.MustParse(data["uuid"].(string)),
-		"",
+		data["uid"].(string),
 		nil,
 		nil,
 		nil,

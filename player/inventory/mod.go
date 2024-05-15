@@ -3,6 +3,7 @@ package inventory
 import (
 	"errors"
 	"sao/battle"
+	"sao/data"
 	"sao/types"
 	"strconv"
 
@@ -51,9 +52,9 @@ func (inv *PlayerInventory) SerializeItems() []map[string]interface{} {
 	return items
 }
 
-func DeserializeInventory(data map[string]interface{}) PlayerInventory {
+func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
 	inv := PlayerInventory{
-		Gold:                int(data["gold"].(float64)),
+		Gold:                int(rawData["gold"].(float64)),
 		Items:               []*types.PlayerItem{},
 		Ingredients:         map[uuid.UUID]*types.Ingredient{},
 		LevelSkillsCDS:      map[int]int{},
@@ -61,15 +62,16 @@ func DeserializeInventory(data map[string]interface{}) PlayerInventory {
 		LevelSkillsUpgrades: map[int][]string{},
 	}
 
-	// for _, item := range data["items"].([]map[string]interface{}) {
-	// 	//TODO Resolve item tho
-	// 	inv.Items = append(inv.Items, &types.PlayerItem{
-	// 		UUID:  item["uuid"].(uuid.UUID),
-	// 		Count: int(item["count"].(float64)),
-	// 	})
-	// }
+	if itemData, exists := rawData["items"].([]interface{}); !exists && len(itemData) > 0 {
+		for _, rawItem := range rawData["items"].([]map[string]interface{}) {
+			item := data.Items[rawItem["uuid"].(uuid.UUID)]
+			item.Count = int(rawItem["count"].(float64))
 
-	for _, ingredient := range data["ingredients"].(map[string]interface{}) {
+			inv.Items = append(inv.Items, &item)
+		}
+	}
+
+	for _, ingredient := range rawData["ingredients"].(map[string]interface{}) {
 		ingredient := ingredient.(map[string]interface{})
 
 		inv.Ingredients[ingredient["uuid"].(uuid.UUID)] = &types.Ingredient{
@@ -79,7 +81,7 @@ func DeserializeInventory(data map[string]interface{}) PlayerInventory {
 		}
 	}
 
-	lvlSKills := data["skills"].(map[string]interface{})
+	lvlSKills := rawData["skills"].(map[string]interface{})
 
 	for _, skill := range lvlSKills["skills"].([]interface{}) {
 		skill := int(skill.(float64))

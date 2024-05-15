@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"sao/data"
 	"sao/player"
 	"sao/player/inventory"
 	"sao/types"
@@ -81,7 +82,7 @@ func worldMessageListener() {
 }
 
 func commandListener(event *events.ApplicationCommandInteractionCreate) {
-	data := event.SlashCommandInteractionData()
+	interactionData := event.SlashCommandInteractionData()
 
 	user := event.User()
 	member := event.Member()
@@ -94,20 +95,20 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		}
 	}
 
-	if playerChar == nil && (data.CommandName() != "create" || data.CommandName() != "turniej") {
+	if playerChar == nil && (interactionData.CommandName() != "create" || interactionData.CommandName() != "turniej") {
 		event.CreateMessage(noCharMessage)
 		return
 	}
 
-	switch data.CommandName() {
+	switch interactionData.CommandName() {
 	case "create":
 		if !isAdmin(member) {
 			event.CreateMessage(MessageContent("Nie masz uprawnień do tej komendy", true))
 			return
 		}
 
-		charName := data.String("nazwa")
-		charUser := data.User("gracz")
+		charName := interactionData.String("nazwa")
+		charUser := interactionData.User("gracz")
 
 		World.RegisterNewPlayer(charName, charUser.ID.String())
 
@@ -118,7 +119,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		}
 		return
 	case "ruch":
-		locationName := data.String("nazwa")
+		locationName := interactionData.String("nazwa")
 
 		err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.FloorName, locationName, "")
 
@@ -131,7 +132,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		return
 	case "tp":
-		floorName := data.String("nazwa")
+		floorName := interactionData.String("nazwa")
 
 		currentLocation := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
 
@@ -150,7 +151,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		return
 	case "info":
-		if mentionedUser, exists := data.OptUser("gracz"); exists {
+		if mentionedUser, exists := interactionData.OptUser("gracz"); exists {
 			user = mentionedUser
 
 			playerChar = nil
@@ -216,9 +217,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				Build(),
 		)
 	case "skill":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "pokaż":
-			if mentionedUser, exists := data.OptUser("gracz"); exists {
+			if mentionedUser, exists := interactionData.OptUser("gracz"); exists {
 				user = mentionedUser
 
 				playerChar = nil
@@ -268,7 +269,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "odblokuj":
-			lvl := data.Int("lvl")
+			lvl := interactionData.Int("lvl")
 
 			skillList := make([]inventory.PlayerSkillLevel, 0)
 
@@ -337,7 +338,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 	case "plecak":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "pokaż":
 			embed := discord.NewEmbedBuilder()
 
@@ -385,7 +386,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		)
 		return
 	case "party":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "pokaż":
 			if playerChar.Meta.Party == nil {
 				event.CreateMessage(
@@ -464,7 +465,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			mentionedUser := data.User("gracz")
+			mentionedUser := interactionData.User("gracz")
 
 			for _, pl := range World.Players {
 				if pl.Meta.UserID == mentionedUser.ID.String() {
@@ -548,7 +549,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			mentionedUser := data.User("gracz")
+			mentionedUser := interactionData.User("gracz")
 
 			if mentionedUser.ID == user.ID {
 				event.CreateMessage(
@@ -666,7 +667,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			mentionedUser := data.User("gracz")
+			mentionedUser := interactionData.User("gracz")
 
 			if mentionedUser.ID == user.ID {
 				event.CreateMessage(
@@ -703,7 +704,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						return
 					}
 
-					role := data.String("rola")
+					role := interactionData.String("rola")
 
 					for i, partyMember := range World.Parties[*playerChar.Meta.Party].Players {
 						if partyMember.PlayerUuid == pl.GetUUID() {
@@ -825,7 +826,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		)
 		return
 	case "stwórz":
-		itemUuid, valid := uuid.Parse(data.String("nazwa"))
+		itemUuid, valid := uuid.Parse(interactionData.String("nazwa"))
 
 		if valid != nil {
 			event.CreateMessage(
@@ -838,7 +839,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		recipe, exists := world.Recipes[itemUuid]
+		recipe, exists := data.Recipes[itemUuid]
 
 		if !exists {
 			event.CreateMessage(
@@ -872,7 +873,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				Build(),
 		)
 	case "furia":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "pokaż":
 			if len(playerChar.Meta.Fury) == 0 {
 				event.CreateMessage(
@@ -1042,7 +1043,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 		}
 	case "sklep":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "pokaż":
 			playerLocation := playerChar.Meta.Location
 
@@ -1098,7 +1099,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			event.CreateMessage(messageBuilder.Build())
 		}
 	case "turniej":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "stwórz":
 			if !isAdmin(member) {
 				event.CreateMessage(
@@ -1111,9 +1112,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			tournamentName := data.String("nazwa")
-			maxCount, isMaxCountPresent := data.OptInt("max")
-			tournamentType := tournament.TournamentType(data.Int("typ"))
+			tournamentName := interactionData.String("nazwa")
+			maxCount, isMaxCountPresent := interactionData.OptInt("max")
+			tournamentType := tournament.TournamentType(interactionData.Int("typ"))
 
 			if !isMaxCountPresent {
 				maxCount = -1
@@ -1139,7 +1140,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			)
 		}
 	case "handel":
-		switch *data.SubCommandName {
+		switch *interactionData.SubCommandName {
 		case "nowy":
 			if playerChar.Meta.Transaction != nil {
 				event.CreateMessage(
@@ -1152,7 +1153,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			secondUser := data.User("gracz")
+			secondUser := interactionData.User("gracz")
 
 			secondPlayer := World.GetPlayer(secondUser.ID.String())
 

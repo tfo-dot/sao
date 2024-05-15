@@ -3,10 +3,10 @@ package discord
 import (
 	"fmt"
 	"sao/battle"
+	"sao/data"
 	"sao/player"
 	"sao/types"
 	"sao/utils"
-	"sao/world"
 	"sao/world/npc"
 	"sao/world/party"
 	"sao/world/transaction"
@@ -67,13 +67,13 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 
 	for i := 0; i < amount; i++ {
 		if stockItem.ItemType == types.ITEM_MATERIAL {
-			item := world.Ingredients[stockItem.ItemUUID]
+			item := data.Ingredients[stockItem.ItemUUID]
 
 			item.Count = amount
 
 			player.Inventory.AddIngredient(&item)
 		} else {
-			item := world.Items[stockItem.ItemUUID]
+			item := data.Items[stockItem.ItemUUID]
 
 			item.Count = amount
 
@@ -554,9 +554,9 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 				var itemName string
 
 				if stock.ItemType == types.ITEM_MATERIAL {
-					itemName = world.Ingredients[stock.ItemUUID].Name
+					itemName = data.Ingredients[stock.ItemUUID].Name
 				} else {
-					itemName = world.Items[stock.ItemUUID].Name
+					itemName = data.Items[stock.ItemUUID].Name
 				}
 
 				productButton := discord.NewPrimaryButton(itemName, "shop/buy/"+segments[3]+"/"+fmt.Sprint(itemIdx))

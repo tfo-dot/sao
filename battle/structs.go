@@ -113,10 +113,10 @@ func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrig
 			continue
 		}
 
-		//TODO handle CD for lvl only skills
-		// if skill.GetCD() != 0 {
-		// 	sourceEntity.SetLvlCD(skill.GetUUID(), skill.GetCD())
-		// }
+		//TODO CD for skills that are not lvl bound
+		if skill.IsLevelSkill() {
+			sourceEntity.SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
+		}
 
 		if skill.GetCost() != 0 {
 			sourceEntity.RestoreMana(-skill.GetCost())

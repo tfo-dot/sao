@@ -8,6 +8,7 @@ import (
 	"os"
 	"sao/battle"
 	"sao/battle/mobs"
+	"sao/data"
 	"sao/player"
 	"sao/types"
 	"sao/utils"
@@ -392,13 +393,13 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
 
 					if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
-						itemObj := Items[itemUuid]
+						itemObj := data.Items[itemUuid]
 
 						itemObj.Count = (*loot.Meta)["count"].(int)
 
 						partyLeader.Inventory.Items = append(partyLeader.Inventory.Items, &itemObj)
 					} else {
-						ingredient := Ingredients[itemUuid]
+						ingredient := data.Ingredients[itemUuid]
 
 						ingredient.Count = (*loot.Meta)["count"].(int)
 
@@ -422,13 +423,13 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 						itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
 
 						if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
-							itemObj := Items[itemUuid]
+							itemObj := data.Items[itemUuid]
 
 							itemObj.Count = (*loot.Meta)["count"].(int)
 
 							player.Inventory.Items = append(player.Inventory.Items, &itemObj)
 						} else {
-							ingredient := Ingredients[itemUuid]
+							ingredient := data.Ingredients[itemUuid]
 
 							ingredient.Count = (*loot.Meta)["count"].(int)
 

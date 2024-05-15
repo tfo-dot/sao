@@ -9,6 +9,10 @@ func RandomElement[v any](slice []v) v {
 	return slice[rand.Intn(len(slice))]
 }
 
+func RandomNumber(min, max int) int {
+	return rand.Intn(max+1-min) + min
+}
+
 func CalcReducedDamage(atk, reductionValue int) int {
 	if reductionValue == 0 {
 		return atk
@@ -19,11 +23,6 @@ func CalcReducedDamage(atk, reductionValue int) int {
 	} else {
 		return int(float32(atk) * float32(100/(100+reductionValue)))
 	}
-}
-
-// Random number
-func RandomNumber(min, max int) int {
-	return rand.Intn(max+1-min) + min
 }
 
 func PercentOf(value, percent int) int {

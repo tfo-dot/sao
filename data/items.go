@@ -1,4 +1,4 @@
-package world
+package data
 
 import (
 	"sao/types"
