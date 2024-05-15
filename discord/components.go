@@ -650,7 +650,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			var playerText string = ""
 			if World.Tournaments[tournamentUuid].MaxPlayers == -1 {
-				playerText = "Nieograniczona"
+				playerText = fmt.Sprintf("Nieograniczona (%v graczy)", len(World.Tournaments[tournamentUuid].Participants))
 			} else {
 				playerText = fmt.Sprintf("%v/%v", len(World.Tournaments[tournamentUuid].Participants), World.Tournaments[tournamentUuid].MaxPlayers)
 			}

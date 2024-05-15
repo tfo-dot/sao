@@ -883,11 +883,18 @@ func (w *World) Serialize() map[string]interface{} {
 		})
 	}
 
+	tournamentData := make([]map[string]interface{}, 0)
+
+	for _, tournament := range w.Tournaments {
+		tournamentData = append(tournamentData, tournament.Serialize())
+	}
+
 	return map[string]interface{}{
-		"players": playerData,
-		"stores":  storeData,
-		"time":    w.Time.Serialize(),
-		"test":    w.TestMode,
+		"players":     playerData,
+		"stores":      storeData,
+		"time":        w.Time.Serialize(),
+		"test":        w.TestMode,
+		"tournaments": tournamentData,
 	}
 }
 
@@ -909,7 +916,6 @@ func (w *World) CreateBackup() {
 	backupFile, err := os.Create(newBackupPath)
 
 	if err != nil {
-		//HONESTLY I DON'T KNOW WHAT COULD HAPPEN HERE
 		panic(err)
 	}
 
@@ -918,7 +924,6 @@ func (w *World) CreateBackup() {
 	jsonFile, err := json.Marshal(w.Serialize())
 
 	if err != nil {
-		//HONESTLY I DON'T KNOW WHAT COULD HAPPEN HERE
 		panic(err)
 	}
 
@@ -993,5 +998,13 @@ func (w *World) LoadBackup() {
 		player := player.Deserialize(playerData.(map[string]interface{}))
 
 		w.Players[player.GetUUID()] = player
+	}
+
+	//TODO Load stores
+
+	for _, tData := range backupData["tournaments"].([]map[string]interface{}) {
+		parsedData := tournament.Deserialize(tData)
+
+		w.Tournaments[parsedData.Uuid] = &parsedData
 	}
 }

@@ -124,7 +124,10 @@ func (inv *PlayerInventory) Craft(recipe types.Recipe) error {
 		inv.Ingredients[ingredient.Item].Count -= ingredient.Count
 	}
 
-	//TODO add result item to inventory
+	newItem := data.Items[recipe.Product.UUID]
+	newItem.Count = recipe.Product.Count
+
+	inv.Items = append(inv.Items, &newItem)
 
 	return nil
 }
