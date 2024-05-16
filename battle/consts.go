@@ -197,6 +197,8 @@ type PlayerEntity interface {
 	SetLvlCD(int, int)
 	GetLvlCD(int) int
 
+	GetSkillsCD() map[any]int
+
 	SetDefendingState(bool)
 	GetDefendingState() bool
 

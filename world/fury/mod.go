@@ -40,6 +40,8 @@ func (f *Fury) AddXP(xp int) {
 	for f.XP.XP >= f.NextLvlXPGauge() && f.XP.LVL < 10 {
 		f.XP.LVL++
 		f.XP.XP -= f.NextLvlXPGauge()
+
+		//TODO Add info about fury lvl up
 	}
 
 	if f.XP.LVL == 10 {

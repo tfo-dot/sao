@@ -91,6 +91,26 @@ func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []Entity {
 	return enemiesList
 }
 
+func (f *Fight) GetAlliesFor(uuid uuid.UUID) []Entity {
+	entitySide := f.Entities[uuid].Side
+
+	alliesList := make([]Entity, 0)
+
+	for _, entry := range f.Entities {
+		if entry.Side != entitySide {
+			continue
+		}
+
+		if entry.Entity.GetCurrentHP() <= 0 {
+			continue
+		}
+
+		alliesList = append(alliesList, entry.Entity)
+	}
+
+	return alliesList
+}
+
 func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrigger) {
 	entityEntry, exists := f.Entities[entityUuid]
 
@@ -855,6 +875,21 @@ func (f *Fight) Run() {
 			f.TriggerPassive(entityUuid, types.TRIGGER_TURN)
 
 			if !entity.IsAuto() {
+
+				player := entity.(PlayerEntity)
+
+				skills := player.GetSkillsCD()
+
+				for skill, cd := range skills {
+					if lvl, ok := skill.(int); ok {
+						player.SetLvlCD(lvl, cd-1)
+					} else {
+						fmt.Println("TODO: non lvl skills")
+						//TODO for non lvl skills
+						// skillUuid := skill.(uuid.UUID)
+					}
+				}
+
 				bytes, _ := entity.GetUUID().MarshalBinary()
 				packet := make([]byte, 1+len(bytes))
 				packet[0] = byte(MSG_ACTION_NEEDED)

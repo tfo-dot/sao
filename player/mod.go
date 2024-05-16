@@ -4,7 +4,6 @@ import (
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/player/inventory"
-	"sao/player/xp"
 	"sao/types"
 	"sao/utils"
 	"sao/world/fury"
@@ -17,6 +16,11 @@ type PlayerStats struct {
 	Effects     mobs.EffectList
 	Defending   bool
 	CurrentMana int
+}
+
+type PlayerXP struct {
+	Level int
+	Exp   int
 }
 
 type PlayerMeta struct {
@@ -51,7 +55,7 @@ func (pM *PlayerMeta) Serialize() map[string]interface{} {
 
 type Player struct {
 	Name      string
-	XP        xp.PlayerXP
+	XP        PlayerXP
 	Stats     PlayerStats
 	Meta      PlayerMeta
 	Inventory inventory.PlayerInventory
@@ -74,7 +78,7 @@ func (p *Player) Serialize() map[string]interface{} {
 func Deserialize(data map[string]interface{}) *Player {
 	return &Player{
 		data["name"].(string),
-		xp.PlayerXP{
+		PlayerXP{
 			Level: int(data["xp"].([]interface{})[0].(float64)),
 			Exp:   int(data["xp"].([]interface{})[1].(float64)),
 		},
@@ -297,6 +301,10 @@ func (p *Player) DamageShields(dmg int) int {
 func (p *Player) AddEXP(value int) {
 	p.XP.Exp += value
 
+	for _, fury := range p.Meta.Fury {
+		fury.AddXP(utils.PercentOf(value, 20))
+	}
+
 	for p.XP.Exp >= ((p.XP.Level * 100) + 100) {
 		p.XP.Exp -= ((p.XP.Level * 100) + 100)
 		p.LevelUP()
@@ -369,9 +377,11 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	// if p.Inventory.[skill.GetUUID()] > 0 {
-	// 	return false
-	// }
+	if skill.IsLevelSkill() {
+		if p.GetLvlCD(skill.(types.PlayerSkillLevel).GetLevel()) > 0 {
+			return false
+		}
+	}
 
 	if p.GetCurrentMana() < skill.GetCost() {
 		return false
@@ -526,7 +536,22 @@ func (p *Player) GetLvlCD(lvl int) int {
 }
 
 func (p *Player) SetLvlCD(lvl int, value int) {
-	p.Inventory.LevelSkillsCDS[lvl] = value
+	if value == 0 {
+		delete(p.Inventory.LevelSkillsCDS, lvl)
+	} else {
+		p.Inventory.LevelSkillsCDS[lvl] = value
+
+	}
+}
+
+func (p *Player) GetSkillsCD() map[any]int {
+	mapTemp := make(map[any]int, 0)
+
+	for skill, cd := range p.Inventory.LevelSkillsCDS {
+		mapTemp[skill] = cd
+	}
+
+	return mapTemp
 }
 
 func (p *Player) GetParty() *uuid.UUID {
@@ -536,7 +561,7 @@ func (p *Player) GetParty() *uuid.UUID {
 func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
-		xp.PlayerXP{Level: 1, Exp: 0},
+		PlayerXP{Level: 1, Exp: 0},
 		PlayerStats{100, make(mobs.EffectList, 0), false, 10},
 		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
