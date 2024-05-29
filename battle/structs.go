@@ -16,11 +16,17 @@ type Fight struct {
 	Entities        EntityMap
 	SpeedMap        map[uuid.UUID]int
 	StartTime       *calendar.Calendar
-	ExternalChannel chan []byte
+	ExternalChannel chan FightEvent
 	DiscordChannel  chan types.DiscordMessageStruct
 	Effects         []ActionEffect
 	Location        *location.Location
+	Tournament      *TournamentData
 	PlayerActions   chan Action
+}
+
+type TournamentData struct {
+	Tournament uuid.UUID
+	Location   string
 }
 
 type EntityMap map[uuid.UUID]EntityEntry
@@ -218,6 +224,12 @@ func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.
 }
 
 func (f *Fight) HandleAction(act Action) {
+	channelId := f.Location.CID
+
+	if f.Tournament != nil {
+		channelId = f.Tournament.Location
+	}
+
 	switch act.Event {
 	case ACTION_ATTACK:
 		sourceEntity := f.Entities[act.Source]
@@ -353,7 +365,7 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID:      f.Location.CID,
+			ChannelID:      channelId,
 			MessageContent: messageBuilder.Build(),
 		}
 	case ACTION_EFFECT:
@@ -361,7 +373,13 @@ func (f *Fight) HandleAction(act Action) {
 
 		if meta.Duration == 0 {
 			if meta.Effect == EFFECT_HEAL {
-				f.Entities[act.Target].Entity.Heal(meta.Value)
+				healValue := meta.Value
+
+				if act.Source != act.Target {
+					healValue = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
+				}
+
+				f.Entities[act.Target].Entity.Heal(healValue)
 				return
 			}
 
@@ -505,7 +523,7 @@ func (f *Fight) HandleAction(act Action) {
 				}
 
 				f.DiscordChannel <- types.DiscordMessageStruct{
-					ChannelID: f.Location.CID,
+					ChannelID: channelId,
 					MessageContent: discord.
 						NewMessageCreateBuilder().
 						AddEmbeds(
@@ -636,7 +654,7 @@ func (f *Fight) HandleAction(act Action) {
 		messageBuilder.AddEmbeds(tempEmbed.Build())
 
 		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID:      f.Location.CID,
+			ChannelID:      channelId,
 			MessageContent: messageBuilder.Build(),
 		}
 
@@ -698,7 +716,7 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID: f.Location.CID,
+			ChannelID: channelId,
 			MessageContent: discord.
 				NewMessageCreateBuilder().
 				AddEmbeds(
@@ -718,7 +736,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		if utils.RandomNumber(0, 100) < entity.GetAGL() {
 			f.DiscordChannel <- types.DiscordMessageStruct{
-				ChannelID: f.Location.CID,
+				ChannelID: channelId,
 				MessageContent: discord.
 					NewMessageCreateBuilder().
 					AddEmbeds(
@@ -744,7 +762,7 @@ func (f *Fight) HandleAction(act Action) {
 			}
 
 			f.DiscordChannel <- types.DiscordMessageStruct{
-				ChannelID: f.Location.CID,
+				ChannelID: channelId,
 				MessageContent: discord.
 					NewMessageCreateBuilder().
 					AddEmbeds(
@@ -757,7 +775,7 @@ func (f *Fight) HandleAction(act Action) {
 			}
 
 			if count == 0 {
-				f.ExternalChannel <- []byte{byte(MSG_FIGHT_END)}
+				f.ExternalChannel <- FightStartMsg{}
 			}
 		}
 	}
@@ -776,7 +794,7 @@ func (f *Fight) Init() {
 		f.SpeedMap[entity.Entity.GetUUID()] = entity.Entity.GetSPD()
 	}
 
-	f.ExternalChannel = make(chan []byte)
+	f.ExternalChannel = make(chan FightEvent, 10)
 	f.PlayerActions = make(chan Action, 10)
 
 	f.TriggerAll(types.TRIGGER_FIGHT_START)
@@ -842,7 +860,13 @@ func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDet
 }
 
 func (f *Fight) Run() {
-	f.ExternalChannel <- []byte{byte(MSG_FIGHT_START)}
+	f.ExternalChannel <- FightStartMsg{}
+
+	channelId := f.Location.CID
+
+	if f.Tournament != nil {
+		channelId = f.Tournament.Location
+	}
 
 	for len(f.Entities.SidesLeft()) > 1 {
 		turnList := make([]uuid.UUID, 0)
@@ -890,13 +914,7 @@ func (f *Fight) Run() {
 					}
 				}
 
-				bytes, _ := entity.GetUUID().MarshalBinary()
-				packet := make([]byte, 1+len(bytes))
-				packet[0] = byte(MSG_ACTION_NEEDED)
-				copy(packet[1:], bytes)
-
-				f.ExternalChannel <- packet
-
+				f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
 				f.HandleAction(<-f.PlayerActions)
 			} else {
 				if !(entity.GetEffect(EFFECT_DISARM) != nil || entity.GetEffect(EFFECT_STUN) != nil || entity.GetEffect(EFFECT_STUN) != nil || entity.GetEffect(EFFECT_ROOT) != nil || entity.GetEffect(EFFECT_GROUND) != nil || entity.GetEffect(EFFECT_BLIND) != nil) {
@@ -905,7 +923,7 @@ func (f *Fight) Run() {
 					}
 				} else {
 					f.DiscordChannel <- types.DiscordMessageStruct{
-						ChannelID: f.Location.CID,
+						ChannelID: channelId,
 						MessageContent: discord.
 							NewMessageCreateBuilder().
 							AddEmbeds(
@@ -929,5 +947,5 @@ func (f *Fight) Run() {
 	}
 
 	f.TriggerAll(types.TRIGGER_FIGHT_END)
-	f.ExternalChannel <- []byte{byte(MSG_FIGHT_END)}
+	f.ExternalChannel <- FightEndMsg{}
 }

@@ -21,7 +21,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/snowflake/v2"
 	"github.com/google/uuid"
 )
 
@@ -39,10 +41,11 @@ type World struct {
 	Time         *calendar.Calendar
 	Parties      map[uuid.UUID]*party.Party
 	TestMode     bool
+	DiscordToken string
 	DChannel     chan types.DiscordMessageStruct
 }
 
-func CreateWorld(testMode bool) World {
+func CreateWorld(discordToken string, testMode bool) World {
 	stockItem := npc.Stock{
 		ItemType: types.ITEM_MATERIAL,
 		ItemUUID: uuid.MustParse("00000000-0000-0000-0000-000000000000"),
@@ -86,6 +89,7 @@ func CreateWorld(testMode bool) World {
 		calendar.StartCalendar(),
 		make(map[uuid.UUID]*party.Party),
 		testMode,
+		discordToken,
 		make(chan types.DiscordMessageStruct, 10),
 	}
 }
@@ -109,9 +113,11 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 		return fmt.Errorf("location %v not found or locked", locationName)
 	}
 
-	if len(reason) == 0 {
-		fmt.Println("No reason for move, it was by player wish")
+	if player.Meta.FightInstance != nil {
+		return errors.New("player is in fight")
 	}
+
+	//TODO If there is a reason, tell it to the player
 
 	player.Meta.Location.FloorName = floorName
 	player.Meta.Location.LocationName = locationName
@@ -131,6 +137,8 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 			location = loc
 		}
 	}
+
+	//TODO Random (or dropped) items lying there
 
 	if len(location.Enemies) == 0 {
 		return
@@ -153,6 +161,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_ADAPTIVE,
 						Value:     10 + (partyMemberCount-1)*5,
@@ -163,6 +172,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_DEF,
 						Value:     25,
@@ -173,6 +183,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_MR,
 						Value:     25,
@@ -183,6 +194,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_HP,
 						Value:     (partyMemberCount - 1) * 5,
@@ -193,6 +205,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_DEF,
 						Value:     (partyMemberCount - 1) * 5,
@@ -203,6 +216,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_MR,
 						Value:     (partyMemberCount - 1) * 5,
@@ -213,6 +227,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				if partyMemberCount > 2 {
 					effects = append(effects, battle.ActionEffect{
 						Effect:   battle.EFFECT_TAUNT,
+						Source:   battle.SOURCE_PARTY,
 						Duration: -1,
 						Meta:     nil,
 					})
@@ -221,6 +236,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
+					Source:   battle.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_HEAL_POWER,
 						Value:     15 + (partyMemberCount-1)*5,
@@ -338,86 +354,60 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 	go fight.Run()
 
+	channelId := fight.Location.CID
+
+	if fight.Tournament != nil {
+		channelId = w.Tournaments[fight.Tournament.Tournament].Channel
+	}
+
 	for {
-		payload, ok := <-fight.ExternalChannel
+		eventData, ok := <-fight.ExternalChannel
 
 		if !ok {
 			w.DeregisterFight(fightUuid)
 			break
 		}
 
-		msgType := payload[0]
-
-		switch battle.FightMessage(msgType) {
+		switch eventData.GetEvent() {
 		case battle.MSG_FIGHT_END:
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 			wonEntities := fight.Entities.FromSide(wonSideIDX)
+			if fight.Tournament == nil {
+				overallXp := 0
+				overallGold := 0
+				lootedItems := make([]battle.Loot, 0)
 
-			overallXp := 0
-			overallGold := 0
-			lootedItems := make([]battle.Loot, 0)
-
-			for _, entity := range fight.Entities {
-				if entity.Side == wonSideIDX {
-					continue
-				}
-
-				lootList := entity.Entity.GetLoot()
-
-				for _, loot := range lootList {
-					switch loot.Type {
-					case battle.LOOT_EXP:
-						overallXp += (*loot.Meta)["value"].(int)
-					case battle.LOOT_GOLD:
-						overallGold += (*loot.Meta)["value"].(int)
-					case battle.LOOT_ITEM:
-						lootedItems = append(lootedItems, loot)
-					}
-				}
-			}
-
-			partyUuid := wonEntities[0].(battle.PlayerEntity).GetParty()
-
-			if partyUuid != nil {
-				partyData := w.Parties[*partyUuid]
-				partyLeader := w.Players[partyData.Leader]
-
-				for _, member := range partyData.Players {
-					player := w.Players[member.PlayerUuid]
-
-					player.AddEXP(overallXp / len(partyData.Players))
-					player.AddGold(overallGold / len(partyData.Players))
-				}
-
-				for _, loot := range lootedItems {
-					itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
-
-					if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
-						itemObj := data.Items[itemUuid]
-
-						itemObj.Count = (*loot.Meta)["count"].(int)
-
-						partyLeader.Inventory.Items = append(partyLeader.Inventory.Items, &itemObj)
-					} else {
-						ingredient := data.Ingredients[itemUuid]
-
-						ingredient.Count = (*loot.Meta)["count"].(int)
-
-						partyLeader.Inventory.AddIngredient(&ingredient)
-					}
-				}
-			} else {
-				for _, entity := range wonEntities {
-					entityUuid := entity.GetUUID()
-
-					if entity.IsAuto() {
+				for _, entity := range fight.Entities {
+					if entity.Side == wonSideIDX {
 						continue
 					}
 
-					player := w.Players[entityUuid]
+					lootList := entity.Entity.GetLoot()
 
-					player.AddEXP(overallXp)
-					player.AddGold(overallGold)
+					for _, loot := range lootList {
+						switch loot.Type {
+						case battle.LOOT_EXP:
+							overallXp += (*loot.Meta)["value"].(int)
+						case battle.LOOT_GOLD:
+							overallGold += (*loot.Meta)["value"].(int)
+						case battle.LOOT_ITEM:
+							lootedItems = append(lootedItems, loot)
+						}
+					}
+				}
+
+				partyUuid := wonEntities[0].(battle.PlayerEntity).GetParty()
+
+				if partyUuid != nil {
+					partyData := w.Parties[*partyUuid]
+					partyLeader := w.Players[partyData.Leader]
+
+					for _, member := range partyData.Players {
+						player := w.Players[member.PlayerUuid]
+
+						player.AddEXP(overallXp / len(partyData.Players))
+						player.AddGold(overallGold / len(partyData.Players))
+					}
 
 					for _, loot := range lootedItems {
 						itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
@@ -427,13 +417,44 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 							itemObj.Count = (*loot.Meta)["count"].(int)
 
-							player.Inventory.Items = append(player.Inventory.Items, &itemObj)
+							partyLeader.Inventory.Items = append(partyLeader.Inventory.Items, &itemObj)
 						} else {
 							ingredient := data.Ingredients[itemUuid]
 
 							ingredient.Count = (*loot.Meta)["count"].(int)
 
-							player.Inventory.AddIngredient(&ingredient)
+							partyLeader.Inventory.AddIngredient(&ingredient)
+						}
+					}
+				} else {
+					for _, entity := range wonEntities {
+						entityUuid := entity.GetUUID()
+
+						if entity.IsAuto() {
+							continue
+						}
+
+						player := w.Players[entityUuid]
+
+						player.AddEXP(overallXp)
+						player.AddGold(overallGold)
+
+						for _, loot := range lootedItems {
+							itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
+
+							if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
+								itemObj := data.Items[itemUuid]
+
+								itemObj.Count = (*loot.Meta)["count"].(int)
+
+								player.Inventory.Items = append(player.Inventory.Items, &itemObj)
+							} else {
+								ingredient := data.Ingredients[itemUuid]
+
+								ingredient.Count = (*loot.Meta)["count"].(int)
+
+								player.Inventory.AddIngredient(&ingredient)
+							}
 						}
 					}
 				}
@@ -454,7 +475,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			wonSideText = wonSideText[:len(wonSideText)-1]
 
 			w.DChannel <- types.DiscordMessageStruct{
-				ChannelID: fight.Location.CID,
+				ChannelID: channelId,
 				MessageContent: discord.
 					NewMessageCreateBuilder().
 					AddEmbeds(
@@ -465,6 +486,10 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 							Build(),
 					).
 					Build(),
+			}
+
+			if fight.Tournament != nil {
+				w.Tournaments[fight.Tournament.Tournament].ExternalChannel <- tournament.MatchFinishedData{Winner: wonEntities[0].GetUUID()}
 			}
 		case battle.MSG_FIGHT_START:
 			oneSide := fight.Entities.FromSide(0)
@@ -498,7 +523,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			otherSideText = otherSideText[:len(otherSideText)-1]
 
 			w.DChannel <- types.DiscordMessageStruct{
-				ChannelID: fight.Location.CID,
+				ChannelID: channelId,
 				MessageContent: discord.NewMessageCreateBuilder().
 					SetContent("Walka się rozpoczyna!").
 					AddEmbeds(discord.NewEmbedBuilder().
@@ -510,12 +535,9 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			}
 
 		case battle.MSG_ACTION_NEEDED:
-			entityUuid, err := uuid.FromBytes(payload[1:17])
-			player := w.Players[entityUuid]
+			entityUuid := eventData.GetData().(uuid.UUID)
 
-			if err != nil {
-				panic(err)
-			}
+			player := w.Players[entityUuid]
 
 			if player.GetEffect(battle.EFFECT_TAUNTED) != nil {
 				effect := player.GetEffect(battle.EFFECT_TAUNTED)
@@ -527,7 +549,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				}
 
 				w.DChannel <- types.DiscordMessageStruct{
-					ChannelID: fight.Location.CID,
+					ChannelID: channelId,
 					MessageContent: discord.NewMessageCreateBuilder().
 						SetContentf("<@%v> jest zmuszony do ataku! Pomijamy turę!", player.GetUID()).
 						Build(),
@@ -585,7 +607,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			escapeButton := discord.NewDangerButton("Ucieczka", "f/escape")
 
 			w.DChannel <- types.DiscordMessageStruct{
-				ChannelID: fight.Location.CID,
+				ChannelID: channelId,
 				MessageContent: discord.NewMessageCreateBuilder().
 					AddEmbeds(discord.NewEmbedBuilder().
 						SetTitle("Czas na turę!").
@@ -681,6 +703,10 @@ func (w *World) JoinTournament(uuid uuid.UUID, player *player.Player) error {
 
 	tournamentObj.Participants = append(tournamentObj.Participants, player.GetUUID())
 
+	if tournamentObj.MaxPlayers != -1 && len(tournamentObj.Participants) == tournamentObj.MaxPlayers {
+		w.StartTournament(uuid)
+	}
+
 	return nil
 }
 
@@ -701,11 +727,54 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 
 	tournamentObj.State = tournament.Running
 
+	var fightingLocation location.Location
+
+	for _, floor := range w.Floors {
+		for _, location := range floor.Locations {
+			for _, effect := range location.Flags {
+				if effect == "arena" {
+					fightingLocation = location
+				}
+			}
+		}
+	}
+
+	client, err := disgo.New(w.DiscordToken)
+
+	if err != nil {
+		panic(err)
+	}
+
+	msg, err := client.Rest().CreateMessage(snowflake.MustParse(fightingLocation.CID), discord.NewMessageCreateBuilder().SetContent("Turniej rozpoczęty!").Build())
+
+	if err != nil {
+		panic(err)
+	}
+
+	thread, err := client.Rest().CreateThreadFromMessage(snowflake.MustParse(fightingLocation.CID), msg.ID, discord.ThreadCreateFromMessage{
+		Name: "Turniej",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	tournamentObj.ExternalChannel = make(chan tournament.TournamentEventData)
+	tournamentObj.Channel = thread.ID().String()
+
 	switch tournamentObj.Type {
 	case tournament.SingleElimination:
+
+		w.DChannel <- types.DiscordMessageStruct{
+			ChannelID: tournamentObj.Channel,
+			MessageContent: discord.NewMessageCreateBuilder().
+				SetContent("Losowanie czas zacząć!").
+				Build(),
+		}
+
 		matches := make([]*tournament.TournamentMatch, 0)
 
-		var participants []uuid.UUID
+		var participants = tournamentObj.Participants
 
 		if len(tournamentObj.Participants)%2 != 0 {
 			luckyPlayer := utils.RandomNumber(0, len(tournamentObj.Participants)-1)
@@ -715,6 +784,13 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 				Winner:  &tournamentObj.Participants[luckyPlayer],
 				State:   tournament.FinishedMatch,
 			})
+
+			w.DChannel <- types.DiscordMessageStruct{
+				ChannelID: tournamentObj.Channel,
+				MessageContent: discord.NewMessageCreateBuilder().
+					SetContentf("Szczęśliwy gracz to <@%v>\nNie musisz walczyć w tej rundzie i możesz spokojnie oglądać!", w.Players[tournamentObj.Participants[luckyPlayer]].GetUID()).
+					Build(),
+			}
 
 			participants = append(participants[:luckyPlayer], participants[luckyPlayer+1:]...)
 		}
@@ -731,6 +807,16 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 				Winner:  nil,
 				State:   tournament.BeforeMatch,
 			})
+
+			participant0 := w.Players[participants[i]]
+			participant1 := w.Players[participants[i+1]]
+
+			w.DChannel <- types.DiscordMessageStruct{
+				ChannelID: tournamentObj.Channel,
+				MessageContent: discord.NewMessageCreateBuilder().
+					SetContentf("Los pociągnięty!\nMecz #%v: %v vs %v", (i/2)+1, participant0.GetName(), participant1.GetName()).
+					Build(),
+			}
 		}
 
 		tournamentObj.Stages = append(tournamentObj.Stages, &tournament.TournamentStage{
@@ -738,7 +824,153 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 		})
 	}
 
+	for idx, match := range tournamentObj.Stages[0].Matches {
+		if match.State == tournament.BeforeMatch {
+			w.StartMatch(tUuid, idx)
+			break
+		}
+	}
+
+	go w.ListenForTournament(tUuid)
+
 	return nil
+}
+
+func (w *World) ListenForTournament(tUuid uuid.UUID) {
+	tournamentObj := w.Tournaments[tUuid]
+
+	if tournamentObj == nil {
+		return
+	}
+
+	for {
+		data, ok := <-tournamentObj.ExternalChannel
+
+		if !ok {
+			break
+		}
+
+		switch data.GetEvent() {
+		case tournament.MatchFinished:
+			matchData := data.GetData().(uuid.UUID)
+
+			w.FinishMatch(tUuid, matchData)
+
+			currentStage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
+
+			allFinished := true
+
+			for _, match := range currentStage.Matches {
+				if match.State != tournament.FinishedMatch {
+					allFinished = false
+					break
+				}
+			}
+
+			if allFinished {
+				w.NextStage(tUuid)
+
+				if tournamentObj.State == tournament.Finished {
+
+					currentStage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
+
+					matchWinner := currentStage.Matches[0].Winner
+
+					player := w.Players[*matchWinner]
+
+					w.DChannel <- types.DiscordMessageStruct{
+						ChannelID: tournamentObj.Channel,
+						MessageContent: discord.NewMessageCreateBuilder().
+							SetContentf("Turniej zakończony! Wygrał %v (<@%v>)", player.GetName(), player.GetUID()).
+							Build(),
+					}
+					return
+				}
+
+				currentStage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
+
+				for idx, match := range currentStage.Matches {
+					if match.State == tournament.BeforeMatch {
+						w.StartMatch(tUuid, idx)
+						break
+					}
+				}
+			} else {
+				for idx, match := range currentStage.Matches {
+					if match.State == tournament.BeforeMatch {
+						w.StartMatch(tUuid, idx)
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
+func (w *World) StartMatch(tUuid uuid.UUID, matchIdx int) {
+	tournamentObj := w.Tournaments[tUuid]
+
+	if tournamentObj == nil {
+		return
+	}
+
+	if tournamentObj.State != tournament.Running {
+		return
+	}
+
+	stage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
+
+	if matchIdx >= len(stage.Matches) {
+		return
+	}
+
+	match := stage.Matches[matchIdx]
+
+	if match.State != tournament.BeforeMatch {
+		return
+	}
+
+	match.State = tournament.RunningMatch
+
+	player0 := w.Players[match.Players[0]]
+	player1 := w.Players[match.Players[1]]
+
+	entityMap := make(battle.EntityMap)
+
+	entityMap[player0.GetUUID()] = battle.EntityEntry{Entity: player0, Side: 0}
+	entityMap[player1.GetUUID()] = battle.EntityEntry{Entity: player1, Side: 1}
+
+	var fightingLocation location.Location
+
+	for _, floor := range w.Floors {
+		for _, location := range floor.Locations {
+			for _, effect := range location.Flags {
+				if effect == "arena" {
+					fightingLocation = location
+				}
+			}
+		}
+	}
+
+	fight := battle.Fight{
+		Entities:       entityMap,
+		DiscordChannel: w.DChannel,
+		StartTime:      w.Time.Copy(),
+		Location:       &fightingLocation,
+		Tournament: &battle.TournamentData{
+			Tournament: tUuid,
+			Location:   w.Tournaments[tUuid].Channel,
+		},
+	}
+
+	fight.Init()
+
+	fightUUID := w.RegisterFight(fight)
+
+	player0.Meta.FightInstance = &fightUUID
+	player1.Meta.FightInstance = &fightUUID
+
+	go w.ListenForFight(fightUUID)
 }
 
 func (w *World) FinishMatch(tUuid uuid.UUID, winner uuid.UUID) {
@@ -755,7 +987,6 @@ func (w *World) FinishMatch(tUuid uuid.UUID, winner uuid.UUID) {
 	stage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
 
 	for _, match := range stage.Matches {
-
 		for _, player := range match.Players {
 			if player == winner {
 				match.Winner = &winner
@@ -978,7 +1209,7 @@ func (w *World) LoadBackup() {
 			panic(err)
 		}
 
-		return leftTime.Before(rightTime)
+		return leftTime.After(rightTime)
 	})
 
 	if len(allBackups) == 0 {
@@ -1009,11 +1240,10 @@ func (w *World) LoadBackup() {
 
 	//TODO Load stores
 
-	if tournamentData, ok := backupData["tournaments"].([]map[string]interface{}); !ok && len(tournamentData) > 0 {
-		for _, tData := range backupData["tournaments"].([]map[string]interface{}) {
-			parsedData := tournament.Deserialize(tData)
+	for _, tData := range backupData["tournaments"].([]interface{}) {
+		tempData := tData.(map[string]interface{})
+		parsedData := tournament.Deserialize(tempData)
 
-			w.Tournaments[parsedData.Uuid] = &parsedData
-		}
+		w.Tournaments[parsedData.Uuid] = &parsedData
 	}
 }

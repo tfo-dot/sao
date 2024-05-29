@@ -49,7 +49,11 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 				CanDodge: false,
 			})
 		case battle.EFFECT_HEAL:
-			en.Heal(effect.Value)
+			if en.GetStat(types.STAT_HEAL_SELF) != 0 {
+				en.Heal(utils.PercentOf(en.GetStat(types.STAT_HEAL_SELF), 100+effect.Value))
+			} else {
+				en.Heal(effect.Value)
+			}
 		case battle.EFFECT_MANA:
 			en.RestoreMana(effect.Value)
 		}

@@ -38,3 +38,11 @@ func Map[v any, r any](slice []v, mapFunc func(v) r) []r {
 
 	return result
 }
+
+func BoolToText(value bool, ifTrue string, ifFalse string) string {
+	if value {
+		return ifTrue
+	} else {
+		return ifFalse
+	}
+}

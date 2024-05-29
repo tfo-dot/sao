@@ -35,7 +35,13 @@ func main() {
 		return
 	}
 
-	world := world.CreateWorld(os.Args[1] == "test")
+	isTest := false
+
+	if len(os.Args) > 1 && os.Args[1] == "test" {
+		isTest = true
+	}
+
+	world := world.CreateWorld(string(botKey), isTest)
 
 	world.LoadBackup()
 

@@ -3,7 +3,7 @@ module sao
 go 1.21.1
 
 require (
-	github.com/disgoorg/disgo v0.17.2
+	github.com/disgoorg/disgo v0.18.5
 	github.com/disgoorg/snowflake/v2 v2.0.1
 	github.com/google/uuid v1.6.0
 )

@@ -263,6 +263,18 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 					},
 				},
 			},
+			discord.ApplicationCommandOptionSubCommand{
+				Name:        "rozpocznij",
+				Description: "Rozpocznij turniej",
+				Options: []discord.ApplicationCommandOption{
+					discord.ApplicationCommandOptionString{
+						Name:         "nazwa",
+						Description:  "Nazwa turnieju",
+						Required:     true,
+						Autocomplete: true,
+					},
+				},
+			},
 		},
 	},
 	discord.SlashCommandCreate{
@@ -290,4 +302,8 @@ func isAdmin(member *discord.ResolvedMember) bool {
 
 func MessageContent(content string, ephemeral bool) discord.MessageCreate {
 	return discord.NewMessageCreateBuilder().SetContent(content).SetEphemeral(ephemeral).Build()
+}
+
+func MessageEmbed(embeds ...discord.Embed) discord.MessageCreate {
+	return discord.NewMessageCreateBuilder().SetEmbeds(embeds...).Build()
 }

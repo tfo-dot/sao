@@ -7,10 +7,12 @@ type Tournament struct {
 	Name string
 	Type TournamentType
 	//-1 for unlimited
-	MaxPlayers   int
-	Participants []uuid.UUID
-	State        TournamentState
-	Stages       []*TournamentStage
+	MaxPlayers      int
+	Channel         string
+	Participants    []uuid.UUID
+	State           TournamentState
+	Stages          []*TournamentStage
+	ExternalChannel chan TournamentEventData
 }
 
 type TournamentStage struct {
@@ -73,20 +75,27 @@ func (ts *TournamentStage) Serialize() map[string]interface{} {
 }
 
 func Deserialize(rawData map[string]interface{}) Tournament {
+	rawParticipants := rawData["participants"].([]interface{})
 
-	t := Tournament{
-		Uuid:         rawData["uuid"].(uuid.UUID),
-		Name:         rawData["name"].(string),
-		Type:         rawData["type"].(TournamentType),
-		MaxPlayers:   rawData["max_players"].(int),
-		Participants: rawData["participants"].([]uuid.UUID),
-		State:        rawData["state"].(TournamentState),
+	participants := make([]uuid.UUID, 0)
+
+	for _, participant := range rawParticipants {
+		participants = append(participants, uuid.MustParse(participant.(string)))
 	}
 
-	tStages := rawData["stages"].([]map[string]interface{})
+	t := Tournament{
+		Uuid:         uuid.MustParse(rawData["uuid"].(string)),
+		Name:         rawData["name"].(string),
+		Type:         TournamentType(rawData["type"].(float64)),
+		MaxPlayers:   int(rawData["max_players"].(float64)),
+		Participants: participants,
+		State:        TournamentState(rawData["state"].(float64)),
+	}
+
+	tStages := rawData["stages"].([]interface{})
 
 	for _, stage := range tStages {
-		t.Stages = append(t.Stages, DeserializeStage(stage))
+		t.Stages = append(t.Stages, DeserializeStage(stage.(map[string]interface{})))
 	}
 
 	return t
@@ -101,7 +110,6 @@ func DeserializeStage(rawData map[string]interface{}) *TournamentStage {
 	matches := rawData["matches"].([]map[string]interface{})
 
 	for _, match := range matches {
-
 		parsedPlayers := make([]uuid.UUID, 0)
 
 		for _, player := range match["players"].([]string) {

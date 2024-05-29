@@ -19,6 +19,7 @@ const (
 	STAT_MR
 	STAT_MANA
 	STAT_AP
+	STAT_HEAL_SELF
 	STAT_HEAL_POWER
 	STAT_ADAPTIVE
 )
@@ -32,6 +33,7 @@ var StatToString = map[Stat]string{
 	STAT_MR:         "RES",
 	STAT_MANA:       "MANA",
 	STAT_AP:         "AP",
+	STAT_HEAL_SELF:  "Otrzymane leczenie",
 	STAT_HEAL_POWER: "Moc leczenia",
 	STAT_ADAPTIVE:   "SIła adaptacyjna",
 }
@@ -41,4 +43,11 @@ type AdaptiveType int
 const (
 	ADAPTIVE_ATK AdaptiveType = iota
 	ADAPTIVE_AP
+)
+
+type AdaptiveRes int
+
+const (
+	ADAPTIVE_DEF AdaptiveRes = iota
+	ADAPTIVE_RES
 )

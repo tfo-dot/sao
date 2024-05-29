@@ -8,6 +8,7 @@ type Location struct {
 	TP       bool
 	Enemies  []EnemyMeta
 	Unlocked bool
+	Flags    []string
 }
 
 type EnemyMeta struct {
@@ -57,6 +58,7 @@ func GetFloors(test bool) map[string]Floor {
 						Effects:  []LocationEffect{},
 						TP:       true,
 						Unlocked: true,
+						Flags:    []string{},
 					},
 					{
 						Name:     "Las",
@@ -72,6 +74,16 @@ func GetFloors(test bool) map[string]Floor {
 						Effects:  []LocationEffect{},
 						TP:       false,
 						Unlocked: false,
+						Flags:    []string{},
+					},
+					{
+						Name:     "Arena",
+						CID:      "1241069460073222225",
+						CityPart: true,
+						Effects:  []LocationEffect{},
+						TP:       true,
+						Unlocked: true,
+						Flags:    []string{"arena"},
 					},
 				},
 				Effects: []LocationEffect{},
