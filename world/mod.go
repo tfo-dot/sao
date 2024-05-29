@@ -871,7 +871,6 @@ func (w *World) ListenForTournament(tUuid uuid.UUID) {
 				w.NextStage(tUuid)
 
 				if tournamentObj.State == tournament.Finished {
-
 					currentStage := tournamentObj.Stages[len(tournamentObj.Stages)-1]
 
 					matchWinner := currentStage.Matches[0].Winner
@@ -884,6 +883,9 @@ func (w *World) ListenForTournament(tUuid uuid.UUID) {
 							SetContentf("Turniej zakończony! Wygrał %v (<@%v>)", player.GetName(), player.GetUID()).
 							Build(),
 					}
+
+					w.FinishTournament(tUuid)
+
 					return
 				}
 
@@ -1040,6 +1042,20 @@ func (w *World) NextStage(tUuid uuid.UUID) {
 	tournamentObj.Stages = append(tournamentObj.Stages, &tournament.TournamentStage{
 		Matches: newMatches,
 	})
+}
+
+func (w *World) FinishTournament(tUuid uuid.UUID) {
+	tournamentObj := w.Tournaments[tUuid]
+
+	if tournamentObj == nil {
+		return
+	}
+
+	if tournamentObj.State != tournament.Finished {
+		return
+	}
+
+	delete(w.Tournaments, tUuid)
 }
 
 func (w *World) CreatePendingTransaction(left, right uuid.UUID) *transaction.Transaction {
