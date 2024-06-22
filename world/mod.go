@@ -46,42 +46,11 @@ type World struct {
 }
 
 func CreateWorld(discordToken string, testMode bool) World {
-	stockItem := npc.Stock{
-		ItemType: types.ITEM_MATERIAL,
-		ItemUUID: uuid.MustParse("00000000-0000-0000-0000-000000000000"),
-		Price:    1,
-		Quantity: 10,
-		Limit:    10,
-	}
-
-	npcUuid := uuid.New()
-
-	testStore := npc.NPCStore{
-		RestockInterval: *calendar.StartCalendar(),
-		LastRestock:     *calendar.StartCalendar(),
-		Uuid:            uuid.New(),
-		NPCUuid:         npcUuid,
-		Name:            "Warzywniak babci stasi",
-		Stock:           []*npc.Stock{&stockItem},
-	}
-
-	npcMap := map[uuid.UUID]*npc.NPC{
-		npcUuid: {
-			Name:     "Babcia stasia",
-			Location: types.PlayerLocation{FloorName: "dev", LocationName: "Rynek"},
-			Store:    &testStore,
-		},
-	}
-
-	storeMap := map[uuid.UUID]*npc.NPCStore{
-		testStore.Uuid: &testStore,
-	}
-
 	return World{
 		make(map[uuid.UUID]*player.Player),
 		make(map[uuid.UUID]*transaction.Transaction),
-		npcMap,
-		storeMap,
+		make(map[uuid.UUID]*npc.NPC),
+		make(map[uuid.UUID]*npc.NPCStore),
 		location.GetFloors(testMode),
 		make(map[uuid.UUID]*tournament.Tournament),
 		make(map[uuid.UUID]battle.Fight),

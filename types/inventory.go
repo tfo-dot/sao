@@ -169,6 +169,7 @@ type Recipe struct {
 	UUID        uuid.UUID
 	Name        string
 	Ingredients []WithCount[uuid.UUID]
+	Cost        int
 	Product     ResultItem
 }
 
