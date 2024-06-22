@@ -185,7 +185,15 @@ func (inv PlayerInventory) GetStat(stat types.Stat) int {
 	value := 0
 
 	for _, item := range inv.Items {
-		val, exists := item.Stats[int(stat)]
+		val, exists := item.Stats[stat]
+
+		if exists {
+			value += val
+		}
+	}
+
+	for _, ingredient := range inv.Ingredients {
+		val, exists := ingredient.Stats[stat]
 
 		if exists {
 			value += val

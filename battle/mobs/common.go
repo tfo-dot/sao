@@ -23,7 +23,7 @@ type MobEntity struct {
 
 type EffectList []battle.ActionEffect
 
-func (e EffectList) GetEffect(effect battle.Effect) *battle.ActionEffect {
+func (e EffectList) GetEffectByType(effect battle.Effect) *battle.ActionEffect {
 	for _, eff := range e {
 		if eff.Effect == effect {
 			return &eff
@@ -31,6 +31,28 @@ func (e EffectList) GetEffect(effect battle.Effect) *battle.ActionEffect {
 	}
 
 	return nil
+}
+
+func (e EffectList) GetEffectByUUID(eUuid uuid.UUID) *battle.ActionEffect {
+	for _, eff := range e {
+		if eff.Uuid == eUuid {
+			return &eff
+		}
+	}
+
+	return nil
+}
+
+func (e EffectList) RemoveEffect(eUuid uuid.UUID) EffectList {
+	tempList := make([]battle.ActionEffect, 0)
+
+	for _, eff := range e {
+		if eff.Uuid != eUuid {
+			tempList = append(tempList, eff)
+		}
+	}
+
+	return tempList
 }
 
 func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList) {
@@ -48,7 +70,7 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 				Damage:   []battle.Damage{{Value: effect.Value, Type: battle.DMG_TRUE, CanDodge: false}},
 				CanDodge: false,
 			})
-		case battle.EFFECT_HEAL:
+		case battle.EFFECT_HEAL_SELF:
 			if en.GetStat(types.STAT_HEAL_SELF) != 0 {
 				en.Heal(utils.PercentOf(en.GetStat(types.STAT_HEAL_SELF), 100+effect.Value))
 			} else {
@@ -212,7 +234,7 @@ func (m *MobEntity) Action(f *battle.Fight) []battle.Action {
 		return []battle.Action{}
 	}
 
-	tauntEffect := m.GetEffect(battle.EFFECT_TAUNTED)
+	tauntEffect := m.GetEffectByType(battle.EFFECT_TAUNTED)
 
 	if tauntEffect != nil {
 		return []battle.Action{
@@ -249,8 +271,8 @@ func (m *MobEntity) ApplyEffect(e battle.ActionEffect) {
 	m.Effects = append(m.Effects, e)
 }
 
-func (m *MobEntity) GetEffect(effect battle.Effect) *battle.ActionEffect {
-	return m.Effects.GetEffect(effect)
+func (m *MobEntity) GetEffectByType(effect battle.Effect) *battle.ActionEffect {
+	return m.Effects.GetEffectByType(effect)
 }
 
 func (m *MobEntity) GetAllEffects() []battle.ActionEffect {
@@ -271,6 +293,14 @@ func (m *MobEntity) TriggerAllEffects() []battle.ActionEffect {
 	m.Effects = effects
 
 	return expiredEffects
+}
+
+func (m *MobEntity) RemoveEffect(uuid uuid.UUID) {
+	m.Effects = m.Effects.RemoveEffect(uuid)
+}
+
+func (m *MobEntity) GetEffectByUUID(uuid uuid.UUID) *battle.ActionEffect {
+	return m.Effects.GetEffectByUUID(uuid)
 }
 
 func (m *MobEntity) GetStat(stat types.Stat) int {

@@ -539,8 +539,8 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			player := w.Players[entityUuid]
 
-			if player.GetEffect(battle.EFFECT_TAUNTED) != nil {
-				effect := player.GetEffect(battle.EFFECT_TAUNTED)
+			if player.GetEffectByType(battle.EFFECT_TAUNTED) != nil {
+				effect := player.GetEffectByType(battle.EFFECT_TAUNTED)
 
 				fight.PlayerActions <- battle.Action{
 					Event:  battle.ACTION_ATTACK,

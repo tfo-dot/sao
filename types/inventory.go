@@ -16,7 +16,8 @@ type PlayerSkill interface {
 
 	IsLevelSkill() bool
 
-	Execute(owner, target interface{}, fightInstance *interface{})
+	//Meta is used for passive events mostly ig
+	Execute(owner, target interface{}, fightInstance *interface{}, meta interface{})
 	GetEvents() map[CustomTrigger]func(owner *interface{})
 }
 
@@ -66,6 +67,8 @@ const (
 	TRIGGER_CAST
 	TRIGGER_DAMAGE
 	TRIGGER_NONE
+	TRIGGER_HEAL_SELF
+	TRIGGER_HEAL_OTHER
 )
 
 type TargetTag int
@@ -116,7 +119,7 @@ type PlayerItem struct {
 	Count       int
 	MaxCount    int
 	Hidden      bool
-	Stats       map[int]int
+	Stats       map[Stat]int
 	Effects     []PlayerSkill
 }
 
@@ -144,7 +147,7 @@ func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *in
 			continue
 		}
 
-		effect.Execute(owner, target, fight)
+		effect.Execute(owner, target, fight, nil)
 	}
 }
 
@@ -158,6 +161,7 @@ const (
 type Ingredient struct {
 	UUID  uuid.UUID
 	Name  string
+	Stats map[Stat]int
 	Count int
 }
 

@@ -340,8 +340,12 @@ func (p *Player) ApplyEffect(e battle.ActionEffect) {
 	p.Stats.Effects = append(p.Stats.Effects, e)
 }
 
-func (p *Player) GetEffect(effect battle.Effect) *battle.ActionEffect {
-	return p.Stats.Effects.GetEffect(effect)
+func (p *Player) GetEffectByType(effect battle.Effect) *battle.ActionEffect {
+	return p.Stats.Effects.GetEffectByType(effect)
+}
+
+func (p *Player) GetEffectByUUID(uuid uuid.UUID) *battle.ActionEffect {
+	return p.Stats.Effects.GetEffectByUUID(uuid)
 }
 
 func (p *Player) TriggerAllEffects() []battle.ActionEffect {
@@ -352,20 +356,24 @@ func (p *Player) TriggerAllEffects() []battle.ActionEffect {
 	return expiredEffects
 }
 
+func (p *Player) RemoveEffect(uuid uuid.UUID) {
+	p.Stats.Effects = p.Stats.Effects.RemoveEffect(uuid)
+}
+
 func (p *Player) GetAllEffects() []battle.ActionEffect {
 	return p.Stats.Effects
 }
 
 func (p *Player) CanAttack() bool {
-	return !(p.GetEffect(battle.EFFECT_DISARM) != nil || p.GetEffect(battle.EFFECT_STUN) != nil)
+	return !(p.GetEffectByType(battle.EFFECT_DISARM) != nil || p.GetEffectByType(battle.EFFECT_STUN) != nil)
 }
 
 func (p *Player) CanDodgeNow() bool {
-	return !(p.GetEffect(battle.EFFECT_STUN) != nil || p.GetEffect(battle.EFFECT_ROOT) != nil || p.GetEffect(battle.EFFECT_GROUND) != nil || p.GetEffect(battle.EFFECT_BLIND) != nil)
+	return !(p.GetEffectByType(battle.EFFECT_STUN) != nil || p.GetEffectByType(battle.EFFECT_ROOT) != nil || p.GetEffectByType(battle.EFFECT_GROUND) != nil || p.GetEffectByType(battle.EFFECT_BLIND) != nil)
 }
 
 func (p *Player) CanDefend() bool {
-	return !(p.GetEffect(battle.EFFECT_STUN) != nil || p.GetEffect(battle.EFFECT_ROOT) != nil)
+	return !(p.GetEffectByType(battle.EFFECT_STUN) != nil || p.GetEffectByType(battle.EFFECT_ROOT) != nil)
 }
 
 func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
@@ -373,7 +381,7 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	if p.GetEffect(battle.EFFECT_SILENCE) != nil {
+	if p.GetEffectByType(battle.EFFECT_SILENCE) != nil {
 		return false
 	}
 
@@ -395,7 +403,7 @@ func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
 		return false
 	}
 
-	if p.GetEffect(battle.EFFECT_SILENCE) != nil {
+	if p.GetEffectByType(battle.EFFECT_SILENCE) != nil {
 		return false
 	}
 

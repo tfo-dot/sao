@@ -56,8 +56,10 @@ type Effect int
 const (
 	EFFECT_POISON Effect = iota
 	EFFECT_FEAR
+	EFFECT_HEAL_SELF
+	EFFECT_HEAL_OTHER
 	EFFECT_VAMP
-	EFFECT_HEAL
+	EFFECT_LIFESTEAL
 	EFFECT_MANA
 	EFFECT_SHIELD
 	EFFECT_BLIND
@@ -110,6 +112,7 @@ const (
 	SOURCE_ND EffectSource = iota
 	SOURCE_PARTY
 	SOURCE_LOCATION
+	SOURCE_ITEM
 )
 
 type ActionEffectHeal struct {
@@ -184,8 +187,10 @@ type Entity interface {
 	GetUUID() uuid.UUID
 
 	ApplyEffect(ActionEffect)
-	GetEffect(Effect) *ActionEffect
+	GetEffectByType(Effect) *ActionEffect
+	GetEffectByUUID(uuid.UUID) *ActionEffect
 	GetAllEffects() []ActionEffect
+	RemoveEffect(uuid.UUID)
 	TriggerAllEffects() []ActionEffect
 }
 

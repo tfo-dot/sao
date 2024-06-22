@@ -64,8 +64,8 @@ func TargetDetailsCheck(left, right interface{}, order types.TargetDetails, meta
 		if meta == nil {
 			return 0
 		}
-		leftHas := left.(Entity).GetEffect((*meta)["effect"].(Effect))
-		rightHas := right.(Entity).GetEffect((*meta)["effect"].(Effect))
+		leftHas := left.(Entity).GetEffectByType((*meta)["effect"].(Effect))
+		rightHas := right.(Entity).GetEffectByType((*meta)["effect"].(Effect))
 
 		if leftHas != nil && rightHas == nil {
 			return -1
@@ -81,8 +81,8 @@ func TargetDetailsCheck(left, right interface{}, order types.TargetDetails, meta
 			return 0
 		}
 
-		leftHas := left.(Entity).GetEffect((*meta)["effect"].(Effect))
-		rightHas := right.(Entity).GetEffect((*meta)["effect"].(Effect))
+		leftHas := left.(Entity).GetEffectByType((*meta)["effect"].(Effect))
+		rightHas := right.(Entity).GetEffectByType((*meta)["effect"].(Effect))
 
 		if leftHas != nil && rightHas == nil {
 			return 1
