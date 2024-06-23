@@ -17,8 +17,8 @@ type PlayerSkill interface {
 	IsLevelSkill() bool
 
 	//Meta is used for passive events mostly ig
-	Execute(owner, target interface{}, fightInstance *interface{}, meta interface{})
-	GetEvents() map[CustomTrigger]func(owner *interface{})
+	Execute(owner, target, fightInstance, meta interface{})
+	GetEvents() map[CustomTrigger]func(owner interface{})
 }
 
 type PlayerSkillLevel interface {
@@ -52,23 +52,34 @@ type EventTriggerDetails struct {
 type SkillTrigger int
 
 const (
-	TRIGGER_ATTACK SkillTrigger = iota
+	TRIGGER_ATTACK_ATTEMPT SkillTrigger = iota
+	TRIGGER_ATTACK_HIT
+	TRIGGER_ATTACK_MISS
+	TRIGGER_ATTACK_GOT_HIT
 	TRIGGER_DEFEND
 	TRIGGER_DODGE
-	TRIGGER_HIT
 	TRIGGER_FIGHT_START
 	TRIGGER_FIGHT_END
 	TRIGGER_EXECUTE
 	TRIGGER_TURN
 	TRIGGER_HEALTH
 	TRIGGER_MANA
-	TRIGGER_EFFECT
-	TRIGGER_COUNTER
+	TRIGGER_COUNTER_ATTEMPT
+	TRIGGER_COUNTER_HIT
+	TRIGGER_COUNTER_MISS
 	TRIGGER_CAST
 	TRIGGER_DAMAGE
 	TRIGGER_NONE
 	TRIGGER_HEAL_SELF
 	TRIGGER_HEAL_OTHER
+	TRIGGER_APPLY_BUFF
+	TRIGGER_APPLY_DEBUFF
+	TRIGGER_REMOVE_BUFF
+	TRIGGER_REMOVE_DEBUFF
+	TRIGGER_APPLY_CROWD_CONTROL
+	TRIGGER_REMOVE_CROWD_CONTROL
+	TRIGGER_APPLY_EFFECT
+	TRIGGER_REMOVE_EFFECT
 )
 
 type TargetTag int
@@ -182,4 +193,11 @@ type ResultItem struct {
 type WithCount[T any] struct {
 	Item  T
 	Count int
+}
+
+type DerivedStat struct {
+	Base    Stat
+	Derived Stat
+	Percent int
+	Source  uuid.UUID
 }

@@ -58,9 +58,10 @@ const (
 	EFFECT_FEAR
 	EFFECT_HEAL_SELF
 	EFFECT_HEAL_OTHER
+	EFFECT_HEAL_REDUCE
+	EFFECT_MANA_RESTORE
 	EFFECT_VAMP
 	EFFECT_LIFESTEAL
-	EFFECT_MANA
 	EFFECT_SHIELD
 	EFFECT_BLIND
 	EFFECT_DISARM
@@ -222,21 +223,14 @@ type PlayerEntity interface {
 	RemoveItem(int)
 
 	GetParty() *uuid.UUID
+
+	AppendDerivedStat(types.DerivedStat)
 }
 
 type FightEvent interface {
 	GetEvent() FightMessage
 	GetData() any
 }
-
-/*
-const (
-	MSG_ACTION_NEEDED FightMessage = iota
-	MSG_FIGHT_START
-	MSG_FIGHT_END
-	MSG_ENTITY_RESCUE
-	MSG_ENTITY_DIED
-)*/
 
 type FightStartMsg struct{}
 

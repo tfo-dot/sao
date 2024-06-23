@@ -76,7 +76,7 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 			} else {
 				en.Heal(effect.Value)
 			}
-		case battle.EFFECT_MANA:
+		case battle.EFFECT_MANA_RESTORE:
 			en.RestoreMana(effect.Value)
 		}
 
@@ -164,9 +164,7 @@ func (m *MobEntity) GetCurrentMana() int {
 	return 0
 }
 
-func (m *MobEntity) RestoreMana(value int) {
-	//No mana XD
-}
+func (m *MobEntity) RestoreMana(value int) {}
 
 func (m *MobEntity) GetAP() int {
 	return 0

@@ -251,7 +251,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := tempMeta.(ActionDamage)
 
-		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK, nil)
+		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_ATTEMPT, nil)
 
 		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
 
@@ -265,7 +265,7 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		if !dodged {
-			f.TriggerPassive(act.Source, types.TRIGGER_HIT, nil)
+			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_HIT, nil)
 		}
 
 		messageBuilder := discord.NewMessageCreateBuilder()
@@ -558,7 +558,7 @@ func (f *Fight) HandleAction(act Action) {
 			f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE, nil)
 		}
 
-		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HIT, nil, func(e Entity, ps types.PlayerSkill) bool {
+		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_ATTACK_GOT_HIT, nil, func(e Entity, ps types.PlayerSkill) bool {
 			hpValue := 0
 
 			if ps.GetTrigger().Event.Meta["value"] != nil {
@@ -570,7 +570,7 @@ func (f *Fight) HandleAction(act Action) {
 			return hpValue < e.GetCurrentHP()
 		})
 
-		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HIT, nil, func(e Entity, ps types.PlayerSkill) bool {
+		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_ATTACK_GOT_HIT, nil, func(e Entity, ps types.PlayerSkill) bool {
 			hpValue := 0
 
 			if ps.GetTrigger().Event.Meta["value"] != nil {
@@ -584,7 +584,7 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_COUNTER:
 		sourceEntity := f.Entities[act.Source]
 
-		f.TriggerPassive(act.Source, types.TRIGGER_COUNTER, nil)
+		f.TriggerPassive(act.Source, types.TRIGGER_COUNTER_ATTEMPT, nil)
 
 		meta := act.Meta.(ActionDamage)
 
@@ -600,7 +600,7 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		if !dodged {
-			f.TriggerPassive(act.Source, types.TRIGGER_HIT, nil)
+			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_GOT_HIT, nil)
 		}
 
 		messageBuilder := discord.NewMessageCreateBuilder()

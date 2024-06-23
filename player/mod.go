@@ -54,11 +54,12 @@ func (pM *PlayerMeta) Serialize() map[string]interface{} {
 }
 
 type Player struct {
-	Name      string
-	XP        PlayerXP
-	Stats     PlayerStats
-	Meta      PlayerMeta
-	Inventory inventory.PlayerInventory
+	Name         string
+	XP           PlayerXP
+	Stats        PlayerStats
+	Meta         PlayerMeta
+	Inventory    inventory.PlayerInventory
+	DynamicStats []types.DerivedStat
 }
 
 func (p *Player) Serialize() map[string]interface{} {
@@ -90,6 +91,7 @@ func Deserialize(data map[string]interface{}) *Player {
 		},
 		*DeserializeMeta(data["meta"].(map[string]interface{})),
 		inventory.DeserializeInventory(data["inventory"].(map[string]interface{})),
+		make([]types.DerivedStat, 0),
 	}
 }
 
@@ -566,6 +568,10 @@ func (p *Player) GetParty() *uuid.UUID {
 	return p.Meta.Party
 }
 
+func (p *Player) AppendDerivedStat(stat types.DerivedStat) {
+	p.DynamicStats = append(p.DynamicStats, stat)
+}
+
 func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
@@ -573,5 +579,6 @@ func NewPlayer(name string, uid string) Player {
 		PlayerStats{100, make(mobs.EffectList, 0), false, 10},
 		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
+		make([]types.DerivedStat, 0),
 	}
 }

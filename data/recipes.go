@@ -16,12 +16,11 @@ var Recipes = map[uuid.UUID]types.Recipe{
 		},
 		Cost: 150,
 		Product: types.ResultItem{
-			UUID:  ReimiBlessing.UUID,
+			UUID:  ReimiBlessingUUID,
 			Type:  types.ITEM_OTHER,
 			Count: 1,
 		},
 	},
 }
 
-var ReimiBlessingRecipe = Recipes[uuid.MustParse("00000000-0000-0000-0000-000000000000")]
 var ReimiBlessingRecipeUUID = uuid.MustParse("00000000-0000-0000-0000-000000000000")
