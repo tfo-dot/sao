@@ -4,6 +4,7 @@ import (
 	"sao/battle"
 	"sao/types"
 	"sao/utils"
+	"sort"
 
 	"github.com/google/uuid"
 )
@@ -356,6 +357,72 @@ var Items = map[uuid.UUID]types.PlayerItem{
 		},
 		Effects: []types.PlayerSkill{ControllersHatSkill{}},
 	},
+	ArdentCenserUUID: {
+		UUID:        ArdentCenserUUID,
+		Name:        "Ognisty trybularz",
+		Description: "Leczenie i tarcze zwiększają obrażenia i prędkość sojusznika.",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      false,
+		Stats: map[types.Stat]int{
+			types.STAT_HEAL_POWER: 10,
+			types.STAT_AP:         30,
+			types.STAT_HP:         50,
+		},
+		Effects: []types.PlayerSkill{ArdentCenserSkill{}},
+	},
+	SirensCallUUID: {
+		UUID:        SirensCallUUID,
+		Name:        "Syreni śpiew",
+		Description: "Leczenie i tarcze przeskakują na sojusznika",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      false,
+		Stats: map[types.Stat]int{
+			types.STAT_HEAL_POWER: 10,
+			types.STAT_AP:         40,
+			types.STAT_HP:         50,
+		},
+		Effects: []types.PlayerSkill{SirensCallSkill{}},
+	},
+	FogsEmpowermentUUID: {
+		UUID:        FogsEmpowermentUUID,
+		Name:        "Mgliste wzmocnienie",
+		Description: "Otrzymujesz AP w zależności od siły leczenia i tarcz.",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      false,
+		Stats: map[types.Stat]int{
+			types.STAT_HEAL_POWER: 15,
+			types.STAT_AP:         30,
+		},
+		Effects: []types.PlayerSkill{FogsEmpowermentSkill{}},
+	},
+	WindsEmpowermentUUID: {
+		UUID:        WindsEmpowermentUUID,
+		Name:        "Wietrzne wzmocnienie",
+		Description: "Otrzymujesz SPD w zależności od siły leczenia i tarcz.",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      false,
+		Stats: map[types.Stat]int{
+			types.STAT_HEAL_POWER: 10,
+			types.STAT_AD:         15,
+		},
+		Effects: []types.PlayerSkill{WindsEmpowermentSkill{}},
+	},
 }
 
 var ReimiBlessingUUID = uuid.MustParse("00000000-0000-0000-0000-000000000000")
@@ -425,6 +492,27 @@ var ControllersBladeEffectUUID = uuid.MustParse("00000000-0000-0001-0001-1000000
 
 var ControllersHatUUID = uuid.MustParse("00000000-0000-0000-0000-000000000014")
 var ControllersHatSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000014")
+
+var ArdentCenserUUID = uuid.MustParse("00000000-0000-0000-0000-000000000015")
+var ArdentCenserSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000015")
+var ArdentCenserEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000015")
+
+var SirensCallUUID = uuid.MustParse("00000000-0000-0000-0000-000000000016")
+var SirensCallSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000016")
+var SirensCallEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000016")
+
+var FogsEmpowermentUUID = uuid.MustParse("00000000-0000-0000-0000-000000000017")
+var FogsEmpowermentSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000017")
+
+var WindsEmpowermentUUID = uuid.MustParse("00000000-0000-0000-0000-000000000018")
+var WindsEmpowermentSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000018")
+
+var LightingSupportUUID = uuid.MustParse("00000000-0000-0000-0000-000000000019")
+var LightingSupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000019")
+var LightingSupportEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000019")
+
+var GodlySupportUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001A")
+var GodlySupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001A")
 
 type BasePassiveSkill struct{}
 
@@ -1363,4 +1451,315 @@ func (chs ControllersHatSkill) GetEvents() map[types.CustomTrigger]func(owner in
 			})
 		},
 	}
+}
+
+type ArdentCenserSkill struct{ BasePassiveSkill }
+
+func (acs ArdentCenserSkill) GetName() string {
+	return "Ognisty trybularz"
+}
+
+func (acs ArdentCenserSkill) GetDescription() string {
+	return "Leczenie i tarcze przyśpieszają sojuszników i zwiększają ich obrażenia."
+}
+
+func (acs ArdentCenserSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_HEAL_OTHER,
+			TargetType:    []types.TargetTag{types.TARGET_ALLY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
+}
+
+func (acs ArdentCenserSkill) GetUUID() uuid.UUID {
+	return ArdentCenserSkillUUID
+}
+
+func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interface{}) {
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: target.(battle.Entity).GetUUID(),
+		Meta: battle.ActionEffect{
+			Effect:   battle.EFFECT_ON_HIT,
+			Value:    10,
+			Duration: 1,
+			Uuid:     ArdentCenserEffectUUID,
+			Meta: battle.ActionEffectOnHit{
+				Skill:     false,
+				Attack:    true,
+				IsPercent: true,
+			},
+			Caster: owner.(battle.Entity).GetUUID(),
+			Source: battle.SOURCE_ITEM,
+		},
+	})
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: target.(battle.Entity).GetUUID(),
+		Meta: battle.ActionEffect{
+			Effect:   battle.EFFECT_STAT_INC,
+			Value:    0,
+			Duration: 1,
+			Uuid:     ArdentCenserEffectUUID,
+			Meta: battle.ActionEffectStat{
+				Stat:      types.STAT_SPD,
+				Value:     10,
+				IsPercent: false,
+			},
+			Caster: owner.(battle.Entity).GetUUID(),
+			Source: battle.SOURCE_ITEM,
+		},
+	})
+}
+
+type SirensCallSkill struct{ BasePassiveSkill }
+
+func (scs SirensCallSkill) GetName() string {
+	return "Syreni śpiew"
+}
+
+func (scs SirensCallSkill) GetDescription() string {
+	return "Część leczenia i tarcz przeskakuje na innego sojusznika."
+}
+
+func (scs SirensCallSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_HEAL_OTHER,
+			TargetType:    []types.TargetTag{types.TARGET_ALLY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
+}
+
+func (scs SirensCallSkill) GetUUID() uuid.UUID {
+	return SirensCallSkillUUID
+}
+
+func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{}) {
+	healValue := utils.PercentOf(meta.(battle.ActionEffectHeal).Value, 10)
+	healTarget := target.(battle.Entity)
+
+	if target.(battle.Entity).GetUUID() == owner.(battle.Entity).GetUUID() {
+		validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
+
+		if len(validTargets) == 0 {
+			return
+		}
+
+		sortInit := battle.EntitySort{
+			Entities: validTargets,
+			Order:    []types.TargetDetails{types.DETAIL_LOW_HP},
+			Meta:     nil,
+		}
+
+		sort.Sort(sortInit)
+
+		healTarget = sortInit.Entities[0]
+	}
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: healTarget.GetUUID(),
+		Meta: battle.ActionEffectHeal{
+			Value: healValue,
+		},
+	})
+}
+
+type FogsEmpowermentSkill struct{ BasePassiveSkill }
+
+func (fes FogsEmpowermentSkill) GetName() string {
+	return "Mgliste wzmocnienie"
+}
+
+func (fes FogsEmpowermentSkill) GetDescription() string {
+	return "Otrzymujesz AP w zależności od siły leczenia i tarcz."
+}
+
+func (fes FogsEmpowermentSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_NONE,
+			TargetType:    []types.TargetTag{types.TARGET_SELF},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   0,
+		},
+	}
+}
+
+func (fes FogsEmpowermentSkill) GetUUID() uuid.UUID {
+	return FogsEmpowermentSkillUUID
+}
+
+func (fes FogsEmpowermentSkill) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
+	return map[types.CustomTrigger]func(owner interface{}){
+		types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+			owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
+				Base:    types.STAT_HEAL_POWER,
+				Derived: types.STAT_AP,
+				Percent: 1000,
+				Source:  fes.GetUUID(),
+			})
+		},
+	}
+}
+
+type WindsEmpowermentSkill struct{ BasePassiveSkill }
+
+func (wes WindsEmpowermentSkill) GetName() string {
+	return "Wietrzne wzmocnienie"
+}
+
+func (wes WindsEmpowermentSkill) GetDescription() string {
+	return "Otrzymujesz SPD w zależności od siły leczenia i tarcz. Oraz leczysz przy ataku"
+}
+
+func (wes WindsEmpowermentSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_ATTACK_HIT,
+			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
+}
+
+func (wes WindsEmpowermentSkill) GetUUID() uuid.UUID {
+	return WindsEmpowermentSkillUUID
+}
+
+func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta interface{}) {
+	healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 10)
+
+	validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
+
+	if len(validTargets) == 0 {
+		return
+	}
+
+	sortInit := battle.EntitySort{
+		Entities: validTargets,
+		Order:    []types.TargetDetails{types.DETAIL_LOW_HP},
+		Meta:     nil,
+	}
+
+	sort.Sort(sortInit)
+
+	healTarget := sortInit.Entities[0]
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: healTarget.GetUUID(),
+		Meta:   battle.ActionEffectHeal{Value: healValue},
+	})
+}
+
+func (wes WindsEmpowermentSkill) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
+	return map[types.CustomTrigger]func(owner interface{}){
+		types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+			owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
+				Base:    types.STAT_HEAL_POWER,
+				Derived: types.STAT_SPD,
+				Percent: 100,
+				Source:  wes.GetUUID(),
+			})
+		},
+	}
+}
+
+type LightingSupportSkill struct{ BasePassiveSkill }
+
+func (lss LightingSupportSkill) GetName() string {
+	return "Błyskawiczne wsparcie"
+}
+
+func (lss LightingSupportSkill) GetDescription() string {
+	return "Po nałożeniu CC kolejne obrażenia sojusznika są zwiększone."
+}
+
+func (lss LightingSupportSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
+			TargetType:    []types.TargetTag{types.TARGET_ALLY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
+}
+
+func (lss LightingSupportSkill) GetUUID() uuid.UUID {
+	return LightingSupportSkillUUID
+}
+
+func (lss LightingSupportSkill) Execute(owner, target, fightInstance, meta interface{}) {
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: target.(battle.Entity).GetUUID(),
+		Meta: battle.ActionEffect{
+			Effect:   battle.EFFECT_ON_HIT,
+			Value:    owner.(battle.Entity).GetStat(types.STAT_AP),
+			Duration: 1,
+			Uuid:     LightingSupportEffectUUID,
+			Meta: battle.ActionEffectOnHit{
+				Skill:     false,
+				Attack:    true,
+				IsPercent: false,
+			},
+			Caster: owner.(battle.Entity).GetUUID(),
+			Source: battle.SOURCE_ITEM,
+		},
+	})
+}
+
+type GodlySupportSkill struct{ BasePassiveSkill }
+
+func (gss GodlySupportSkill) GetName() string {
+	return "Niebiańskie wsparcie"
+}
+
+func (gss GodlySupportSkill) GetDescription() string {
+	return "Po użyciu super umiejętności leczysz wszystkich."
+}
+
+func (gss GodlySupportSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_CAST_ULT,
+			TargetType:    []types.TargetTag{types.TARGET_ALLY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   -1,
+		},
+	}
+}
+
+func (gss GodlySupportSkill) GetUUID() uuid.UUID {
+	return GodlySupportSkillUUID
+}
+
+func (gss GodlySupportSkill) Execute(owner, target, fightInstance, meta interface{}) {
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: target.(battle.Entity).GetUUID(),
+		Meta:   battle.ActionEffectHeal{Value: utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 2)},
+	})
 }
