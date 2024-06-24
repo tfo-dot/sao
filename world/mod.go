@@ -367,6 +367,8 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 				partyUuid := wonEntities[0].(battle.PlayerEntity).GetParty()
 
+				unlockedFloors := w.GetUnlockedFloorCount()
+
 				if partyUuid != nil {
 					partyData := w.Parties[*partyUuid]
 					partyLeader := w.Players[partyData.Leader]
@@ -374,7 +376,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					for _, member := range partyData.Players {
 						player := w.Players[member.PlayerUuid]
 
-						player.AddEXP(overallXp / len(partyData.Players))
+						player.AddEXP(unlockedFloors, overallXp/len(partyData.Players))
 						player.AddGold(overallGold / len(partyData.Players))
 					}
 
@@ -405,7 +407,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 						player := w.Players[entityUuid]
 
-						player.AddEXP(overallXp)
+						player.AddEXP(unlockedFloors, overallXp)
 						player.AddGold(overallGold)
 
 						for _, loot := range lootedItems {
@@ -1231,4 +1233,16 @@ func (w *World) LoadBackup() {
 
 		w.Tournaments[parsedData.Uuid] = &parsedData
 	}
+}
+
+func (w *World) GetUnlockedFloorCount() int {
+	unlockedFloors := 0
+
+	for _, floor := range w.Floors {
+		if floor.Unlocked {
+			unlockedFloors++
+		}
+	}
+
+	return unlockedFloors
 }

@@ -300,14 +300,32 @@ func (p *Player) DamageShields(dmg int) int {
 	return leftOverDmg
 }
 
-func (p *Player) AddEXP(value int) {
+func (p *Player) AddEXP(maxFloor, value int) {
 	p.XP.Exp += value
+
+	if p.XP.Level >= maxFloor*5 {
+
+		println("Max level reached 1")
+
+		p.XP.Level = maxFloor * 5
+		p.XP.Exp = 0
+		return
+	}
 
 	for _, fury := range p.Meta.Fury {
 		fury.AddXP(utils.PercentOf(value, 20))
 	}
 
 	for p.XP.Exp >= ((p.XP.Level * 100) + 100) {
+		if p.XP.Level >= maxFloor*5 {
+
+			println("Max level reached 3")
+
+			p.XP.Level = maxFloor * 5
+			p.XP.Exp = 0
+			return
+		}
+
 		p.XP.Exp -= ((p.XP.Level * 100) + 100)
 		p.LevelUP()
 	}
@@ -317,7 +335,11 @@ func (p *Player) LevelUP() {
 	p.XP.Level++
 
 	if p.Stats.HP < p.GetMaxHP() {
-		p.Stats.HP = p.GetMaxHP() - (p.Stats.HP / 5)
+		p.Stats.HP = utils.PercentOf(p.GetMaxHP(), 20) + p.GetCurrentHP()
+	}
+
+	if p.Stats.HP > p.GetMaxHP() {
+		p.Stats.HP = p.GetMaxHP()
 	}
 }
 
@@ -334,7 +356,6 @@ func (p *Player) GetName() string {
 }
 
 func (p *Player) CanDodge() bool {
-	// If player is defending, he can't dodge (counterattack is possible)
 	return !p.Stats.Defending
 }
 

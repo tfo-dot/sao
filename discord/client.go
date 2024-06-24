@@ -183,6 +183,14 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		inFightText := utils.BoolToText(playerChar.Meta.FightInstance != nil, "Tak", "Nie")
 		inPartyText := utils.BoolToText(playerChar.Meta.Party != nil, "Tak", "Nie")
 
+		lvlText := fmt.Sprint(playerChar.XP.Level)
+
+		if playerChar.XP.Level == World.GetUnlockedFloorCount()*5 {
+			lvlText += " MAX"
+		} else {
+			lvlText += fmt.Sprintf(" %d/%d", playerChar.XP.Exp, (playerChar.XP.Level*100)+100)
+		}
+
 		event.CreateMessage(
 			discord.NewMessageCreateBuilder().
 				AddEmbeds(
@@ -196,11 +204,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						AddField("Atak", fmt.Sprintf("%d", playerChar.GetATK()), true).
 						AddField("AP", fmt.Sprintf("%d", playerChar.GetAP()), true).
 						AddField("DEF/RES", fmt.Sprintf("%d/%d", playerChar.GetDEF(), playerChar.GetMR()), true).
-						AddField("Lvl", fmt.Sprintf("%d %d/%d", playerChar.XP.Level, playerChar.XP.Exp, (playerChar.XP.Level*100)+100), true).
+						AddField("Lvl", lvlText, true).
 						AddField("SPD/AGL", fmt.Sprintf("%d/%d", playerChar.GetSPD(), playerChar.GetAGL()), true).
 						AddField("W walce?", inFightText, true).
 						AddField("W party?", inPartyText, true).
-						AddField("Gildia?", "Brak", true).
 						Build(),
 				).
 				Build(),

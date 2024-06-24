@@ -49,7 +49,7 @@ func GetFloors(test bool) map[string]Floor {
 				Name:     "dev",
 				CID:      "1162450076438900958",
 				Default:  "Las",
-				Unlocked: false,
+				Unlocked: true,
 				Locations: []Location{
 					{
 						Name:     "Rynek",
@@ -73,7 +73,7 @@ func GetFloors(test bool) map[string]Floor {
 						},
 						Effects:  []LocationEffect{},
 						TP:       false,
-						Unlocked: false,
+						Unlocked: true,
 						Flags:    []string{},
 					},
 					{
