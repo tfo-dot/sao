@@ -107,8 +107,6 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 		}
 	}
 
-	//TODO Random (or dropped) items lying there
-
 	if len(location.Enemies) == 0 {
 		return
 	}

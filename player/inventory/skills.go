@@ -5,7 +5,7 @@ import (
 	"sao/types"
 )
 
-var AVAILABLE_SKILLS = map[types.SkillPath]map[int]PlayerSkillLevel{}
+var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]PlayerSkillLevel{}
 
 type PlayerSkillUpgradable interface {
 	types.PlayerSkill

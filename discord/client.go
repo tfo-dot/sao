@@ -267,8 +267,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			for _, skillTree := range inventory.AVAILABLE_SKILLS {
 				skill, exists := skillTree[lvl]
 
-				if exists {
-					skillList = append(skillList, skill)
+				//TODO handle skill selection
+				if exists && len(skill) == 1 {
+					skillList = append(skillList, skill[0])
 				}
 			}
 

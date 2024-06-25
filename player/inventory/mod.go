@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"errors"
+	"fmt"
 	"sao/battle"
 	"sao/data"
 	"sao/types"
@@ -86,7 +87,8 @@ func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
 	for _, skill := range lvlSKills["skills"].([]interface{}) {
 		skill := int(skill.(float64))
 
-		inv.LevelSkills[skill] = AVAILABLE_SKILLS[types.SkillPath(skill)][skill]
+		//TODO: Multiple options
+		inv.LevelSkills[skill] = AVAILABLE_SKILLS[types.SkillPath(skill)][skill][0]
 	}
 
 	for key, value := range lvlSKills["cds"].(map[string]interface{}) {
@@ -238,14 +240,17 @@ func (inv *PlayerInventory) UnlockSkill(path types.SkillPath, lvl int, playerLvl
 		return errors.New("SKILL_NOT_FOUND")
 	}
 
-	inv.LevelSkills[lvl] = skill
+	if len(skill) == 1 {
+		inv.LevelSkills[lvl] = skill[0]
+	} else {
+		fmt.Println("Multiple options")
+		//TODO: Implement skill selection
+	}
 
-	skillEvents := skill.GetEvents()
+	skillEvents := inv.LevelSkills[lvl].GetEvents()
 
 	if effect, effectExists := skillEvents[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
-		var tempPlayer interface{} = player
-
-		effect(&tempPlayer)
+		effect(&player)
 	}
 
 	return nil
