@@ -11,8 +11,8 @@ var Ingredients = map[uuid.UUID]types.Ingredient{
 		UUID: BloodyEdgeUUID,
 		Name: "Krwiste ostrze",
 		Stats: map[types.Stat]int{
-			types.STAT_LIFESTEAL: 10,
-			types.STAT_AD:        10,
+			types.STAT_ATK_VAMP: 10,
+			types.STAT_AD:       10,
 		},
 		Count: 1,
 	},

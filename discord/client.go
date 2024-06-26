@@ -9,6 +9,7 @@ import (
 	"sao/types"
 	"sao/utils"
 	"sao/world"
+	"sao/world/location"
 	"sao/world/npc"
 	"sao/world/party"
 	"sao/world/tournament"
@@ -248,12 +249,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			if len(embed.Fields) >= 20 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Wykryto spaghetti od <@344048874656366592> aka jeszcze nie zrobione!...").
-						Build(),
-				)
+				//TODO add padding
+				fmt.Println("Too many fields!")
 			}
 
 			event.CreateMessage(MessageEmbed(embed.Build()))
@@ -366,15 +363,129 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 	case "szukaj":
-		go World.PlayerSearch(playerChar.GetUUID())
+		dChannel, error := (*Client).Rest().GetChannel(event.Channel().ID())
 
-		event.CreateMessage(
-			discord.
-				NewMessageCreateBuilder().
-				SetContent("Szukanie...").
-				SetEphemeral(true).
-				Build(),
-		)
+		if error != nil {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Nie można znaleźć kanału").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		textChannel := dChannel.(discord.GuildTextChannel)
+
+		textChannel.ParentID()
+
+		var dFloor *location.Floor
+
+		for _, floor := range World.Floors {
+			if floor.CID == textChannel.ParentID().String() {
+				dFloor = &floor
+				break
+			}
+		}
+
+		if dFloor == nil {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Ta kategoria nie wygląda jak z SAO...").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		if playerChar.Meta.Location.FloorName != dFloor.Name {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Jesteś nie na tym piętrze...").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		newLocation := dFloor.FindLocation(event.ChannelID().String())
+
+		if newLocation == nil {
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Nie mam tej lokacji w bazie...").
+					SetEphemeral(true).
+					Build(),
+			)
+			return
+		}
+
+		if playerChar.Meta.Location.LocationName == newLocation.Name {
+
+			loc := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+
+			if loc.CityPart {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie ma czego tu szukać...").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			go World.PlayerSearch(playerChar.GetUUID())
+
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Szukanie...").
+					SetEphemeral(true).
+					Build(),
+			)
+		} else {
+			err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.FloorName, newLocation.Name, "")
+
+			if err != nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie możesz tam iść").
+						SetEphemeral(true).
+						Build(),
+				)
+
+				return
+			}
+
+			loc := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+
+			if loc.CityPart {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie ma czego tu szukać...").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			go World.PlayerSearch(playerChar.GetUUID())
+
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					SetContent("Szukanie (automatycznie przeniosłam cię do lokacji)...").
+					SetEphemeral(true).
+					Build(),
+			)
+		}
 
 		return
 	case "party":

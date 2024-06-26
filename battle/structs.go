@@ -264,76 +264,41 @@ func (f *Fight) HandleAction(act Action) {
 			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
 		}
 
+		tempEmbed := discord.NewEmbedBuilder().SetTitle("Atak")
+
 		if !dodged {
 			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_HIT, nil)
-		}
 
-		messageBuilder := discord.NewMessageCreateBuilder()
-
-		tempEmbed := discord.NewEmbedBuilder().
-			SetTitle("Atak")
-
-		if len(meta.Damage) == 1 {
 			dmgType := "fizycznych"
 
 			switch meta.Damage[0].Type {
-			case DMG_PHYSICAL:
-				dmgType = "fizycznych"
 			case DMG_MAGICAL:
 				dmgType = "magicznych"
 			case DMG_TRUE:
-				dmgType = "prawdziwych"
+				dmgType = "nieuchronnych"
 			}
 
-			if dodged {
-				tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.Entity.GetName(), f.Entities[act.Target].Entity.GetName())
-			} else {
-				tempEmbed.SetDescriptionf("%s zaatakował %s, zadając %d obrażeń %s", sourceEntity.Entity.GetName(), f.Entities[act.Target].Entity.GetName(), dmgDealt, dmgType)
+			tempEmbed.SetDescriptionf("%s zaatakował %s, zadając %d obrażeń %s", sourceEntity.Entity.GetName(), f.Entities[act.Target].Entity.GetName(), dmgDealt, dmgType)
+
+			vampValue := sourceEntity.Entity.GetStat(types.STAT_ATK_VAMP)
+
+			if vampValue > 0 {
+				value := utils.PercentOf(dmgDealt, vampValue)
+
+				sourceEntity.Entity.Heal(value)
+
+				f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+
+				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo się wyleczył o %d", sourceEntity.Entity.GetName(), value), false)
 			}
 
-			targetEntity := f.Entities[act.Target]
+		} else {
+			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
 
-			tempEmbed.AddField(
-				"Stat check",
-				fmt.Sprintf(
-					"Nazwa: %s\nHP: %v/%v\nATK/AP: %v/%v\nDEF/RES: %v/%v",
-					targetEntity.Entity.GetName(),
-					targetEntity.Entity.GetCurrentHP(),
-					targetEntity.Entity.GetMaxHP(),
-					targetEntity.Entity.GetATK(),
-					targetEntity.Entity.GetAP(),
-					targetEntity.Entity.GetDEF(),
-					targetEntity.Entity.GetMR(),
-				),
-				false,
-			)
+			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.Entity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
 
-		messageBuilder.AddEmbeds(tempEmbed.Build())
-
-		vampEffect := sourceEntity.Entity.GetEffectByType(EFFECT_VAMP)
-
-		if vampEffect != nil && !dodged {
-			value := utils.PercentOf(dmgDealt, vampEffect.Value)
-
-			sourceEntity.Entity.Heal(value)
-
-			messageBuilder.AddEmbeds(
-				discord.
-					NewEmbedBuilder().
-					SetTitle("Efekt!").
-					AddField(
-						"Wampiryzm",
-						fmt.Sprintf(
-							"%s wyleczył się za %d punktów zdrowia",
-							sourceEntity.Entity.GetName(),
-							value,
-						),
-						false,
-					).
-					Build(),
-			)
-		}
+		messageBuilder := discord.NewMessageCreateBuilder().AddEmbeds(tempEmbed.Build())
 
 		targetEntity := f.Entities[act.Target]
 
@@ -406,7 +371,7 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 
-		f.TriggerPassive(act.Source, types.TRIGGER_DEFEND, nil)
+		f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
 
 		if !entity.Entity.IsAuto() {
 			entity.Entity.(PlayerEntity).SetDefendingState(true)
@@ -747,43 +712,45 @@ func (f *Fight) HandleAction(act Action) {
 							Build(),
 					).Build(),
 			}
-		} else {
 
-			delete(f.Entities, act.Source)
+			return
+		}
 
-			entities := f.Entities.FromSide(side)
+		//TODO copy data lmao
+		delete(f.Entities, act.Source)
 
-			count := 0
+		entities := f.Entities.FromSide(side)
 
-			for _, entity := range entities {
-				if entity.GetCurrentHP() > 0 && !entity.IsAuto() {
-					count++
-				}
+		count := 0
+
+		for _, entity := range entities {
+			if entity.GetCurrentHP() > 0 && !entity.IsAuto() {
+				count++
 			}
+		}
 
-			f.DiscordChannel <- types.DiscordMessageStruct{
-				ChannelID: channelId,
-				MessageContent: discord.
-					NewMessageCreateBuilder().
-					AddEmbeds(
-						discord.NewEmbedBuilder().
-							SetTitle("Ucieczka!").
-							SetDescriptionf("%s próbował uciec i mu się to udało", entity.GetName()).
-							SetColor(0x00ff00).
-							Build(),
-					).Build(),
-			}
+		f.DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID: channelId,
+			MessageContent: discord.
+				NewMessageCreateBuilder().
+				AddEmbeds(
+					discord.NewEmbedBuilder().
+						SetTitle("Ucieczka!").
+						SetDescriptionf("%s próbował uciec i mu się to udało", entity.GetName()).
+						SetColor(0x00ff00).
+						Build(),
+				).Build(),
+		}
 
-			if count == 0 {
-				f.ExternalChannel <- FightStartMsg{}
-			}
+		if count == 0 {
+			f.ExternalChannel <- FightEndMsg{}
 		}
 	}
 }
 
-func (f *Fight) TriggerAll(triggerType types.SkillTrigger) {
+func (f *Fight) TriggerAll(triggerType types.SkillTrigger, meta interface{}) {
 	for entityUuid := range f.Entities {
-		f.TriggerPassive(entityUuid, triggerType, nil)
+		f.TriggerPassive(entityUuid, triggerType, meta)
 	}
 }
 
@@ -797,7 +764,7 @@ func (f *Fight) Init() {
 	f.ExternalChannel = make(chan FightEvent, 10)
 	f.PlayerActions = make(chan Action, 10)
 
-	f.TriggerAll(types.TRIGGER_FIGHT_START)
+	f.TriggerAll(types.TRIGGER_FIGHT_START, nil)
 }
 
 func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDetails) []uuid.UUID {
@@ -946,6 +913,6 @@ func (f *Fight) Run() {
 		}
 	}
 
-	f.TriggerAll(types.TRIGGER_FIGHT_END)
+	f.TriggerAll(types.TRIGGER_FIGHT_END, nil)
 	f.ExternalChannel <- FightEndMsg{}
 }

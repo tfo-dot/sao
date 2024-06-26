@@ -71,11 +71,7 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 				CanDodge: false,
 			})
 		case battle.EFFECT_HEAL_SELF:
-			if en.GetStat(types.STAT_HEAL_SELF) != 0 {
-				en.Heal(utils.PercentOf(en.GetStat(types.STAT_HEAL_SELF), 100+effect.Value))
-			} else {
-				en.Heal(effect.Value)
-			}
+			en.Heal(effect.Value)
 		case battle.EFFECT_MANA_RESTORE:
 			en.RestoreMana(effect.Value)
 		}
@@ -278,6 +274,10 @@ func (m *MobEntity) GetAllEffects() []battle.ActionEffect {
 }
 
 func (m *MobEntity) Heal(value int) {
+	if m.GetStat(types.STAT_HEAL_POWER) != 0 {
+		value = utils.PercentOf(value, 100+m.GetStat(types.STAT_HEAL_POWER))
+	}
+
 	m.HP += value
 }
 

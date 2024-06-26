@@ -339,6 +339,21 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 		case battle.MSG_FIGHT_END:
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 			wonEntities := fight.Entities.FromSide(wonSideIDX)
+
+			allAuto := true
+
+			for _, entity := range wonEntities {
+				if !entity.IsAuto() {
+					allAuto = false
+					break
+				}
+			}
+
+			if allAuto {
+				w.DeregisterFight(fightUuid)
+				break
+			}
+
 			if fight.Tournament == nil {
 				overallXp := 0
 				overallGold := 0
