@@ -251,7 +251,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := tempMeta.(ActionDamage)
 
-		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_ATTEMPT, nil)
+		f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_BEFORE, nil)
 
 		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
 

@@ -17,7 +17,7 @@ type PlayerSkill interface {
 	IsLevelSkill() bool
 
 	//Meta is used for passive events mostly ig
-	Execute(owner, target, fightInstance, meta interface{})
+	Execute(owner, target, fightInstance, meta interface{}) interface{}
 	GetEvents() map[CustomTrigger]func(owner interface{})
 }
 
@@ -52,7 +52,7 @@ type EventTriggerDetails struct {
 type SkillTrigger int
 
 const (
-	TRIGGER_ATTACK_ATTEMPT SkillTrigger = iota
+	TRIGGER_ATTACK_BEFORE SkillTrigger = iota
 	TRIGGER_ATTACK_HIT
 	TRIGGER_ATTACK_MISS
 	TRIGGER_ATTACK_GOT_HIT
@@ -70,8 +70,9 @@ const (
 	TRIGGER_COUNTER_MISS
 	TRIGGER_CAST_LVL
 	TRIGGER_CAST_ULT
+	TRIGGER_DAMAGE_BEFORE
+	TRIGGER_DAMAGE_AFTER
 	TRIGGER_DAMAGE
-	TRIGGER_NONE
 	TRIGGER_HEAL_SELF
 	TRIGGER_HEAL_OTHER
 	TRIGGER_SHIELD_SELF
@@ -84,7 +85,34 @@ const (
 	TRIGGER_REMOVE_CROWD_CONTROL
 	TRIGGER_APPLY_EFFECT
 	TRIGGER_REMOVE_EFFECT
+	TRIGGER_NONE
 )
+
+type IncreasePartial struct {
+	Value   int
+	Percent bool
+}
+
+type DamagePartial struct {
+	Value   int
+	Percent bool
+	//0 for physical, 1 for magical, 2 for true
+	Type int
+}
+
+type AttackTriggerMeta struct {
+	Effects    []DamagePartial
+	ShouldMiss bool
+	ShouldHit  bool
+}
+
+type DamageTriggerMeta struct {
+	Effects []DamagePartial
+}
+
+type EffectTriggerMeta struct {
+	Effects []IncreasePartial
+}
 
 type TargetTag int
 

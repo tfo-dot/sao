@@ -12,6 +12,7 @@ type Stat int
 
 const (
 	STAT_HP Stat = iota
+	STAT_ADDITIONAL_HP
 	STAT_SPD
 	STAT_AGL
 	STAT_AD

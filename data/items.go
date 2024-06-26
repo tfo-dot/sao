@@ -423,6 +423,38 @@ var Items = map[uuid.UUID]types.PlayerItem{
 		},
 		Effects: []types.PlayerSkill{WindsEmpowermentSkill{}},
 	},
+	KyokiBeltUUID: {
+		UUID:        KyokiBeltUUID,
+		Name:        "Pas Kyoki",
+		Description: "Zwiększa obrażenia w zależności od losowego mnożnika.",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      true,
+		Stats: map[types.Stat]int{
+			types.STAT_AD: 20,
+			types.STAT_AP: 40,
+		},
+		Effects: []types.PlayerSkill{KyokiBeltSkill{}},
+	},
+	ShikiFlameUUID: {
+		UUID:        ShikiFlameUUID,
+		Name:        "Płomień Shiki",
+		Description: "Zadaje obrażenia wrogom w zależności od ich zdrowia.",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      true,
+		Stats: map[types.Stat]int{
+			types.STAT_AP:  100,
+			types.STAT_SPD: 5,
+		},
+		Effects: []types.PlayerSkill{ShikiFlameSkill{}},
+	},
 }
 
 var ReimiBlessingUUID = uuid.MustParse("00000000-0000-0000-0000-000000000000")
@@ -514,6 +546,15 @@ var LightingSupportEffectUUID = uuid.MustParse("00000000-0000-0001-0001-10000000
 var GodlySupportUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001A")
 var GodlySupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001A")
 
+var KyokiBeltUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001B")
+var KyokiBeltSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001B")
+
+var ShikiFlameUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001C")
+var ShikiFlameSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001C")
+
+var StormHarbingerUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001D")
+var StormHarbingerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001D")
+
 type BasePassiveSkill struct{}
 
 func (bps BasePassiveSkill) GetCD() int {
@@ -532,7 +573,9 @@ func (bps BasePassiveSkill) GetEvents() map[types.CustomTrigger]func(owner inter
 	return nil
 }
 
-func (bps BasePassiveSkill) Execute(owner, target, fightInstance, meta interface{}) {}
+func (bps BasePassiveSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return nil
+}
 
 type ReimiBlessingSkill struct{ BasePassiveSkill }
 
@@ -560,7 +603,7 @@ func (rbs ReimiBlessingSkill) GetUUID() uuid.UUID {
 	return ReimiBlessingSkillUUID
 }
 
-func (rbs ReimiBlessingSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (rbs ReimiBlessingSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	ownerEntity := owner.(battle.Entity)
 
 	oldEffect := ownerEntity.GetEffectByUUID(ReimiBlessingEffectUUID)
@@ -592,6 +635,8 @@ func (rbs ReimiBlessingSkill) Execute(owner, target, fightInstance, meta interfa
 	}
 
 	ownerEntity.ApplyEffect(*oldEffect)
+
+	return nil
 }
 
 func (rbs ReimiBlessingSkill) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
@@ -624,10 +669,10 @@ func (gss GiantSlayerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE,
+			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
+			TargetCount:   -1,
 		},
 	}
 }
@@ -636,23 +681,12 @@ func (gss GiantSlayerSkill) GetUUID() uuid.UUID {
 	return GiantSlayerSkillUUID
 }
 
-func (gss GiantSlayerSkill) Execute(owner, target, fightInstance, meta interface{}) {
-	newMeta := make([]battle.Damage, len(meta.(battle.ActionDamage).Damage))
+func (gss GiantSlayerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	damageValue := utils.PercentOf((target.(battle.Entity).GetStat(types.STAT_DEF)), 10)
 
-	for i, stat := range meta.(battle.ActionDamage).Damage {
-		newMeta[i] = battle.Damage{
-			Value:    utils.PercentOf(stat.Value, 10),
-			Type:     stat.Type,
-			CanDodge: false,
-		}
+	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
+		{Value: damageValue, Type: int(battle.DMG_PHYSICAL)}},
 	}
-
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_DMG,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: target.(battle.Entity).GetUUID(),
-		Meta:   newMeta,
-	})
 }
 
 type GiantKillerSkill struct{ BasePassiveSkill }
@@ -669,10 +703,10 @@ func (gks GiantKillerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE,
+			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
+			TargetCount:   -1,
 		},
 	}
 }
@@ -681,23 +715,12 @@ func (gks GiantKillerSkill) GetUUID() uuid.UUID {
 	return GiantKillerSkillUUID
 }
 
-func (gks GiantKillerSkill) Execute(owner, target, fightInstance, meta interface{}) {
-	newMeta := make([]battle.Damage, len(meta.(battle.ActionDamage).Damage))
+func (gks GiantKillerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	damageValue := utils.PercentOf((target.(battle.Entity).GetStat(types.STAT_HP)), 2)
 
-	for i, stat := range meta.(battle.ActionDamage).Damage {
-		newMeta[i] = battle.Damage{
-			Value:    utils.PercentOf(target.(battle.Entity).GetStat(types.STAT_HP), 2),
-			Type:     stat.Type,
-			CanDodge: false,
-		}
+	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
+		{Value: damageValue, Type: int(battle.DMG_PHYSICAL)}},
 	}
-
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_DMG,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: target.(battle.Entity).GetUUID(),
-		Meta:   newMeta,
-	})
 }
 
 type MageKillerSkill struct{ BasePassiveSkill }
@@ -707,17 +730,17 @@ func (mks MageKillerSkill) GetName() string {
 }
 
 func (mks MageKillerSkill) GetDescription() string {
-	return "Cele osłonięte tarczą otrzymają większe obrażenia."
+	return "Atakowanie celi osłoniętych tarczą zwiększa obrażenia twojego ataku."
 }
 
 func (mks MageKillerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE,
+			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_HAS_EFFECT},
-			TargetCount:   1,
+			TargetCount:   -1,
 			Meta:          map[string]interface{}{"effect": battle.EFFECT_SHIELD},
 		},
 	}
@@ -727,23 +750,10 @@ func (mks MageKillerSkill) GetUUID() uuid.UUID {
 	return MageKillerSkillUUID
 }
 
-func (mks MageKillerSkill) Execute(owner, target, fightInstance, meta interface{}) {
-	newMeta := make([]battle.Damage, len(meta.(battle.ActionDamage).Damage))
-
-	for i, stat := range meta.(battle.ActionDamage).Damage {
-		newMeta[i] = battle.Damage{
-			Value:    utils.PercentOf(stat.Value, 10),
-			Type:     stat.Type,
-			CanDodge: false,
-		}
+func (mks MageKillerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
+		{Value: 10, Type: int(battle.DMG_PHYSICAL), Percent: true}},
 	}
-
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_DMG,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: target.(battle.Entity).GetUUID(),
-		Meta:   newMeta,
-	})
 }
 
 type SandBladeSkill struct{ BasePassiveSkill }
@@ -772,7 +782,7 @@ func (sbs SandBladeSkill) GetUUID() uuid.UUID {
 	return SandBladeSkillUUID
 }
 
-func (sbs SandBladeSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (sbs SandBladeSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -787,6 +797,8 @@ func (sbs SandBladeSkill) Execute(owner, target, fightInstance, meta interface{}
 			Source:   battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type WaterBladeSkill struct{ BasePassiveSkill }
@@ -819,8 +831,7 @@ func (wbs WaterBladeSkill) GetUUID() uuid.UUID {
 	return WaterBladeSkillUUID
 }
 
-func (wbs WaterBladeSkill) Execute(owner, target, fightInstance, meta interface{}) {
-
+func (wbs WaterBladeSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	addPercentage := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 1)
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
@@ -831,6 +842,8 @@ func (wbs WaterBladeSkill) Execute(owner, target, fightInstance, meta interface{
 			Value: utils.PercentOf(owner.(battle.Entity).GetMaxHP()-owner.(battle.Entity).GetCurrentHP(), 10+addPercentage),
 		},
 	})
+
+	return nil
 }
 
 type DefenseVisageSkill struct{ BasePassiveSkill }
@@ -925,10 +938,10 @@ func (wls WarriorsLegacySkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE,
+			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
+			TargetCount:   -1,
 		},
 	}
 }
@@ -937,24 +950,18 @@ func (wls WarriorsLegacySkill) GetUUID() uuid.UUID {
 	return WarriorsLegacySkillUUID
 }
 
-func (wls WarriorsLegacySkill) Execute(owner, target, fightInstance, meta interface{}) {
-	newMeta := make([]battle.Damage, len(meta.(battle.ActionDamage).Damage))
-	dmgPercent := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_HP), 1)
+func (wls WarriorsLegacySkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	dmgPercent := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_ADDITIONAL_HP), 1)
 
-	for i, stat := range meta.(battle.ActionDamage).Damage {
-		newMeta[i] = battle.Damage{
-			Value:    utils.PercentOf(stat.Value, dmgPercent),
-			Type:     stat.Type,
-			CanDodge: false,
-		}
+	return types.AttackTriggerMeta{
+		Effects: []types.DamagePartial{
+			{
+				Value:   dmgPercent,
+				Type:    int(battle.DMG_PHYSICAL),
+				Percent: true,
+			},
+		},
 	}
-
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_DMG,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: target.(battle.Entity).GetUUID(),
-		Meta:   newMeta,
-	})
 }
 
 type LilithsWrathSkill struct{ BasePassiveSkill }
@@ -983,7 +990,7 @@ func (lws LilithsWrathSkill) GetUUID() uuid.UUID {
 	return LilithsWrathSkillUUID
 }
 
-func (lws LilithsWrathSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (lws LilithsWrathSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_DMG,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -994,6 +1001,8 @@ func (lws LilithsWrathSkill) Execute(owner, target, fightInstance, meta interfac
 			CanDodge: false,
 		}},
 	})
+
+	return nil
 }
 
 type RyuLegacySkill struct{ BasePassiveSkill }
@@ -1056,7 +1065,7 @@ func (dbs DefenderBladeSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
+			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
 			TargetCount:   1,
@@ -1068,21 +1077,16 @@ func (dbs DefenderBladeSkill) GetUUID() uuid.UUID {
 	return DefenderBladeSkillUUID
 }
 
-func (dbs DefenderBladeSkill) Execute(owner, target, fightInstance, meta interface{}) {
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_DMG,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: owner.(battle.Entity).GetUUID(),
-		Meta: battle.ActionDamage{
-			Damage: []battle.Damage{
-				{
-					Value:    utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_DEF), 2) + utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_MR), 3),
-					Type:     battle.DMG_PHYSICAL,
-					CanDodge: false,
-				},
-			},
+func (dbs DefenderBladeSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	defStat := owner.(battle.Entity).GetStat(types.STAT_DEF)
+	mrStat := owner.(battle.Entity).GetStat(types.STAT_MR)
+
+	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
+		{
+			Value: utils.PercentOf(defStat, 2) + utils.PercentOf(mrStat, 3),
+			Type:  int(battle.DMG_PHYSICAL),
 		},
-	})
+	}}
 }
 
 type GrudgeArmorSkill struct{ BasePassiveSkill }
@@ -1111,7 +1115,7 @@ func (gas GrudgeArmorSkill) GetUUID() uuid.UUID {
 	return GrudgeArmorSkillUUID
 }
 
-func (gas GrudgeArmorSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (gas GrudgeArmorSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_DMG,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -1141,6 +1145,8 @@ func (gas GrudgeArmorSkill) Execute(owner, target, fightInstance, meta interface
 			Source:   battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type AmplifyingCoatSkill struct{ BasePassiveSkill }
@@ -1208,7 +1214,7 @@ func (cbs ControllersBraceletSkill) GetUUID() uuid.UUID {
 	return ControllersBraceletSkillUUID
 }
 
-func (cbs ControllersBraceletSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (cbs ControllersBraceletSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 15) + utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 15)
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
@@ -1224,6 +1230,8 @@ func (cbs ControllersBraceletSkill) Execute(owner, target, fightInstance, meta i
 		Target: owner.(battle.Entity).GetUUID(),
 		Meta:   battle.ActionEffectHeal{Value: healValue},
 	})
+
+	return nil
 }
 
 type CursedIceSkill struct{ BasePassiveSkill }
@@ -1252,29 +1260,20 @@ func (cis CursedIceSkill) GetUUID() uuid.UUID {
 	return CursedIceSkillUUID
 }
 
-func (cis CursedIceSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (cis CursedIceSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	if meta.(battle.ActionEffect).Effect == battle.EFFECT_STAT_DEC {
 		if meta.(battle.ActionEffect).Meta.(battle.ActionEffectStat).Stat == types.STAT_SPD {
-			buffedSpeed := utils.PercentOf(meta.(battle.ActionEffect).Meta.(battle.ActionEffectStat).Value, 20)
-
-			fightInstance.(*battle.Fight).HandleAction(battle.Action{
-				Event:  battle.ACTION_EFFECT,
-				Source: owner.(battle.Entity).GetUUID(),
-				Target: target.(battle.Entity).GetUUID(),
-				Meta: battle.ActionEffect{
-					Effect:   battle.EFFECT_STAT_DEC,
-					Value:    0,
-					Duration: meta.(battle.ActionEffect).Duration,
-					Uuid:     meta.(battle.ActionEffect).Uuid,
-					Meta: battle.ActionEffectStat{
-						Stat:      types.STAT_SPD,
-						Value:     buffedSpeed,
-						IsPercent: meta.(battle.ActionEffect).Meta.(battle.ActionEffectStat).IsPercent,
+			return types.EffectTriggerMeta{
+				Effects: []types.IncreasePartial{
+					{
+						Value:   20,
+						Percent: true,
 					},
-				},
-			})
+				}}
 		}
 	}
+
+	return nil
 }
 
 type ControllersRuneSkill struct{ BasePassiveSkill }
@@ -1303,7 +1302,7 @@ func (crs ControllersRuneSkill) GetUUID() uuid.UUID {
 	return ControllersRuneSkillUUID
 }
 
-func (crs ControllersRuneSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (crs ControllersRuneSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -1318,6 +1317,8 @@ func (crs ControllersRuneSkill) Execute(owner, target, fightInstance, meta inter
 			Source:   battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type ControllersNecklaceSkill struct{ BasePassiveSkill }
@@ -1346,7 +1347,7 @@ func (cns ControllersNecklaceSkill) GetUUID() uuid.UUID {
 	return ControllersNecklaceSkillUUID
 }
 
-func (cns ControllersNecklaceSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (cns ControllersNecklaceSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -1365,6 +1366,8 @@ func (cns ControllersNecklaceSkill) Execute(owner, target, fightInstance, meta i
 			Source: battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type ControllersBladeSkill struct{ BasePassiveSkill }
@@ -1393,7 +1396,7 @@ func (cbs ControllersBladeSkill) GetUUID() uuid.UUID {
 	return ControllersBladeSkillUUID
 }
 
-func (cbs ControllersBladeSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (cbs ControllersBladeSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -1412,6 +1415,8 @@ func (cbs ControllersBladeSkill) Execute(owner, target, fightInstance, meta inte
 			Source: battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type ControllersHatSkill struct{ BasePassiveSkill }
@@ -1479,7 +1484,7 @@ func (acs ArdentCenserSkill) GetUUID() uuid.UUID {
 	return ArdentCenserSkillUUID
 }
 
-func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -1517,6 +1522,8 @@ func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interfac
 			Source: battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type SirensCallSkill struct{ BasePassiveSkill }
@@ -1545,7 +1552,7 @@ func (scs SirensCallSkill) GetUUID() uuid.UUID {
 	return SirensCallSkillUUID
 }
 
-func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	healValue := utils.PercentOf(meta.(battle.ActionEffectHeal).Value, 10)
 	healTarget := target.(battle.Entity)
 
@@ -1553,7 +1560,7 @@ func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{
 		validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
 
 		if len(validTargets) == 0 {
-			return
+			return nil
 		}
 
 		sortInit := battle.EntitySort{
@@ -1575,6 +1582,8 @@ func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{
 			Value: healValue,
 		},
 	})
+
+	return nil
 }
 
 type FogsEmpowermentSkill struct{ BasePassiveSkill }
@@ -1642,13 +1651,13 @@ func (wes WindsEmpowermentSkill) GetUUID() uuid.UUID {
 	return WindsEmpowermentSkillUUID
 }
 
-func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 10)
 
 	validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
 
 	if len(validTargets) == 0 {
-		return
+		return nil
 	}
 
 	sortInit := battle.EntitySort{
@@ -1667,6 +1676,8 @@ func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta inte
 		Target: healTarget.GetUUID(),
 		Meta:   battle.ActionEffectHeal{Value: healValue},
 	})
+
+	return nil
 }
 
 func (wes WindsEmpowermentSkill) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
@@ -1708,7 +1719,7 @@ func (lss LightingSupportSkill) GetUUID() uuid.UUID {
 	return LightingSupportSkillUUID
 }
 
-func (lss LightingSupportSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (lss LightingSupportSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
@@ -1727,6 +1738,8 @@ func (lss LightingSupportSkill) Execute(owner, target, fightInstance, meta inter
 			Source: battle.SOURCE_ITEM,
 		},
 	})
+
+	return nil
 }
 
 type GodlySupportSkill struct{ BasePassiveSkill }
@@ -1755,11 +1768,87 @@ func (gss GodlySupportSkill) GetUUID() uuid.UUID {
 	return GodlySupportSkillUUID
 }
 
-func (gss GodlySupportSkill) Execute(owner, target, fightInstance, meta interface{}) {
+func (gss GodlySupportSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Source: owner.(battle.Entity).GetUUID(),
 		Target: target.(battle.Entity).GetUUID(),
 		Meta:   battle.ActionEffectHeal{Value: utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 2)},
 	})
+
+	return nil
+}
+
+type KyokiBeltSkill struct{ BasePassiveSkill }
+
+func (kbs KyokiBeltSkill) GetName() string {
+	return "Pasek Kyoki"
+}
+
+func (kbs KyokiBeltSkill) GetDescription() string {
+	return "Obrażenia magiczne są zwiększone przez losowy mnożnik."
+}
+
+func (kbs KyokiBeltSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_DAMAGE_BEFORE,
+			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
+}
+
+func (kbs KyokiBeltSkill) GetUUID() uuid.UUID {
+	return KyokiBeltSkillUUID
+}
+
+type ShikiFlameSkill struct{ BasePassiveSkill }
+
+func (sfs ShikiFlameSkill) GetName() string {
+	return "Płomień Shiki"
+}
+
+func (sfs ShikiFlameSkill) GetDescription() string {
+	return "Zaklęcia zadają obrażenia w zależności od zdrowia wroga"
+}
+
+func (sfs ShikiFlameSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_DAMAGE_BEFORE,
+			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
+}
+
+func (sfs ShikiFlameSkill) GetUUID() uuid.UUID {
+	return ShikiFlameSkillUUID
+}
+
+type StormHarbingerSkill struct{ BasePassiveSkill }
+
+func (shs StormHarbingerSkill) GetName() string {
+	return "Zwiastun burzy"
+}
+
+func (shs StormHarbingerSkill) GetDescription() string {
+	return "Zwiększa obrażenia przy ataku w zależności od AP."
+}
+
+func (shs StormHarbingerSkill) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType:   types.TRIGGER_ATTACK_HIT,
+			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
+			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
+			TargetCount:   1,
+		},
+	}
 }
