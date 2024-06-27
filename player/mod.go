@@ -241,13 +241,18 @@ func (p *Player) GetDefendingState() bool {
 
 func (p *Player) Action(f *battle.Fight) []battle.Action { return []battle.Action{} }
 
-func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
-	startingHP := p.Stats.HP
+func (p *Player) TakeDMG(dmgList battle.ActionDamage) []battle.Damage {
+	dmgStats := []battle.Damage{
+		{Value: 0, Type: battle.DMG_PHYSICAL},
+		{Value: 0, Type: battle.DMG_MAGICAL},
+		{Value: 0, Type: battle.DMG_TRUE},
+	}
 
 	for _, dmg := range dmgList.Damage {
 		//Skip shield and such
 		if dmg.Type == battle.DMG_TRUE {
 			p.Stats.HP -= dmg.Value
+			dmgStats[2].Value += dmg.Value
 			continue
 		}
 
@@ -260,15 +265,23 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) int {
 			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetMR())
 		}
 
-		p.Stats.HP -= p.DamageShields(rawDmg)
+		actualDmg := p.DamageShields(rawDmg)
+
+		dmgStats[dmg.Type].Value += actualDmg
+
+		p.Stats.HP -= actualDmg
 	}
 
-	return startingHP - p.Stats.HP
+	return dmgStats
 }
 
-func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) (int, bool) {
+func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) ([]battle.Damage, bool) {
 	if utils.RandomNumber(0, 100) <= p.GetAGL() && dmg.CanDodge {
-		return 0, true
+		return []battle.Damage{
+			{Value: 0, Type: battle.DMG_PHYSICAL},
+			{Value: 0, Type: battle.DMG_MAGICAL},
+			{Value: 0, Type: battle.DMG_TRUE},
+		}, true
 	}
 
 	return p.TakeDMG(dmg), false
@@ -480,6 +493,13 @@ func (p *Player) RestoreMana(value int) {
 }
 
 func (p *Player) GetStat(stat types.Stat) int {
+	switch stat {
+	case types.STAT_ADDITIONAL_MANA:
+		return 10 - p.GetStat(types.STAT_MANA)
+	case types.STAT_ADDITIONAL_HP:
+		return 100 + ((p.XP.Level - 1) * 10) - p.GetStat(types.STAT_HP)
+	}
+
 	statValue := 0
 	percentValue := 0
 

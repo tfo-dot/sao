@@ -337,6 +337,9 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 		switch eventData.GetEvent() {
 		case battle.MSG_FIGHT_END:
+
+			println("Fight end")
+
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 			wonEntities := fight.Entities.FromSide(wonSideIDX)
 
@@ -517,7 +520,6 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 						Build()).
 					Build(),
 			}
-
 		case battle.MSG_ACTION_NEEDED:
 			entityUuid := eventData.GetData().(uuid.UUID)
 
@@ -608,7 +610,6 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					).
 					Build(),
 			}
-
 		default:
 			panic("Unhandled event")
 		}

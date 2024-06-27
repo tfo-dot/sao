@@ -150,9 +150,11 @@ type ActionItemMeta struct {
 }
 
 type Damage struct {
-	Value    int
-	Type     DamageType
-	CanDodge bool
+	Value int
+	Type  DamageType
+	//Its ignored when []Damage is of 1
+	IsPercent bool
+	CanDodge  bool
 }
 
 const SPEED_GAUGE = 100
@@ -173,7 +175,7 @@ type Entity interface {
 	GetAP() int
 
 	Action(*Fight) []Action
-	TakeDMG(ActionDamage) int
+	TakeDMG(ActionDamage) []Damage
 	DamageShields(int) int
 
 	Heal(int)
@@ -198,7 +200,7 @@ type Entity interface {
 type DodgeEntity interface {
 	Entity
 
-	TakeDMGOrDodge(ActionDamage) (int, bool)
+	TakeDMGOrDodge(ActionDamage) ([]Damage, bool)
 }
 
 type PlayerEntity interface {

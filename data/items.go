@@ -442,7 +442,7 @@ var Items = map[uuid.UUID]types.PlayerItem{
 	ShikiFlameUUID: {
 		UUID:        ShikiFlameUUID,
 		Name:        "Płomień Shiki",
-		Description: "Zadaje obrażenia wrogom w zależności od ich zdrowia.",
+		Description: "Trafienie zaklęciem zadaje dodatkowe obrażenia w zależności od zdrowia.",
 		TakesSlot:   true,
 		Stacks:      false,
 		Consume:     false,
@@ -454,6 +454,22 @@ var Items = map[uuid.UUID]types.PlayerItem{
 			types.STAT_SPD: 5,
 		},
 		Effects: []types.PlayerSkill{ShikiFlameSkill{}},
+	},
+	StormHarbingerUUID: {
+		UUID:        StormHarbingerUUID,
+		Name:        "Zwiastun burzy",
+		Description: "Ataki zadają dodatkowe obrażenia w zależności od AP.",
+		TakesSlot:   true,
+		Stacks:      false,
+		Consume:     false,
+		Count:       1,
+		MaxCount:    1,
+		Hidden:      true,
+		Stats: map[types.Stat]int{
+			types.STAT_AP: 50,
+			types.STAT_AD: 10,
+		},
+		Effects: []types.PlayerSkill{StormHarbingerSkill{}},
 	},
 }
 
@@ -717,6 +733,9 @@ func (gks GiantKillerSkill) GetUUID() uuid.UUID {
 
 func (gks GiantKillerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	damageValue := utils.PercentOf((target.(battle.Entity).GetStat(types.STAT_HP)), 2)
+
+	println((target.(battle.Entity).GetStat(types.STAT_HP)))
+	println(damageValue)
 
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
 		{Value: damageValue, Type: int(battle.DMG_PHYSICAL)}},
@@ -1786,7 +1805,7 @@ func (kbs KyokiBeltSkill) GetName() string {
 }
 
 func (kbs KyokiBeltSkill) GetDescription() string {
-	return "Obrażenia magiczne są zwiększone przez losowy mnożnik."
+	return "Obrażenia magiczne są zwiększone przez losowy mnożnik (0.8-1.8)."
 }
 
 func (kbs KyokiBeltSkill) GetTrigger() types.Trigger {
@@ -1803,6 +1822,18 @@ func (kbs KyokiBeltSkill) GetTrigger() types.Trigger {
 
 func (kbs KyokiBeltSkill) GetUUID() uuid.UUID {
 	return KyokiBeltSkillUUID
+}
+
+func (kbs KyokiBeltSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return types.DamageTriggerMeta{
+		Effects: []types.DamagePartial{
+			{
+				Value:   utils.RandomNumber(0, 100) - 20,
+				Type:    int(battle.DMG_MAGICAL),
+				Percent: true,
+			},
+		},
+	}
 }
 
 type ShikiFlameSkill struct{ BasePassiveSkill }
@@ -1845,10 +1876,26 @@ func (shs StormHarbingerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
+			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
 			TargetCount:   1,
+		},
+	}
+}
+
+func (shs StormHarbingerSkill) GetUUID() uuid.UUID {
+	return StormHarbingerSkillUUID
+}
+
+func (shs StormHarbingerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return types.AttackTriggerMeta{
+		Effects: []types.DamagePartial{
+			{
+				Value:   utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 20),
+				Type:    int(battle.DMG_MAGICAL),
+				Percent: false,
+			},
 		},
 	}
 }

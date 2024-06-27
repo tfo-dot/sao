@@ -170,13 +170,18 @@ func (m *MobEntity) IsAuto() bool {
 	return true
 }
 
-func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) int {
-	startingHP := m.HP
+func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) []battle.Damage {
+	dmgStats := []battle.Damage{
+		{Value: 0, Type: battle.DMG_PHYSICAL},
+		{Value: 0, Type: battle.DMG_MAGICAL},
+		{Value: 0, Type: battle.DMG_TRUE},
+	}
 
 	for _, dmg := range dmg.Damage {
 		//Skip shield and such
 		if dmg.Type == battle.DMG_TRUE {
 			m.HP -= dmg.Value
+			dmgStats[2].Value += dmg.Value
 			continue
 		}
 
@@ -189,10 +194,14 @@ func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) int {
 			rawDmg = utils.CalcReducedDamage(dmg.Value, m.GetMR())
 		}
 
-		m.HP -= m.DamageShields(rawDmg)
+		value := m.DamageShields(rawDmg)
+
+		dmgStats[dmg.Type].Value += value
+
+		m.HP -= value
 	}
 
-	return startingHP - m.HP
+	return dmgStats
 }
 
 func (m *MobEntity) DamageShields(dmg int) int {
@@ -302,6 +311,13 @@ func (m *MobEntity) GetEffectByUUID(uuid uuid.UUID) *battle.ActionEffect {
 }
 
 func (m *MobEntity) GetStat(stat types.Stat) int {
+	switch stat {
+	case types.STAT_ADDITIONAL_MANA:
+		return 0
+	case types.STAT_ADDITIONAL_HP:
+		return 0
+	}
+
 	statValue := 0
 	percentValue := 0
 
@@ -356,6 +372,8 @@ func (m *MobEntity) GetStat(stat types.Stat) int {
 		tempValue += m.GetAP()
 	case types.STAT_HEAL_POWER:
 		tempValue += 0
+	case types.STAT_HP:
+		tempValue += m.GetMaxHP()
 	}
 
 	return tempValue + (tempValue * percentValue / 100)
