@@ -30,18 +30,11 @@ type PlayerMeta struct {
 	FightInstance *uuid.UUID
 	Party         *uuid.UUID
 	Transaction   *uuid.UUID
-	//Array just in case someone will have multiple furies
-	Fury []*fury.Fury
+	Fury          *fury.Fury
 }
 
-func (pM *PlayerMeta) SerializeFuries() []map[string]interface{} {
-	furies := make([]map[string]interface{}, 0)
-
-	for _, fury := range pM.Fury {
-		furies = append(furies, fury.Serialize())
-	}
-
-	return furies
+func (pM *PlayerMeta) SerializeFuries() map[string]interface{} {
+	return pM.Fury.Serialize()
 }
 
 func (pM *PlayerMeta) Serialize() map[string]interface{} {
@@ -116,11 +109,7 @@ func DeserializeEffects(data []interface{}) mobs.EffectList {
 }
 
 func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
-	deserializedFuries := make([]*fury.Fury, 0)
-
-	for _, furyData := range data["fury"].([]interface{}) {
-		deserializedFuries = append(deserializedFuries, fury.Deserialize(furyData.(map[string]interface{})))
-	}
+	deserializedFury := fury.Deserialize(data["fury"].(map[string]interface{}))
 
 	return &PlayerMeta{
 		types.DefaultPlayerLocation(),
@@ -129,7 +118,7 @@ func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
 		nil,
 		nil,
 		nil,
-		deserializedFuries,
+		deserializedFury,
 	}
 }
 
@@ -138,16 +127,13 @@ func (p *Player) GetCurrentMana() int {
 }
 
 func (p *Player) GetFuryStat(stat types.Stat) int {
-	value := 0
+	statValue, ok := p.Meta.Fury.GetStats()[stat]
 
-	for _, fury := range p.Meta.Fury {
-		statValue, ok := fury.GetStats()[stat]
-		if ok {
-			value += statValue
-		}
+	if !ok {
+		return 0
 	}
 
-	return value
+	return statValue
 }
 
 func (p *Player) GetMaxMana() int {
@@ -322,9 +308,7 @@ func (p *Player) AddEXP(maxFloor, value int) {
 		return
 	}
 
-	for _, fury := range p.Meta.Fury {
-		fury.AddXP(utils.PercentOf(value, 20))
-	}
+	p.Meta.Fury.AddXP(utils.PercentOf(value, 20))
 
 	for p.XP.Exp >= ((p.XP.Level * 100) + 100) {
 		if p.XP.Level >= maxFloor*5 {
@@ -459,9 +443,7 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 		tempArr = append(tempArr, skill)
 	}
 
-	for _, skill := range p.Meta.Fury {
-		tempArr = append(tempArr, skill.GetSkills()...)
-	}
+	tempArr = append(tempArr, p.Meta.Fury.GetSkills()...)
 
 	return tempArr
 }
@@ -469,9 +451,9 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 func (p *Player) AddItem(item *types.PlayerItem) {
 
 	for _, effect := range item.Effects {
-		evts := effect.GetEvents()
+		effectEvents := effect.GetEvents()
 
-		evts[types.CUSTOM_TRIGGER_UNLOCK](p)
+		effectEvents[types.CUSTOM_TRIGGER_UNLOCK](p)
 	}
 
 	p.Inventory.Items = append(p.Inventory.Items, item)

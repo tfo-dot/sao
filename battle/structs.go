@@ -353,6 +353,8 @@ func (f *Fight) HandleAction(act Action) {
 				}
 			}
 
+			f.TriggerPassive(act.Target, types.TRIGGER_ATTACK_GOT_HIT, nil)
+
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
 			tempEmbed.SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
@@ -398,6 +400,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		} else {
 			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
+			f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
@@ -477,6 +480,8 @@ func (f *Fight) HandleAction(act Action) {
 
 		if !entity.Entity.IsAuto() {
 			entity.Entity.(PlayerEntity).SetDefendingState(true)
+
+			f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
 
 			f.HandleAction(Action{
 				Event:  ACTION_EFFECT,
@@ -579,6 +584,12 @@ func (f *Fight) HandleAction(act Action) {
 					return
 				}
 
+				if skillUsageMeta.Lvl%10 != 0 {
+					f.TriggerPassive(act.Source, types.TRIGGER_CAST_LVL, nil)
+				} else {
+					f.TriggerPassive(act.Source, types.TRIGGER_CAST_ULT, nil)
+				}
+
 				var tempFight interface{} = f
 
 				if act.Target == uuid.Nil {
@@ -615,29 +626,23 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
+		f.TriggerPassive(act.Source, types.TRIGGER_DAMAGE_BEFORE, nil)
+
 		if meta.CanDodge && targetEntity.Entity.CanDodge() {
 			targetEntity.Entity.(DodgeEntity).TakeDMGOrDodge(meta)
+
+			f.TriggerPassive(act.Target, types.TRIGGER_DAMAGE_AFTER, nil)
 		} else {
 			targetEntity.Entity.TakeDMG(meta)
+
+			f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
 		}
 
 		if targetEntity.Entity.GetCurrentHP() <= 0 {
 			f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE, nil)
 		}
 
-		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_ATTACK_GOT_HIT, nil, func(e Entity, ps types.PlayerSkill) bool {
-			hpValue := 0
-
-			if ps.GetTrigger().Event.Meta["value"] != nil {
-				hpValue = ps.GetTrigger().Event.Meta["value"].(int)
-			} else {
-				hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetMaxHP() / 100)
-			}
-
-			return hpValue < e.GetCurrentHP()
-		})
-
-		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_ATTACK_GOT_HIT, nil, func(e Entity, ps types.PlayerSkill) bool {
+		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HEALTH, nil, func(e Entity, ps types.PlayerSkill) bool {
 			hpValue := 0
 
 			if ps.GetTrigger().Event.Meta["value"] != nil {
@@ -799,6 +804,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		} else {
 			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
+			f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s chciał skontrować ale nie trafił!", sourceEntity.GetName())
 		}
@@ -1051,8 +1057,11 @@ func (f *Fight) Run() {
 			f.TriggerPassive(entityUuid, types.TRIGGER_TURN, nil)
 
 			if !entity.IsAuto() {
-
 				player := entity.(PlayerEntity)
+
+				player.SetDefendingState(false)
+
+				f.TriggerPassive(entityUuid, types.TRIGGER_DEFEND_END, nil)
 
 				skills := player.GetSkillsCD()
 

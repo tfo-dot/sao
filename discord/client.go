@@ -917,7 +917,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 	case "furia":
 		switch *interactionData.SubCommandName {
 		case "pokaż":
-			if len(playerChar.Meta.Fury) == 0 {
+			if playerChar.Meta.Fury == nil {
 				event.CreateMessage(
 					discord.
 						NewMessageCreateBuilder().
@@ -928,86 +928,86 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
+			fury := playerChar.Meta.Fury
+
 			message := discord.NewMessageCreateBuilder()
 
-			for _, fury := range playerChar.Meta.Fury {
-				embed := discord.NewEmbedBuilder()
+			embed := discord.NewEmbedBuilder()
 
-				embed.AddField("Nazwa", fury.Name, true)
+			embed.AddField("Nazwa", fury.Name, true)
 
-				levelTxt := fmt.Sprint(fury.XP.LVL)
+			levelTxt := fmt.Sprint(fury.XP.LVL)
 
-				if fury.XP.LVL == 10 {
-					levelTxt += " - czas na kolejny tier!"
+			if fury.XP.LVL == 10 {
+				levelTxt += " - czas na kolejny tier!"
+			} else {
+				levelTxt += fmt.Sprintf(" %d/%d", fury.XP.XP, fury.NextLvlXPGauge())
+			}
+
+			embed.AddField("Poziom", levelTxt, true)
+			embed.AddField("Umiejętności", "Brak", false)
+
+			statsText := ""
+
+			furyStats := fury.GetStats()
+
+			if len(furyStats) == 0 {
+				statsText = "Brak"
+			} else {
+				for stat, value := range furyStats {
+					statsText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
+				}
+			}
+
+			embed.AddField("Statystyki", statsText, false)
+
+			embed.AddField("Aktualny tier", fmt.Sprint(fury.CurrentTier), true)
+
+			if fury.CurrentTier == len(fury.Tiers) {
+				embed.AddField("Kolejny tier?", "Brak", true)
+			} else {
+				nextTier := fury.Tiers[fury.CurrentTier]
+
+				nextTierText := "Tier: " + fmt.Sprint(fury.CurrentTier+1) + "\nPotrzebne składniki: "
+
+				if len(nextTier.Ingredients) == 0 {
+					nextTierText += "Brak"
 				} else {
-					levelTxt += fmt.Sprintf(" %d/%d", fury.XP.XP, fury.NextLvlXPGauge())
+					for _, ingredient := range nextTier.Ingredients {
+						nextTierText += fmt.Sprintf("\n- %s x%d", ingredient.Name, ingredient.Count)
+					}
 				}
 
-				embed.AddField("Poziom", levelTxt, true)
-				embed.AddField("Umiejętności", "Brak", false)
+				nextTierText += "\n"
 
-				statsText := ""
-
-				furyStats := fury.GetStats()
-
-				if len(furyStats) == 0 {
-					statsText = "Brak"
+				if len(nextTier.Skills) == 0 {
+					nextTierText += "Brak nowych umiejętności\n"
 				} else {
-					for stat, value := range furyStats {
-						statsText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
+					nextTierText += "Nowe umiejętności: \n"
+
+					for _, skill := range nextTier.Skills {
+						nextTierText += "-" + skill.GetName() + "\n"
 					}
 				}
 
-				embed.AddField("Statystyki", statsText, false)
-
-				embed.AddField("Aktualny tier", fmt.Sprint(fury.CurrentTier), true)
-
-				if fury.CurrentTier == len(fury.Tiers) {
-					embed.AddField("Kolejny tier?", "Brak", true)
+				if len(nextTier.Stats) == 0 {
+					nextTierText += "Brak nowych statystyk\n"
 				} else {
-					nextTier := fury.Tiers[fury.CurrentTier]
+					nextTierText += "Nowe statystyki: \n"
 
-					nextTierText := "Tier: " + fmt.Sprint(fury.CurrentTier+1) + "\nPotrzebne składniki: "
-
-					if len(nextTier.Ingredients) == 0 {
-						nextTierText += "Brak"
-					} else {
-						for _, ingredient := range nextTier.Ingredients {
-							nextTierText += fmt.Sprintf("\n- %s x%d", ingredient.Name, ingredient.Count)
-						}
+					for stat, value := range nextTier.Stats {
+						nextTierText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
 					}
-
-					nextTierText += "\n"
-
-					if len(nextTier.Skills) == 0 {
-						nextTierText += "Brak nowych umiejętności\n"
-					} else {
-						nextTierText += "Nowe umiejętności: \n"
-
-						for _, skill := range nextTier.Skills {
-							nextTierText += "-" + skill.GetName() + "\n"
-						}
-					}
-
-					if len(nextTier.Stats) == 0 {
-						nextTierText += "Brak nowych statystyk\n"
-					} else {
-						nextTierText += "Nowe statystyki: \n"
-
-						for stat, value := range nextTier.Stats {
-							nextTierText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
-						}
-					}
-
-					embed.AddField("Kolejny tier?", nextTierText, false)
 				}
+
+				embed.AddField("Kolejny tier?", nextTierText, false)
 
 				message.AddEmbeds(embed.Build())
 			}
 
 			event.CreateMessage(message.Build())
 		case "ulepsz":
-			if len(playerChar.Meta.Fury) == 0 {
+			if playerChar.Meta.Fury == nil {
 				event.CreateMessage(
 					discord.
 						NewMessageCreateBuilder().
@@ -1018,8 +1018,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			if len(playerChar.Meta.Fury) == 1 {
-				playerFury := playerChar.Meta.Fury[0]
+			if playerChar.Meta.Fury != nil {
+				playerFury := playerChar.Meta.Fury
 
 				if playerFury.CurrentTier == len(playerFury.Tiers) {
 					event.CreateMessage(
