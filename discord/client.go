@@ -200,13 +200,13 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						AddField("Gracz", fmt.Sprintf("<@%s>", playerChar.Meta.UserID), true).
 						AddField("Lokacja", playerChar.Meta.Location.LocationName, true).
 						AddField("Piętro", playerChar.Meta.Location.FloorName, true).
-						AddField("HP", fmt.Sprintf("%d/%d", playerChar.GetCurrentHP(), playerChar.GetMaxHP()), true).
-						AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetMaxMana()), true).
-						AddField("Atak", fmt.Sprintf("%d", playerChar.GetATK()), true).
-						AddField("AP", fmt.Sprintf("%d", playerChar.GetAP()), true).
-						AddField("DEF/RES", fmt.Sprintf("%d/%d", playerChar.GetDEF(), playerChar.GetMR()), true).
+						AddField("HP", fmt.Sprintf("%d/%d", playerChar.GetCurrentHP(), playerChar.GetStat(types.STAT_HP)), true).
+						AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetStat(types.STAT_MANA)), true).
+						AddField("Atak", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AD)), true).
+						AddField("AP", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AP)), true).
+						AddField("DEF/RES", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_DEF), playerChar.GetStat(types.STAT_MR)), true).
 						AddField("Lvl", lvlText, true).
-						AddField("SPD/AGL", fmt.Sprintf("%d/%d", playerChar.GetSPD(), playerChar.GetAGL()), true).
+						AddField("SPD/AGL", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_SPD), playerChar.GetStat(types.STAT_AGL)), true).
 						AddField("W walce?", inFightText, true).
 						AddField("W party?", inPartyText, true).
 						Build(),
@@ -249,7 +249,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			if len(embed.Fields) >= 20 {
-				//TODO add padding
+				//TODO add paging
 				fmt.Println("Too many fields!")
 			}
 

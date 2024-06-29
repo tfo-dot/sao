@@ -11,7 +11,8 @@ type DiscordMessageStruct struct {
 type Stat int
 
 const (
-	STAT_HP Stat = iota
+	STAT_NONE Stat = iota
+	STAT_HP
 	STAT_ADDITIONAL_HP
 	STAT_SPD
 	STAT_AGL

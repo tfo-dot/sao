@@ -317,9 +317,6 @@ func (p *Player) AddEXP(maxFloor, value int) {
 	p.XP.Exp += value
 
 	if p.XP.Level >= maxFloor*5 {
-
-		println("Max level reached 1")
-
 		p.XP.Level = maxFloor * 5
 		p.XP.Exp = 0
 		return
@@ -331,9 +328,6 @@ func (p *Player) AddEXP(maxFloor, value int) {
 
 	for p.XP.Exp >= ((p.XP.Level * 100) + 100) {
 		if p.XP.Level >= maxFloor*5 {
-
-			println("Max level reached 3")
-
 			p.XP.Level = maxFloor * 5
 			p.XP.Exp = 0
 			return
@@ -473,6 +467,13 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 }
 
 func (p *Player) AddItem(item *types.PlayerItem) {
+
+	for _, effect := range item.Effects {
+		evts := effect.GetEvents()
+
+		evts[types.CUSTOM_TRIGGER_UNLOCK](p)
+	}
+
 	p.Inventory.Items = append(p.Inventory.Items, item)
 }
 
@@ -554,6 +555,12 @@ func (p *Player) GetStat(stat types.Stat) int {
 		tempValue += p.GetMR()
 	case types.STAT_MANA:
 		tempValue += p.GetCurrentMana()
+	}
+
+	for _, effect := range p.DynamicStats {
+		if effect.Derived == stat {
+			tempValue += utils.PercentOf(p.GetStat(effect.Base), effect.Percent)
+		}
 	}
 
 	return tempValue + (tempValue * percentValue / 100)

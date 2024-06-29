@@ -75,18 +75,16 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 	player := w.Players[pUuid]
 
 	if floorData, exists := w.Floors[floorName]; !exists || (!floorData.Unlocked && player.Meta.Location.FloorName != floorName) {
-		return fmt.Errorf("floor %v not found or locked", locationName)
+		return errors.New("floor not found or locked")
 	}
 
 	if locationData := w.Floors[floorName].FindLocation(locationName); locationData == nil || (!locationData.Unlocked && player.Meta.Location.LocationName != locationName) {
-		return fmt.Errorf("location %v not found or locked", locationName)
+		return errors.New("location not found or locked")
 	}
 
 	if player.Meta.FightInstance != nil {
 		return errors.New("player is in fight")
 	}
-
-	//TODO If there is a reason, tell it to the player
 
 	player.Meta.Location.FloorName = floorName
 	player.Meta.Location.LocationName = locationName
