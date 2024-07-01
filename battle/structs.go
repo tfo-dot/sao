@@ -242,7 +242,7 @@ func (f *Fight) HandleAction(act Action) {
 			tempMeta = ActionDamage{
 				Damage: []Damage{
 					{
-						Value:    sourceEntity.GetATK(),
+						Value:    sourceEntity.GetStat(types.STAT_AD),
 						Type:     DMG_PHYSICAL,
 						CanDodge: true,
 					},
@@ -409,11 +409,11 @@ func (f *Fight) HandleAction(act Action) {
 
 		if !targetEntity.Entity.IsAuto() {
 			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
-					counterDmg := utils.PercentOf(targetEntity.Entity.GetATK(), 70)
+				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
+					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
 
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetDEF(), 15)
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetMR(), 15)
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_DEF), 15)
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_MR), 15)
 
 					f.HandleAction(Action{
 						Event:  ACTION_COUNTER,
@@ -554,14 +554,14 @@ func (f *Fight) HandleAction(act Action) {
 					//Check if it's dmg skill so it doesn't trigger on heal/barrier etc
 					if !targetEntity.Entity.IsAuto() && beforeSkillHP > targetEntity.Entity.GetCurrentHP() {
 						if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-							if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
+							if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
 								f.HandleAction(Action{
 									Event:  ACTION_ATTACK,
 									Source: act.Target,
 									Target: act.Source,
 									Meta: ActionDamage{
 										Damage: []Damage{{
-											Value:    targetEntity.Entity.GetATK(),
+											Value:    targetEntity.Entity.GetStat(types.STAT_AD),
 											Type:     DMG_PHYSICAL,
 											CanDodge: true,
 										}},
@@ -648,7 +648,7 @@ func (f *Fight) HandleAction(act Action) {
 			if ps.GetTrigger().Event.Meta["value"] != nil {
 				hpValue = ps.GetTrigger().Event.Meta["value"].(int)
 			} else {
-				hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetMaxHP() / 100)
+				hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetStat(types.STAT_HP) / 100)
 			}
 
 			return hpValue < e.GetCurrentHP()
@@ -818,12 +818,12 @@ func (f *Fight) HandleAction(act Action) {
 
 		if !targetEntity.Entity.IsAuto() {
 			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetAGL() {
+				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
 
-					counterDmg := utils.PercentOf(targetEntity.Entity.GetATK(), 70)
+					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
 
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetDEF(), 15)
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetMR(), 15)
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_DEF), 15)
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_MR), 15)
 
 					f.HandleAction(Action{
 						Event:  ACTION_COUNTER,
@@ -890,7 +890,7 @@ func (f *Fight) HandleAction(act Action) {
 		entity := f.Entities[act.Source].Entity
 		side := f.Entities[act.Source].Side
 
-		if utils.RandomNumber(0, 100) < entity.GetAGL() {
+		if utils.RandomNumber(0, 100) < entity.GetStat(types.STAT_AGL) {
 			f.DiscordChannel <- types.DiscordMessageStruct{
 				ChannelID: channelId,
 				MessageContent: discord.
@@ -907,7 +907,6 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
-		//TODO copy data lmao
 		delete(f.Entities, act.Source)
 
 		entities := f.Entities.FromSide(side)
@@ -949,7 +948,7 @@ func (f *Fight) Init() {
 	f.SpeedMap = make(map[uuid.UUID]int)
 
 	for _, entity := range f.Entities {
-		f.SpeedMap[entity.Entity.GetUUID()] = entity.Entity.GetSPD()
+		f.SpeedMap[entity.Entity.GetUUID()] = entity.Entity.GetStat(types.STAT_SPD)
 	}
 
 	f.ExternalChannel = make(chan FightEvent, 10)
@@ -1032,7 +1031,7 @@ func (f *Fight) Run() {
 		for uuid, speed := range f.SpeedMap {
 			entity := f.Entities[uuid].Entity
 
-			f.SpeedMap[uuid] = speed + entity.GetSPD()
+			f.SpeedMap[uuid] = speed + entity.GetStat(types.STAT_SPD)
 
 			turns := f.SpeedMap[uuid] / SPEED_GAUGE
 
@@ -1063,16 +1062,32 @@ func (f *Fight) Run() {
 
 				f.TriggerPassive(entityUuid, types.TRIGGER_DEFEND_END, nil)
 
-				skills := player.GetSkillsCD()
+				for lvl, cd := range player.GetLevelSkillsCD() {
+					data := player.GetLvlSkill(lvl)
 
-				for skill, cd := range skills {
-					if lvl, ok := skill.(int); ok {
-						player.SetLvlCD(lvl, cd-1)
-					} else {
-						fmt.Println("TODO: non lvl skills")
-						//TODO for non lvl skills
-						// skillUuid := skill.(uuid.UUID)
+					if cdMeta := data.GetTrigger().Cooldown; cdMeta != nil {
+						if cdMeta.PassEvent != types.TRIGGER_TURN {
+							//TODO not default event
+							continue
+						}
 					}
+
+					player.SetLvlCD(lvl, cd-1)
+				}
+
+				for sUuid, cd := range player.GetSkillsCD() {
+
+					data := player.GetSkill(sUuid)
+
+					if cdMeta := data.GetTrigger().Cooldown; cdMeta != nil {
+						if cdMeta.PassEvent != types.TRIGGER_TURN {
+							//TODO not default event
+							continue
+						}
+					}
+
+					player.SetCD(sUuid, cd-1)
+
 				}
 
 				f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}

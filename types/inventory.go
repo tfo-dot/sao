@@ -36,8 +36,14 @@ const (
 )
 
 type Trigger struct {
-	Type  SkillTriggerType
-	Event *EventTriggerDetails
+	Type     SkillTriggerType
+	Event    *EventTriggerDetails
+	Cooldown *CooldownMeta
+}
+
+type CooldownMeta struct {
+	//Default TRIGGER_TURN
+	PassEvent SkillTrigger
 }
 
 type EventTriggerDetails struct {

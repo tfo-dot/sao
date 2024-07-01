@@ -268,19 +268,19 @@ func (w *World) StartClock() {
 			}
 
 			//Missing mana
-			if player.GetCurrentMana() < player.GetMaxMana() {
+			if player.GetCurrentMana() < player.GetStat(types.STAT_MANA) {
 				player.Stats.CurrentMana += 1
 			}
 
 			//Can be healed
-			if player.GetCurrentHP() < player.GetMaxHP() {
+			if player.GetCurrentHP() < player.GetStat(types.STAT_HP) {
 				healRatio := 50
 
 				if w.PlayerInCity(pUuid) {
 					healRatio = 25
 				}
 
-				player.Heal(player.GetMaxHP() / healRatio)
+				player.Heal(player.GetStat(types.STAT_HP) / healRatio)
 			}
 		}
 	}
@@ -335,9 +335,6 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 		switch eventData.GetEvent() {
 		case battle.MSG_FIGHT_END:
-
-			println("Fight end")
-
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 			wonEntities := fight.Entities.FromSide(wonSideIDX)
 
@@ -352,6 +349,35 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			if allAuto {
 				w.DeregisterFight(fightUuid)
+
+				wonSideText := ""
+
+				for _, entity := range wonEntities {
+					wonSideText += fmt.Sprintf("%v", entity.GetName())
+
+					if !entity.IsAuto() {
+						wonSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+					}
+
+					wonSideText += "\n"
+				}
+
+				wonSideText = wonSideText[:len(wonSideText)-1]
+
+				w.DChannel <- types.DiscordMessageStruct{
+					ChannelID: channelId,
+					MessageContent: discord.
+						NewMessageCreateBuilder().
+						AddEmbeds(
+							discord.
+								NewEmbedBuilder().
+								SetTitle("Koniec walki!").
+								SetDescriptionf("Wygrali:\n" + wonSideText).
+								Build(),
+						).
+						Build(),
+				}
+
 				break
 			}
 

@@ -40,8 +40,6 @@ func (f *Fury) AddXP(xp int) {
 	for f.XP.XP >= f.NextLvlXPGauge() && f.XP.LVL < 10 {
 		f.XP.LVL++
 		f.XP.XP -= f.NextLvlXPGauge()
-
-		//TODO Add info about fury lvl up
 	}
 
 	if f.XP.LVL == 10 {
@@ -64,6 +62,14 @@ func (f *Fury) GetStats() map[types.Stat]int {
 	}
 
 	return baseStats
+}
+
+func (f *Fury) GetStat(stat types.Stat) int {
+	if value, ok := f.GetStats()[stat]; ok {
+		return value
+	}
+
+	return 0
 }
 
 func (f *Fury) GetSkills() []types.PlayerSkill {

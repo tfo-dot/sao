@@ -33,33 +33,33 @@ func TargetDetailsCheck(left, right interface{}, order types.TargetDetails, meta
 
 	switch order {
 	case types.DETAIL_MAX_HP:
-		return left.(Entity).GetMaxHP() - right.(Entity).GetMaxHP()
+		return left.(Entity).GetStat(types.STAT_HP) - right.(Entity).GetStat(types.STAT_HP)
 	case types.DETAIL_LOW_HP:
-		return right.(Entity).GetMaxHP() - left.(Entity).GetMaxHP()
+		return right.(Entity).GetStat(types.STAT_HP) - left.(Entity).GetStat(types.STAT_HP)
 	case types.DETAIL_MAX_MP:
-		return left.(Entity).GetMaxMana() - right.(Entity).GetMaxMana()
+		return left.(Entity).GetStat(types.STAT_MANA) - right.(Entity).GetStat(types.STAT_MANA)
 	case types.DETAIL_LOW_MP:
-		return right.(Entity).GetMaxMana() - left.(Entity).GetMaxMana()
+		return right.(Entity).GetStat(types.STAT_MANA) - left.(Entity).GetStat(types.STAT_MANA)
 	case types.DETAIL_MAX_ATK:
-		return left.(Entity).GetATK() - right.(Entity).GetATK()
+		return left.(Entity).GetStat(types.STAT_AD) - right.(Entity).GetStat(types.STAT_AD)
 	case types.DETAIL_LOW_ATK:
-		return right.(Entity).GetATK() - left.(Entity).GetATK()
+		return right.(Entity).GetStat(types.STAT_AD) - left.(Entity).GetStat(types.STAT_AD)
 	case types.DETAIL_MAX_DEF:
-		return left.(Entity).GetDEF() - right.(Entity).GetDEF()
+		return left.(Entity).GetStat(types.STAT_DEF) - right.(Entity).GetStat(types.STAT_DEF)
 	case types.DETAIL_LOW_DEF:
-		return right.(Entity).GetDEF() - left.(Entity).GetDEF()
+		return right.(Entity).GetStat(types.STAT_DEF) - left.(Entity).GetStat(types.STAT_DEF)
 	case types.DETAIL_MAX_SPD:
-		return left.(Entity).GetSPD() - right.(Entity).GetSPD()
+		return left.(Entity).GetStat(types.STAT_SPD) - right.(Entity).GetStat(types.STAT_SPD)
 	case types.DETAIL_LOW_SPD:
-		return right.(Entity).GetSPD() - left.(Entity).GetSPD()
+		return right.(Entity).GetStat(types.STAT_SPD) - left.(Entity).GetStat(types.STAT_SPD)
 	case types.DETAIL_MAX_AP:
-		return left.(Entity).GetAP() - right.(Entity).GetAP()
+		return left.(Entity).GetStat(types.STAT_AP) - right.(Entity).GetStat(types.STAT_AP)
 	case types.DETAIL_LOW_AP:
-		return right.(Entity).GetAP() - left.(Entity).GetAP()
+		return right.(Entity).GetStat(types.STAT_AP) - left.(Entity).GetStat(types.STAT_AP)
 	case types.DETAIL_MAX_RES:
-		return left.(Entity).GetMR() - right.(Entity).GetMR()
+		return left.(Entity).GetStat(types.STAT_MR) - right.(Entity).GetStat(types.STAT_MR)
 	case types.DETAIL_LOW_RES:
-		return right.(Entity).GetMR() - left.(Entity).GetMR()
+		return right.(Entity).GetStat(types.STAT_MR) - left.(Entity).GetStat(types.STAT_MR)
 	case types.DETAIL_HAS_EFFECT:
 		if meta == nil {
 			return 0

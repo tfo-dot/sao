@@ -312,9 +312,9 @@ func (m *MobEntity) GetEffectByUUID(uuid uuid.UUID) *battle.ActionEffect {
 
 func (m *MobEntity) GetStat(stat types.Stat) int {
 	switch stat {
-	case types.STAT_ADDITIONAL_MANA:
+	case types.STAT_MANA_PLUS:
 		return 0
-	case types.STAT_ADDITIONAL_HP:
+	case types.STAT_HP_PLUS:
 		return 0
 	}
 

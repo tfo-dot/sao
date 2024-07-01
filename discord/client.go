@@ -192,6 +192,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			lvlText += fmt.Sprintf(" %d/%d", playerChar.XP.Exp, (playerChar.XP.Level*100)+100)
 		}
 
+		//TODO show derived stats
+
 		event.CreateMessage(
 			discord.NewMessageCreateBuilder().
 				AddEmbeds(
@@ -200,7 +202,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						AddField("Gracz", fmt.Sprintf("<@%s>", playerChar.Meta.UserID), true).
 						AddField("Lokacja", playerChar.Meta.Location.LocationName, true).
 						AddField("Piętro", playerChar.Meta.Location.FloorName, true).
-						AddField("HP", fmt.Sprintf("%d/%d", playerChar.GetCurrentHP(), playerChar.GetStat(types.STAT_HP)), true).
+						AddField("HP", fmt.Sprintf("%d/%d", playerChar.Stats.HP, playerChar.GetStat(types.STAT_HP)), true).
 						AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetStat(types.STAT_MANA)), true).
 						AddField("Atak", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AD)), true).
 						AddField("AP", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AP)), true).
@@ -411,7 +413,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		newLocation := dFloor.FindLocation(event.ChannelID().String())
+		newLocation := dFloor.FindLocation(event.Channel().ID().String())
 
 		if newLocation == nil {
 			event.CreateMessage(

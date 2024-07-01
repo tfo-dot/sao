@@ -839,7 +839,7 @@ func (wbs WaterBladeSkill) GetTrigger() types.Trigger {
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
+			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
 			TargetCount:   1,
 		},
@@ -858,7 +858,7 @@ func (wbs WaterBladeSkill) Execute(owner, target, fightInstance, meta interface{
 		Source: owner.(battle.Entity).GetUUID(),
 		Target: owner.(battle.Entity).GetUUID(),
 		Meta: battle.ActionEffectHeal{
-			Value: utils.PercentOf(owner.(battle.Entity).GetMaxHP()-owner.(battle.Entity).GetCurrentHP(), 10+addPercentage),
+			Value: utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_HP)-owner.(battle.Entity).GetCurrentHP(), 10+addPercentage),
 		},
 	})
 
@@ -970,7 +970,7 @@ func (wls WarriorsLegacySkill) GetUUID() uuid.UUID {
 }
 
 func (wls WarriorsLegacySkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	dmgPercent := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_ADDITIONAL_HP), 1)
+	dmgPercent := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_HP_PLUS), 1)
 
 	return types.AttackTriggerMeta{
 		Effects: []types.DamagePartial{
@@ -1399,6 +1399,10 @@ func (cbs ControllersBladeSkill) GetDescription() string {
 	return "Zadawanie obrażeń spowalnia wroga."
 }
 
+func (cbs ControllersBladeSkill) GetCD() int {
+	return 3
+}
+
 func (cbs ControllersBladeSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
@@ -1407,6 +1411,9 @@ func (cbs ControllersBladeSkill) GetTrigger() types.Trigger {
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
 			TargetCount:   1,
+		},
+		Cooldown: &types.CooldownMeta{
+			PassEvent: types.TRIGGER_ATTACK_HIT,
 		},
 	}
 }
@@ -1468,7 +1475,7 @@ func (chs ControllersHatSkill) GetEvents() map[types.CustomTrigger]func(owner in
 	return map[types.CustomTrigger]func(owner interface{}){
 		types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
 			owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
-				Base:    types.STAT_ADDITIONAL_MANA,
+				Base:    types.STAT_MANA_PLUS,
 				Derived: types.STAT_ADAPTIVE,
 				Percent: 100,
 				Source:  chs.GetUUID(),

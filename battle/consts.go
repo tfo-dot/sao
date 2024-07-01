@@ -161,18 +161,9 @@ const SPEED_GAUGE = 100
 
 type Entity interface {
 	GetCurrentHP() int
-	GetMaxHP() int
+	GetCurrentMana() int
 
 	GetStat(types.Stat) int
-
-	GetSPD() int
-	GetATK() int
-	GetDEF() int
-	GetMR() int
-	GetAGL() int
-	GetMaxMana() int
-	GetCurrentMana() int
-	GetAP() int
 
 	Action(*Fight) []Action
 	TakeDMG(ActionDamage) []Damage
@@ -211,11 +202,16 @@ type PlayerEntity interface {
 	GetAllSkills() []types.PlayerSkill
 	GetUpgrades(int) []string
 	GetLvlSkill(int) types.PlayerSkill
+	GetSkill(uuid.UUID) types.PlayerSkill
 
 	SetLvlCD(int, int)
 	GetLvlCD(int) int
 
-	GetSkillsCD() map[any]int
+	SetCD(uuid.UUID, int)
+	GetCD(uuid.UUID) int
+
+	GetLevelSkillsCD() map[int]int
+	GetSkillsCD() map[uuid.UUID]int
 
 	SetDefendingState(bool)
 	GetDefendingState() bool

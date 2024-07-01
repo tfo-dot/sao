@@ -15,6 +15,7 @@ type PlayerInventory struct {
 	Gold                int
 	Items               []*types.PlayerItem
 	Ingredients         map[uuid.UUID]*types.Ingredient
+	Cooldowns           map[uuid.UUID]int
 	LevelSkillsCDS      map[int]int
 	LevelSkills         map[int]PlayerSkillLevel
 	LevelSkillsUpgrades map[int][]string

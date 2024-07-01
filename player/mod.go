@@ -126,95 +126,20 @@ func (p *Player) GetCurrentMana() int {
 	return p.Stats.CurrentMana
 }
 
-func (p *Player) GetFuryStat(stat types.Stat) int {
-	statValue, ok := p.Meta.Fury.GetStats()[stat]
-
-	if !ok {
-		return 0
-	}
-
-	return statValue
-}
-
-func (p *Player) GetMaxMana() int {
-	return 10 + p.Inventory.GetStat(types.STAT_MANA) + p.GetFuryStat(types.STAT_MANA)
-}
-
 func (p *Player) GetUUID() uuid.UUID {
 	return p.Meta.OwnUUID
-}
-
-func (p *Player) GetCurrentHP() int {
-	return p.Stats.HP
-}
-
-func (p *Player) GetMaxHP() int {
-	return 100 + ((p.XP.Level - 1) * 10) + p.Inventory.GetStat(types.STAT_HP) + p.GetFuryStat(types.STAT_HP)
 }
 
 func (p *Player) Heal(val int) {
 	p.Stats.HP += val
 
-	if p.Stats.HP > p.GetMaxHP() {
-		p.Stats.HP = p.GetMaxHP()
+	if p.Stats.HP > p.GetStat(types.STAT_HP) {
+		p.Stats.HP = p.GetStat(types.STAT_HP)
 	}
-}
-
-func (p *Player) GetAdaptiveType() types.AdaptiveType {
-	atk := p.GetATKWithoutAdaptive()
-	ap := p.GetAPWithoutAdaptive()
-
-	if atk > ap || atk == ap {
-		return types.ADAPTIVE_ATK
-	} else {
-		return types.ADAPTIVE_AP
-	}
-}
-
-func (p *Player) GetATK() int {
-	adaptiveAtk := p.Inventory.GetStat(types.STAT_ADAPTIVE)
-	if p.GetAdaptiveType() != types.ADAPTIVE_ATK {
-		adaptiveAtk = 0
-	}
-
-	return 40 + ((p.XP.Level - 1) * 15) + p.GetATKWithoutAdaptive() + adaptiveAtk
-}
-
-func (p *Player) GetATKWithoutAdaptive() int {
-	return p.Inventory.GetStat(types.STAT_AD) + p.GetFuryStat(types.STAT_AD)
-}
-
-func (p *Player) GetAPWithoutAdaptive() int {
-	return p.Inventory.GetStat(types.STAT_AP) + p.GetFuryStat(types.STAT_AP)
-}
-
-func (p *Player) GetAP() int {
-	adaptiveAp := p.Inventory.GetStat(types.STAT_ADAPTIVE)
-	if p.GetAdaptiveType() != types.ADAPTIVE_AP {
-		adaptiveAp = 0
-	}
-
-	return p.Inventory.GetStat(types.STAT_AP) + p.GetFuryStat(types.STAT_AP) + adaptiveAp
-}
-
-func (p *Player) GetSPD() int {
-	return 40 + p.Inventory.GetStat(types.STAT_SPD) + p.GetFuryStat(types.STAT_SPD)
 }
 
 func (p *Player) IsAuto() bool {
 	return false
-}
-
-func (p *Player) GetDEF() int {
-	return p.Inventory.GetStat(types.STAT_DEF) + p.GetFuryStat(types.STAT_DEF)
-}
-
-func (p *Player) GetMR() int {
-	return p.Inventory.GetStat(types.STAT_MR) + p.GetFuryStat(types.STAT_MR)
-}
-
-func (p *Player) GetAGL() int {
-	return 50 + p.Inventory.GetStat(types.STAT_AGL) + p.GetFuryStat(types.STAT_AGL)
 }
 
 func (p *Player) SetDefendingState(state bool) {
@@ -246,9 +171,9 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) []battle.Damage {
 
 		switch dmg.Type {
 		case battle.DMG_PHYSICAL:
-			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetDEF())
+			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetStat(types.STAT_DEF))
 		case battle.DMG_MAGICAL:
-			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetMR())
+			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetStat(types.STAT_MR))
 		}
 
 		actualDmg := p.DamageShields(rawDmg)
@@ -262,7 +187,7 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) []battle.Damage {
 }
 
 func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) ([]battle.Damage, bool) {
-	if utils.RandomNumber(0, 100) <= p.GetAGL() && dmg.CanDodge {
+	if utils.RandomNumber(0, 100) <= p.GetStat(types.STAT_AGL) && dmg.CanDodge {
 		return []battle.Damage{
 			{Value: 0, Type: battle.DMG_PHYSICAL},
 			{Value: 0, Type: battle.DMG_MAGICAL},
@@ -325,13 +250,17 @@ func (p *Player) AddEXP(maxFloor, value int) {
 func (p *Player) LevelUP() {
 	p.XP.Level++
 
-	if p.Stats.HP < p.GetMaxHP() {
-		p.Stats.HP = utils.PercentOf(p.GetMaxHP(), 20) + p.GetCurrentHP()
+	if p.Stats.HP < p.GetStat(types.STAT_HP) {
+		p.Stats.HP = utils.PercentOf(p.GetStat(types.STAT_HP), 20) + p.GetCurrentHP()
 	}
 
-	if p.Stats.HP > p.GetMaxHP() {
-		p.Stats.HP = p.GetMaxHP()
+	if p.Stats.HP > p.GetStat(types.STAT_HP) {
+		p.Stats.HP = p.GetStat(types.STAT_HP)
 	}
+}
+
+func (p *Player) GetCurrentHP() int {
+	return p.Stats.HP
 }
 
 func (p *Player) AddGold(value int) {
@@ -470,16 +399,16 @@ func (p *Player) RemoveItem(item int) {
 func (p *Player) RestoreMana(value int) {
 	p.Stats.CurrentMana += value
 
-	if p.Stats.CurrentMana > p.GetMaxMana() {
-		p.Stats.CurrentMana = p.GetMaxMana()
+	if p.Stats.CurrentMana > p.GetStat(types.STAT_MANA) {
+		p.Stats.CurrentMana = p.GetStat(types.STAT_MANA)
 	}
 }
 
 func (p *Player) GetStat(stat types.Stat) int {
 	switch stat {
-	case types.STAT_ADDITIONAL_MANA:
+	case types.STAT_MANA_PLUS:
 		return 10 - p.GetStat(types.STAT_MANA)
-	case types.STAT_ADDITIONAL_HP:
+	case types.STAT_HP_PLUS:
 		return 100 + ((p.XP.Level - 1) * 10) - p.GetStat(types.STAT_HP)
 	}
 
@@ -520,23 +449,30 @@ func (p *Player) GetStat(stat types.Stat) int {
 
 	tempValue := statValue
 
+	//Base stats
 	switch stat {
 	case types.STAT_HP:
-		tempValue += p.GetMaxHP()
+		tempValue += 100
 	case types.STAT_AD:
-		tempValue += p.GetATK()
+		tempValue += 40
 	case types.STAT_SPD:
-		tempValue += p.GetSPD()
+		tempValue += 40
 	case types.STAT_AGL:
-		tempValue += p.GetAGL()
-	case types.STAT_AP:
-		tempValue += p.GetAP()
-	case types.STAT_DEF:
-		tempValue += p.GetDEF()
-	case types.STAT_MR:
-		tempValue += p.GetMR()
+		tempValue += 50
 	case types.STAT_MANA:
-		tempValue += p.GetCurrentMana()
+	}
+
+	switch stat {
+	case types.STAT_HP:
+		tempValue += ((p.XP.Level - 1) * 10)
+	case types.STAT_AD:
+		tempValue += ((p.XP.Level - 1) * 15)
+	}
+
+	tempValue += p.Inventory.GetStat(stat)
+
+	if p.Meta.Fury != nil {
+		tempValue += p.Meta.Fury.GetStat(stat)
 	}
 
 	for _, effect := range p.DynamicStats {
@@ -544,6 +480,8 @@ func (p *Player) GetStat(stat types.Stat) int {
 			tempValue += utils.PercentOf(p.GetStat(effect.Base), effect.Percent)
 		}
 	}
+
+	//TODO adaptive stats
 
 	return tempValue + (tempValue * percentValue / 100)
 }
@@ -557,7 +495,6 @@ func (p *Player) GetUpgrades(lvl int) []string {
 }
 
 func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
-
 	skill, skillExists := p.Inventory.LevelSkills[lvl]
 
 	if !skillExists {
@@ -567,8 +504,30 @@ func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
 	return skill
 }
 
+func (p *Player) GetSkill(uuid uuid.UUID) types.PlayerSkill {
+	for _, skill := range p.GetAllSkills() {
+		if skill.GetUUID() == uuid {
+			return skill
+		}
+	}
+
+	return nil
+}
+
 func (p *Player) GetUID() string {
 	return p.Meta.UserID
+}
+
+func (p *Player) GetCD(skill uuid.UUID) int {
+	return p.Inventory.Cooldowns[skill]
+}
+
+func (p *Player) SetCD(skill uuid.UUID, value int) {
+	if value == 0 {
+		delete(p.Inventory.Cooldowns, skill)
+	} else {
+		p.Inventory.Cooldowns[skill] = value
+	}
 }
 
 func (p *Player) GetLvlCD(lvl int) int {
@@ -584,10 +543,20 @@ func (p *Player) SetLvlCD(lvl int, value int) {
 	}
 }
 
-func (p *Player) GetSkillsCD() map[any]int {
-	mapTemp := make(map[any]int, 0)
+func (p *Player) GetLevelSkillsCD() map[int]int {
+	mapTemp := make(map[int]int, 0)
 
 	for skill, cd := range p.Inventory.LevelSkillsCDS {
+		mapTemp[skill] = cd
+	}
+
+	return mapTemp
+}
+
+func (p *Player) GetSkillsCD() map[uuid.UUID]int {
+	mapTemp := make(map[uuid.UUID]int, 0)
+
+	for skill, cd := range p.Inventory.Cooldowns {
 		mapTemp[skill] = cd
 	}
 
