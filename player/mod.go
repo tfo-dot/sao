@@ -53,6 +53,8 @@ type Player struct {
 	Meta         PlayerMeta
 	Inventory    inventory.PlayerInventory
 	DynamicStats []types.DerivedStat
+	LevelStats   map[types.Stat]int
+	DefaultStats map[types.Stat]int
 }
 
 func (p *Player) Serialize() map[string]interface{} {
@@ -85,6 +87,8 @@ func Deserialize(data map[string]interface{}) *Player {
 		*DeserializeMeta(data["meta"].(map[string]interface{})),
 		inventory.DeserializeInventory(data["inventory"].(map[string]interface{})),
 		make([]types.DerivedStat, 0),
+		make(map[types.Stat]int),
+		make(map[types.Stat]int),
 	}
 }
 
@@ -120,6 +124,10 @@ func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
 		nil,
 		deserializedFury,
 	}
+}
+
+func (p *Player) AppendTempSkill(skill types.WithExpire[types.PlayerSkill]) {
+	p.Inventory.AddTempSkill(skill)
 }
 
 func (p *Player) GetCurrentMana() int {
@@ -404,15 +412,22 @@ func (p *Player) RestoreMana(value int) {
 	}
 }
 
+func (p *Player) GetDefaultStat(stat types.Stat) int {
+	if value, ok := p.DefaultStats[stat]; ok {
+		return value
+	}
+	return 0
+}
+
 func (p *Player) GetStat(stat types.Stat) int {
 	switch stat {
 	case types.STAT_MANA_PLUS:
-		return 10 - p.GetStat(types.STAT_MANA)
+		return p.GetDefaultStat(types.STAT_MANA) - p.GetStat(types.STAT_MANA)
 	case types.STAT_HP_PLUS:
-		return 100 + ((p.XP.Level - 1) * 10) - p.GetStat(types.STAT_HP)
+		return p.GetDefaultStat(types.STAT_HP) + ((p.XP.Level - 1) * 10) - p.GetStat(types.STAT_HP)
 	}
 
-	statValue := 0
+	statValue := p.GetDefaultStat(stat)
 	percentValue := 0
 
 	for _, effect := range p.GetAllEffects() {
@@ -447,50 +462,32 @@ func (p *Player) GetStat(stat types.Stat) int {
 		}
 	}
 
-	tempValue := statValue
-
-	//Base stats
-	switch stat {
-	case types.STAT_HP:
-		tempValue += 100
-	case types.STAT_AD:
-		tempValue += 40
-	case types.STAT_SPD:
-		tempValue += 40
-	case types.STAT_AGL:
-		tempValue += 50
-	case types.STAT_MANA:
+	if value, ok := p.LevelStats[stat]; ok {
+		statValue += ((p.XP.Level - 1) * value)
 	}
 
-	switch stat {
-	case types.STAT_HP:
-		tempValue += ((p.XP.Level - 1) * 10)
-	case types.STAT_AD:
-		tempValue += ((p.XP.Level - 1) * 15)
-	}
-
-	tempValue += p.Inventory.GetStat(stat)
+	statValue += p.Inventory.GetStat(stat)
 
 	if p.Meta.Fury != nil {
-		tempValue += p.Meta.Fury.GetStat(stat)
+		statValue += p.Meta.Fury.GetStat(stat)
 	}
 
 	for _, effect := range p.DynamicStats {
 		if effect.Derived == stat {
-			tempValue += utils.PercentOf(p.GetStat(effect.Base), effect.Percent)
+			statValue += utils.PercentOf(p.GetStat(effect.Base), effect.Percent)
 		}
 	}
 
 	//TODO adaptive stats
 
-	return tempValue + (tempValue * percentValue / 100)
+	return statValue + (statValue * percentValue / 100)
 }
 
 func (p *Player) Cleanse() {
 	p.Stats.Effects.Cleanse()
 }
 
-func (p *Player) GetUpgrades(lvl int) []string {
+func (p *Player) GetUpgrades(lvl int) int {
 	return p.Inventory.LevelSkillsUpgrades[lvl]
 }
 
@@ -571,6 +568,32 @@ func (p *Player) AppendDerivedStat(stat types.DerivedStat) {
 	p.DynamicStats = append(p.DynamicStats, stat)
 }
 
+func (p *Player) SetLevelStat(stat types.Stat, value int) {
+	p.LevelStats[stat] = value
+}
+
+func (p *Player) ReduceCooldowns() {
+	for skill, cd := range p.Inventory.Cooldowns {
+		//TODO check if skill has different cd pass event trigger
+		if cd > 0 {
+			p.Inventory.Cooldowns[skill]--
+		}
+	}
+
+	for skill, cd := range p.Inventory.LevelSkillsCDS {
+		skillData := p.Inventory.LevelSkills[skill]
+		cdMeta := skillData.GetTrigger().Cooldown
+
+		if cdMeta == nil || cdMeta.PassEvent != types.TRIGGER_TURN {
+			continue
+		}
+
+		if cd > 0 {
+			p.Inventory.LevelSkillsCDS[skill]--
+		}
+	}
+}
+
 func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
@@ -579,5 +602,16 @@ func NewPlayer(name string, uid string) Player {
 		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 		make([]types.DerivedStat, 0),
+		map[types.Stat]int{
+			types.STAT_HP: 15,
+			types.STAT_AD: 15,
+		},
+		map[types.Stat]int{
+			types.STAT_HP:   100,
+			types.STAT_AD:   40,
+			types.STAT_SPD:  40,
+			types.STAT_AGL:  50,
+			types.STAT_MANA: 10,
+		},
 	}
 }

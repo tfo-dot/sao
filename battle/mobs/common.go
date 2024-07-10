@@ -10,15 +10,16 @@ import (
 
 type MobEntity struct {
 	//ID as mob type
-	Id      string
-	MaxHP   int
-	HP      int
-	SPD     int
-	ATK     int
-	Effects EffectList
-	UUID    uuid.UUID
-	Props   map[string]interface{}
-	Loot    []battle.Loot
+	Id        string
+	MaxHP     int
+	HP        int
+	SPD       int
+	ATK       int
+	Effects   EffectList
+	UUID      uuid.UUID
+	Props     map[string]interface{}
+	Loot      []battle.Loot
+	TempSkill []types.WithExpire[types.PlayerSkill]
 }
 
 type EffectList []battle.ActionEffect
@@ -379,6 +380,10 @@ func (m *MobEntity) GetStat(stat types.Stat) int {
 	return tempValue + (tempValue * percentValue / 100)
 }
 
+func (m *MobEntity) AppendTempSkill(skill types.WithExpire[types.PlayerSkill]) {
+	m.TempSkill = append(m.TempSkill, skill)
+}
+
 func Spawn(id string) *MobEntity {
 
 	switch id {
@@ -395,6 +400,7 @@ func Spawn(id string) *MobEntity {
 			Loot: []battle.Loot{{
 				Type: battle.LOOT_EXP, Meta: &map[string]interface{}{"value": 55},
 			}},
+			TempSkill: make([]types.WithExpire[types.PlayerSkill], 0),
 		}
 	}
 

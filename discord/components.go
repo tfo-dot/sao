@@ -100,7 +100,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		case "2":
 			path = types.PathEndurance
 		case "3":
-			path = types.PathMobility
+			path = types.PathSpecial
 		}
 
 		lvl := 0

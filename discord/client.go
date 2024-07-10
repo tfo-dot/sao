@@ -97,7 +97,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		}
 	}
 
-	if playerChar == nil && (interactionData.CommandName() != "create" || interactionData.CommandName() != "turniej") {
+	if interactionData.CommandName() != "create" && interactionData.CommandName() != "turniej" && playerChar == nil {
 		event.CreateMessage(noCharMessage)
 		return
 	}
@@ -302,7 +302,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				upgradeMsg := ""
 
 				for _, upgrade := range skill.GetUpgrades() {
-					upgradeMsg += fmt.Sprintf("\n- %s - %s", upgrade.GetName(), upgrade.GetDescription())
+					upgradeMsg += fmt.Sprintf("\n- %s - %s", upgrade.Name, upgrade.Description)
 				}
 
 				embed.AddField(

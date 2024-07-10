@@ -11,7 +11,7 @@ var PathToString = map[types.SkillPath]string{
 	types.PathControl:   "Kontrola",
 	types.PathDamage:    "Obrażenia",
 	types.PathEndurance: "Wytrzymałość",
-	types.PathMobility:  "Mobilność",
+	types.PathSpecial:   "Mobilność",
 }
 
 var RoleToString = map[party.PartyRole]string{

@@ -6,19 +6,23 @@ import (
 	"sao/battle"
 	"sao/data"
 	"sao/types"
-	"strconv"
 
 	"github.com/google/uuid"
 )
 
 type PlayerInventory struct {
 	Gold                int
+	TempSkills          []*types.WithExpire[types.PlayerSkill]
 	Items               []*types.PlayerItem
 	Ingredients         map[uuid.UUID]*types.Ingredient
 	Cooldowns           map[uuid.UUID]int
 	LevelSkillsCDS      map[int]int
 	LevelSkills         map[int]PlayerSkillLevel
-	LevelSkillsUpgrades map[int][]string
+	LevelSkillsUpgrades map[int]int
+}
+
+func (inv *PlayerInventory) AddTempSkill(skill types.WithExpire[types.PlayerSkill]) {
+	inv.TempSkills = append(inv.TempSkills, &skill)
 }
 
 func (inv *PlayerInventory) Serialize() map[string]interface{} {
@@ -61,48 +65,10 @@ func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
 		Ingredients:         map[uuid.UUID]*types.Ingredient{},
 		LevelSkillsCDS:      map[int]int{},
 		LevelSkills:         map[int]PlayerSkillLevel{},
-		LevelSkillsUpgrades: map[int][]string{},
+		LevelSkillsUpgrades: map[int]int{},
 	}
 
-	if itemData, exists := rawData["items"].([]interface{}); !exists && len(itemData) > 0 {
-		for _, rawItem := range rawData["items"].([]map[string]interface{}) {
-			item := data.Items[rawItem["uuid"].(uuid.UUID)]
-			item.Count = int(rawItem["count"].(float64))
-
-			inv.Items = append(inv.Items, &item)
-		}
-	}
-
-	for _, ingredient := range rawData["ingredients"].(map[string]interface{}) {
-		ingredient := ingredient.(map[string]interface{})
-
-		inv.Ingredients[ingredient["uuid"].(uuid.UUID)] = &types.Ingredient{
-			UUID:  ingredient["uuid"].(uuid.UUID),
-			Name:  ingredient["name"].(string),
-			Count: int(ingredient["count"].(float64)),
-		}
-	}
-
-	lvlSKills := rawData["skills"].(map[string]interface{})
-
-	for _, skill := range lvlSKills["skills"].([]interface{}) {
-		skill := int(skill.(float64))
-
-		//TODO: Multiple options
-		inv.LevelSkills[skill] = AVAILABLE_SKILLS[types.SkillPath(skill)][skill][0]
-	}
-
-	for key, value := range lvlSKills["cds"].(map[string]interface{}) {
-		key, _ := strconv.Atoi(key)
-
-		inv.LevelSkillsCDS[key] = int(value.(float64))
-	}
-
-	for key, value := range lvlSKills["upgrades"].(map[string]interface{}) {
-		key, _ := strconv.Atoi(key)
-
-		inv.LevelSkillsUpgrades[key] = value.([]string)
-	}
+	//TODO finish this
 
 	return inv
 }
@@ -257,7 +223,7 @@ func (inv *PlayerInventory) UnlockSkill(path types.SkillPath, lvl int, playerLvl
 	return nil
 }
 
-func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeName string) error {
+func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeID string) error {
 	if _, exists := inv.LevelSkills[lvl]; !exists {
 		return errors.New("SKILL_NOT_UNLOCKED")
 	}
@@ -268,13 +234,20 @@ func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeName string) error {
 		return errors.New("SKILL_NOT_FOUND")
 	}
 
-	if exists := skill.HasUpgrade(upgradeName); !exists {
+	upgradeIdx := -1
+
+	for idx, upgrade := range skill.GetUpgrades() {
+		if upgrade.Id == upgradeID {
+			upgradeIdx = idx
+			break
+		}
+	}
+
+	if upgradeIdx == -1 {
 		return errors.New("UPGRADE_NOT_FOUND")
 	}
 
-	skill.UnlockUpgrade(upgradeName)
-
-	inv.LevelSkillsUpgrades[lvl] = append(inv.LevelSkillsUpgrades[lvl], upgradeName)
+	inv.LevelSkillsUpgrades[lvl] = inv.LevelSkillsUpgrades[lvl] & (1 << upgradeIdx)
 
 	return nil
 }
@@ -286,6 +259,6 @@ func GetDefaultInventory() PlayerInventory {
 		Items:               []*types.PlayerItem{},
 		LevelSkills:         map[int]PlayerSkillLevel{},
 		LevelSkillsCDS:      map[int]int{},
-		LevelSkillsUpgrades: map[int][]string{},
+		LevelSkillsUpgrades: map[int]int{},
 	}
 }

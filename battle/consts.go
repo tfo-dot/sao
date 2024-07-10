@@ -70,7 +70,6 @@ const (
 	EFFECT_SILENCE
 	EFFECT_STUN
 	EFFECT_IMMUNE
-	EFFECT_MARK
 	EFFECT_STAT_INC
 	EFFECT_STAT_DEC
 	EFFECT_RESIST
@@ -186,6 +185,8 @@ type Entity interface {
 	GetAllEffects() []ActionEffect
 	RemoveEffect(uuid.UUID)
 	TriggerAllEffects() []ActionEffect
+
+	AppendTempSkill(types.WithExpire[types.PlayerSkill])
 }
 
 type DodgeEntity interface {
@@ -200,7 +201,7 @@ type PlayerEntity interface {
 	GetUID() string
 
 	GetAllSkills() []types.PlayerSkill
-	GetUpgrades(int) []string
+	GetUpgrades(int) int
 	GetLvlSkill(int) types.PlayerSkill
 	GetSkill(uuid.UUID) types.PlayerSkill
 
@@ -223,6 +224,8 @@ type PlayerEntity interface {
 	GetParty() *uuid.UUID
 
 	AppendDerivedStat(types.DerivedStat)
+	SetLevelStat(types.Stat, int)
+	ReduceCooldowns()
 }
 
 type FightEvent interface {

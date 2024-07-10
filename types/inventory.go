@@ -39,6 +39,7 @@ type Trigger struct {
 	Type     SkillTriggerType
 	Event    *EventTriggerDetails
 	Cooldown *CooldownMeta
+	Flags    int
 }
 
 type CooldownMeta struct {
@@ -52,13 +53,16 @@ type EventTriggerDetails struct {
 	TargetDetails []TargetDetails
 	//-1 for no limit
 	TargetCount int
-	Meta        map[string]interface{}
+	//If og trigger won't trigger it can work as a fallback i. e. attack miss / attack hit
+	OptionalEvent SkillTrigger
+	Meta          map[string]interface{}
 }
 
 type SkillTrigger int
 
 const (
-	TRIGGER_ATTACK_BEFORE SkillTrigger = iota
+	TRIGGER_NONE SkillTrigger = iota
+	TRIGGER_ATTACK_BEFORE
 	TRIGGER_ATTACK_HIT
 	TRIGGER_ATTACK_MISS
 	TRIGGER_ATTACK_GOT_HIT
@@ -91,7 +95,6 @@ const (
 	TRIGGER_REMOVE_CROWD_CONTROL
 	TRIGGER_APPLY_EFFECT
 	TRIGGER_REMOVE_EFFECT
-	TRIGGER_NONE
 )
 
 type IncreasePartial struct {
@@ -178,7 +181,7 @@ const (
 	PathControl SkillPath = iota
 	PathEndurance
 	PathDamage
-	PathMobility
+	PathSpecial
 )
 
 func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *interface{}) {
@@ -233,9 +236,19 @@ type WithCount[T any] struct {
 	Count int
 }
 
+type WithExpire[v any] struct {
+	Value      v
+	AfterUsage bool
+	Expire     int
+}
+
 type DerivedStat struct {
 	Base    Stat
 	Derived Stat
 	Percent int
 	Source  uuid.UUID
+}
+
+type SkillChoice struct {
+	Choice int
 }
