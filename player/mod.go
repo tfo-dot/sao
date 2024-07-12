@@ -7,6 +7,7 @@ import (
 	"sao/types"
 	"sao/utils"
 	"sao/world/fury"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -34,15 +35,25 @@ type PlayerMeta struct {
 }
 
 func (pM *PlayerMeta) SerializeFuries() map[string]interface{} {
+	if pM.Fury == nil {
+		return nil
+	}
+
 	return pM.Fury.Serialize()
 }
 
 func (pM *PlayerMeta) Serialize() map[string]interface{} {
+	party := ""
+	if pM.Party != nil {
+		party = pM.Party.String()
+	}
+
 	return map[string]interface{}{
 		"location": []string{pM.Location.FloorName, pM.Location.LocationName},
 		"uuid":     pM.OwnUUID.String(),
 		"uid":      pM.UserID,
 		"fury":     pM.SerializeFuries(),
+		"party":    party,
 	}
 }
 
@@ -66,9 +77,55 @@ func (p *Player) Serialize() map[string]interface{} {
 			"current_mana": p.Stats.CurrentMana,
 			"effects":      p.Stats.Effects,
 		},
-		"meta":      p.Meta.Serialize(),
-		"inventory": p.Inventory.Serialize(),
+		"dynamic_stats": p.DynamicStats,
+		"level_stats":   p.LevelStats,
+		"default_stats": p.DefaultStats,
+		"meta":          p.Meta.Serialize(),
+		"inventory":     p.Inventory.Serialize(),
 	}
+}
+
+func DeserializeDerivedStats(data []interface{}) []types.DerivedStat {
+	tempArray := make([]types.DerivedStat, 0)
+
+	for _, stat := range data {
+		stat := stat.(map[string]interface{})
+
+		temp := types.DerivedStat{
+			Derived: types.Stat(stat["derived"].(float64)),
+			Base:    types.Stat(stat["base"].(float64)),
+			Percent: int(stat["percent"].(float64)),
+			Source:  uuid.MustParse(stat["source"].(string)),
+		}
+
+		tempArray = append(tempArray, temp)
+	}
+
+	return tempArray
+}
+
+func DeserializeLevelStats(data map[string]interface{}) map[types.Stat]int {
+	tempMap := make(map[types.Stat]int, 0)
+
+	for key, value := range data {
+		val, _ := strconv.Atoi(key)
+
+		tempMap[types.Stat(val)] = int(value.(float64))
+	}
+
+	return tempMap
+}
+
+func DeserializeDefaultStats(data map[string]interface{}) map[types.Stat]int {
+	tempMap := make(map[types.Stat]int, 0)
+
+	for key, value := range data {
+		val, _ := strconv.Atoi(key)
+
+		tempMap[types.Stat(val)] = int(value.(float64))
+	}
+
+	return tempMap
 }
 
 func Deserialize(data map[string]interface{}) *Player {
@@ -86,9 +143,9 @@ func Deserialize(data map[string]interface{}) *Player {
 		},
 		*DeserializeMeta(data["meta"].(map[string]interface{})),
 		inventory.DeserializeInventory(data["inventory"].(map[string]interface{})),
-		make([]types.DerivedStat, 0),
-		make(map[types.Stat]int),
-		make(map[types.Stat]int),
+		DeserializeDerivedStats(data["dynamic_stats"].([]interface{})),
+		DeserializeLevelStats(data["level_stats"].(map[string]interface{})),
+		DeserializeDefaultStats(data["default_stats"].(map[string]interface{})),
 	}
 }
 
@@ -113,16 +170,27 @@ func DeserializeEffects(data []interface{}) mobs.EffectList {
 }
 
 func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
-	deserializedFury := fury.Deserialize(data["fury"].(map[string]interface{}))
+	var furyData *fury.Fury
+	if data["fury"] != nil {
+		furyData = fury.Deserialize(data["fury"].(map[string]interface{}))
+	}
+
+	var party *uuid.UUID
+
+	if data["party"] != "" {
+		temp := uuid.MustParse(data["party"].(string))
+
+		party = &temp
+	}
 
 	return &PlayerMeta{
 		types.DefaultPlayerLocation(),
 		uuid.MustParse(data["uuid"].(string)),
 		data["uid"].(string),
 		nil,
+		party,
 		nil,
-		nil,
-		deserializedFury,
+		furyData,
 	}
 }
 
@@ -146,8 +214,8 @@ func (p *Player) Heal(val int) {
 	}
 }
 
-func (p *Player) IsAuto() bool {
-	return false
+func (p *Player) GetFlags() types.EntityFlag {
+	return 0
 }
 
 func (p *Player) SetDefendingState(state bool) {

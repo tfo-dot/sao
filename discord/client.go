@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sao/data"
@@ -28,14 +29,42 @@ var Client *bot.Client
 
 func StartClient(token string) {
 	client, err := disgo.New(token,
-		bot.WithDefaultGateway(),
+		// bot.WithDefaultGateway(),
 		bot.WithEventListenerFunc(func(e *events.Ready) {
+			println("Discord connection is here!")
 			e.Client().SetPresence(context.Background(), gateway.WithWatchingActivity("SAO"))
+		}),
+		bot.WithEventListenerFunc(func(e *events.MessageCreate) {
+			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == "344048874656366592" {
+				data := World.DumpBackup()
+
+				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, "02Calc:1159034005493129228")
+
+				chanel, err := e.Client().Rest().CreateDMChannel(snowflake.MustParse("344048874656366592"))
+
+				if err != nil {
+					return
+				}
+
+				_, err = e.Client().Rest().CreateMessage(chanel.ID(), discord.MessageCreate{
+					Files: []*discord.File{
+						{
+							Name:   "backup.json",
+							Reader: bytes.NewReader(data),
+						},
+					},
+				})
+
+				if err != nil {
+					return
+				}
+			}
 		}),
 		bot.WithEventListenerFunc(commandListener),
 		bot.WithEventListenerFunc(AutocompleteHandler),
 		bot.WithEventListenerFunc(ComponentHandler),
 		bot.WithEventListenerFunc(ModalSubmitHandler),
+		bot.WithGatewayConfigOpts(gateway.WithIntents(gateway.IntentGuildMessages, gateway.IntentMessageContent)),
 	)
 
 	if err != nil {
@@ -245,7 +274,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			for _, skill := range playerChar.Inventory.LevelSkills {
 				embed.AddField(
 					fmt.Sprintf("%s (LVL: %d)", skill.GetName(), skill.GetLevel()),
-					fmt.Sprintf("Ścieżka: %s\n\n%s", PathToString[skill.GetPath()], skill.GetDescription()),
+					fmt.Sprintf("Ścieżka: %s\n\n%s", types.PathToString[skill.GetPath()], skill.GetDescription()),
 					false,
 				)
 			}
@@ -307,7 +336,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 				embed.AddField(
 					skill.GetName(),
-					fmt.Sprintf("Ścieżka: %s\n\n%s\nUlepszenia:%s", PathToString[skill.GetPath()], skill.GetDescription(), upgradeMsg),
+					fmt.Sprintf("Ścieżka: %s\n\n%s\nUlepszenia:%s", types.PathToString[skill.GetPath()], skill.GetDescription(), upgradeMsg),
 					false,
 				)
 
@@ -840,7 +869,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				continue
 			} else {
 				for entityUuid, entityEntry := range fight.Entities {
-					if !entityEntry.Entity.IsAuto() {
+					if entityEntry.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 						options = append(options, discord.NewStringSelectMenuOption(entityEntry.Entity.GetName(), entityUuid.String()))
 					}
 				}

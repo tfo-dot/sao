@@ -636,7 +636,7 @@ func (rbs ReimiBlessingSkill) Execute(owner, target, fightInstance, meta interfa
 			Uuid:     ReimiBlessingEffectUUID,
 			Meta:     nil,
 			Caster:   ownerEntity.GetUUID(),
-			Source:   battle.SOURCE_ITEM,
+			Source:   types.SOURCE_ITEM,
 		}
 	}
 
@@ -665,7 +665,7 @@ func (rbs ReimiBlessingSkill) GetEvents() map[types.CustomTrigger]func(owner int
 				Uuid:     ReimiBlessingEffectUUID,
 				Meta:     nil,
 				Caster:   owner.(battle.Entity).GetUUID(),
-				Source:   battle.SOURCE_ITEM,
+				Source:   types.SOURCE_ITEM,
 			})
 		},
 	}
@@ -813,7 +813,7 @@ func (sbs SandBladeSkill) Execute(owner, target, fightInstance, meta interface{}
 			Uuid:     uuid.New(),
 			Meta:     nil,
 			Caster:   owner.(battle.Entity).GetUUID(),
-			Source:   battle.SOURCE_ITEM,
+			Source:   types.SOURCE_ITEM,
 		},
 	})
 
@@ -1161,7 +1161,7 @@ func (gas GrudgeArmorSkill) Execute(owner, target, fightInstance, meta interface
 			Uuid:     uuid.New(),
 			Meta:     nil,
 			Caster:   owner.(battle.Entity).GetUUID(),
-			Source:   battle.SOURCE_ITEM,
+			Source:   types.SOURCE_ITEM,
 		},
 	})
 
@@ -1333,7 +1333,7 @@ func (crs ControllersRuneSkill) Execute(owner, target, fightInstance, meta inter
 			Uuid:     ControllersRuneEffectUUID,
 			Meta:     nil,
 			Caster:   owner.(battle.Entity).GetUUID(),
-			Source:   battle.SOURCE_ITEM,
+			Source:   types.SOURCE_ITEM,
 		},
 	})
 
@@ -1382,7 +1382,7 @@ func (cns ControllersNecklaceSkill) Execute(owner, target, fightInstance, meta i
 				IsPercent: false,
 			},
 			Caster: owner.(battle.Entity).GetUUID(),
-			Source: battle.SOURCE_ITEM,
+			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -1438,7 +1438,7 @@ func (cbs ControllersBladeSkill) Execute(owner, target, fightInstance, meta inte
 				IsPercent: false,
 			},
 			Caster: owner.(battle.Entity).GetUUID(),
-			Source: battle.SOURCE_ITEM,
+			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -1526,7 +1526,7 @@ func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interfac
 				IsPercent: true,
 			},
 			Caster: owner.(battle.Entity).GetUUID(),
-			Source: battle.SOURCE_ITEM,
+			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -1545,7 +1545,7 @@ func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interfac
 				IsPercent: false,
 			},
 			Caster: owner.(battle.Entity).GetUUID(),
-			Source: battle.SOURCE_ITEM,
+			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -1761,7 +1761,7 @@ func (lss LightingSupportSkill) Execute(owner, target, fightInstance, meta inter
 				IsPercent: false,
 			},
 			Caster: owner.(battle.Entity).GetUUID(),
-			Source: battle.SOURCE_ITEM,
+			Source: types.SOURCE_ITEM,
 		},
 	})
 

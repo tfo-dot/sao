@@ -8,19 +8,47 @@ import (
 	"github.com/google/uuid"
 )
 
-type END_LVL_1 struct{ BaseLvlSkill }
+type EnduranceSkill struct{}
+
+func (skill EnduranceSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return nil
+}
+
+func (skill EnduranceSkill) GetPath() types.SkillPath {
+	return types.PathControl
+}
+
+func (skill EnduranceSkill) GetUUID() uuid.UUID {
+	return uuid.Nil
+}
+
+func (skill EnduranceSkill) IsLevelSkill() bool {
+	return true
+}
+
+type END_LVL_1 struct {
+	EnduranceSkill
+	DefaultCost
+	DefaultActiveTrigger
+	NoEvents
+	NoStats
+}
+
+func (skill END_LVL_1) GetName() string {
+	return "Poziom 1 - wytrzymałość"
+}
 
 func (skill END_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	baseIncrease := 10
 	baseDuration := 1
 
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		baseIncrease = 20
 		baseIncrease += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_HP), 3)
 		baseIncrease += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 2)
 	}
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		baseDuration++
 	}
 
@@ -46,7 +74,7 @@ func (skill END_LVL_1) GetCD() int {
 func (skill END_LVL_1) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		return baseCD - 1
 	}
 
@@ -55,10 +83,6 @@ func (skill END_LVL_1) GetCooldown(upgrades int) int {
 
 func (skill END_LVL_1) GetDescription() string {
 	return "Daje tarczę o wartości 10 na jedną turę"
-}
-
-func (skill END_LVL_1) GetPath() types.SkillPath {
-	return types.PathEndurance
 }
 
 func (skill END_LVL_1) GetLevel() int {
@@ -88,7 +112,12 @@ func (skill END_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-type END_LVL_2 struct{ BaseLvlSkill }
+type END_LVL_2 struct {
+	EnduranceSkill
+	NoExecute
+	NoStats
+	NoTrigger
+}
 
 func (skill END_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
 	return map[types.CustomTrigger]func(owner interface{}){
@@ -141,21 +170,31 @@ func (skill END_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-func (skill END_LVL_2) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	return nil
-}
-
 func (skill END_LVL_2) GetDescription() string {
 	return "Zwiększa zdrowie zyskiwane co poziom do 15"
 }
 
-func (skill END_LVL_2) GetPath() types.SkillPath {
-	return types.PathEndurance
+func (skill END_LVL_2) GetLevel() int {
+	return 2
 }
 
-type END_LVL_3 struct{ BaseLvlSkill }
+func (skill END_LVL_2) GetName() string {
+	return "Poziom 2 - wytrzymałość"
+}
+
+type END_LVL_3 struct {
+	EnduranceSkill
+	DefaultCost
+	NoEvents
+	NoStats
+	DefaultActiveTrigger
+}
 
 type END_LVL_3_EFFECT struct {
+	NoCost
+	NoCooldown
+	NoEvents
+	NoLevel
 	Owner      uuid.UUID
 	HealFactor int
 	OnlyOwner  bool
@@ -181,20 +220,8 @@ func (effect END_LVL_3_EFFECT) Execute(owner, target, fightInstance, meta interf
 	return nil
 }
 
-func (effect END_LVL_3_EFFECT) GetCD() int {
-	return 0
-}
-
-func (effect END_LVL_3_EFFECT) GetCost() int {
-	return 0
-}
-
 func (effect END_LVL_3_EFFECT) GetDescription() string {
 	return "Leczy o x% HP"
-}
-
-func (effect END_LVL_3_EFFECT) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
 }
 
 func (effect END_LVL_3_EFFECT) GetName() string {
@@ -210,18 +237,10 @@ func (effect END_LVL_3_EFFECT) GetTrigger() types.Trigger {
 	}
 }
 
-func (effect END_LVL_3_EFFECT) GetUUID() uuid.UUID {
-	return uuid.New()
-}
-
-func (effect END_LVL_3_EFFECT) IsLevelSkill() bool {
-	return false
-}
-
 func (skill END_LVL_3) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	healFactor := 5
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 3) {
 		healFactor += 5
 	}
 
@@ -229,7 +248,7 @@ func (skill END_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 		Value: END_LVL_3_EFFECT{
 			Owner:      owner.(battle.PlayerEntity).GetUUID(),
 			HealFactor: healFactor,
-			OnlyOwner:  upgrades&(1<<0) == 1,
+			OnlyOwner:  HasUpgrade(upgrades, 1),
 		},
 		AfterUsage: false,
 		Expire:     1,
@@ -238,16 +257,30 @@ func (skill END_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 	return nil
 }
 
+func (skill END_LVL_3) GetName() string {
+	return "Poziom 3 - wytrzymałość"
+}
+
+func (skill END_LVL_3) GetLevel() int {
+	return 3
+}
+
+func (skill END_LVL_3) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill END_LVL_3) GetCooldown(upgrades int) int {
+	baseCD := skill.GetCD()
+
+	if HasUpgrade(upgrades, 2) {
+		return baseCD - 1
+	}
+
+	return baseCD
+}
+
 func (skill END_LVL_3) GetDescription() string {
 	return "Oznacza cel na turę, atak rozbije oznaczenie i wyleczy"
-}
-
-func (skill END_LVL_3) GetPath() types.SkillPath {
-	return types.PathEndurance
-}
-
-func (skill END_LVL_3) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
 }
 
 func (skill END_LVL_3) GetUpgrades() []PlayerSkillUpgrade {

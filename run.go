@@ -43,7 +43,7 @@ func main() {
 
 	world := world.CreateWorld(string(botKey), isTest)
 
-	//world.LoadBackup()
+	world.LoadBackup()
 
 	go world.StartClock()
 

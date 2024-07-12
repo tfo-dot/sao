@@ -33,6 +33,7 @@ type SkillTriggerType int
 const (
 	TRIGGER_PASSIVE SkillTriggerType = iota
 	TRIGGER_ACTIVE
+	TRIGGER_TYPE_NONE
 )
 
 type Trigger struct {

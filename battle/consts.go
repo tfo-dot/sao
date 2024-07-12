@@ -25,8 +25,15 @@ const (
 )
 
 type Loot struct {
-	Type LootType
-	Meta *map[string]interface{}
+	Type  LootType
+	Count int
+	Meta  *LootMeta
+}
+
+// Only for items
+type LootMeta struct {
+	Type types.ItemType
+	Uuid uuid.UUID
 }
 
 type DamageType int
@@ -103,17 +110,8 @@ type ActionEffect struct {
 	Uuid     uuid.UUID
 	Meta     any
 	Caster   uuid.UUID
-	Source   EffectSource
+	Source   types.EffectSource
 }
-
-type EffectSource int
-
-const (
-	SOURCE_ND EffectSource = iota
-	SOURCE_PARTY
-	SOURCE_LOCATION
-	SOURCE_ITEM
-)
 
 type ActionEffectHeal struct {
 	Value int
@@ -175,7 +173,8 @@ type Entity interface {
 	GetLoot() []Loot
 	CanDodge() bool
 
-	IsAuto() bool
+	GetFlags() types.EntityFlag
+
 	GetName() string
 	GetUUID() uuid.UUID
 
@@ -226,41 +225,4 @@ type PlayerEntity interface {
 	AppendDerivedStat(types.DerivedStat)
 	SetLevelStat(types.Stat, int)
 	ReduceCooldowns()
-}
-
-type FightEvent interface {
-	GetEvent() FightMessage
-	GetData() any
-}
-
-type FightStartMsg struct{}
-
-func (fsm FightStartMsg) GetEvent() FightMessage {
-	return MSG_FIGHT_START
-}
-
-func (fsm FightStartMsg) GetData() any {
-	return nil
-}
-
-type FightEndMsg struct{}
-
-func (fsm FightEndMsg) GetEvent() FightMessage {
-	return MSG_FIGHT_END
-}
-
-func (fsm FightEndMsg) GetData() any {
-	return nil
-}
-
-type FightActionNeededMsg struct {
-	Entity uuid.UUID
-}
-
-func (fsm FightActionNeededMsg) GetEvent() FightMessage {
-	return MSG_ACTION_NEEDED
-}
-
-func (fsm FightActionNeededMsg) GetData() any {
-	return fsm.Entity
 }

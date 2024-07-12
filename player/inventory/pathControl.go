@@ -9,7 +9,35 @@ import (
 	"github.com/google/uuid"
 )
 
-type CON_LVL_1 struct{ BaseLvlSkill }
+type ControlSkill struct{}
+
+func (skill ControlSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return nil
+}
+
+func (skill ControlSkill) GetPath() types.SkillPath {
+	return types.PathControl
+}
+
+func (skill ControlSkill) GetUUID() uuid.UUID {
+	return uuid.Nil
+}
+
+func (skill ControlSkill) IsLevelSkill() bool {
+	return true
+}
+
+type CON_LVL_1 struct {
+	ControlSkill
+	DefaultCost
+	DefaultActiveTrigger
+	NoEvents
+	NoStats
+}
+
+func (skill CON_LVL_1) GetName() string {
+	return "Poziom 1 - Kontrola"
+}
 
 func (skill CON_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
@@ -35,7 +63,7 @@ func (skill CON_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 }
 
 func (skill CON_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		fightInstance.(*battle.Fight).HandleAction(battle.Action{
 			Event:  battle.ACTION_EFFECT,
 			Target: target.(battle.Entity).GetUUID(),
@@ -55,7 +83,7 @@ func (skill CON_LVL_1) UpgradableExecute(owner, target, fightInstance, meta inte
 
 	}
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 3) {
 		//TODO add slow effect after stun ends
 		fmt.Println("SLOW")
 	}
@@ -82,7 +110,7 @@ func (skill CON_LVL_1) GetCD() int {
 func (skill CON_LVL_1) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		return baseCD - 1
 	}
 
@@ -93,43 +121,37 @@ func (skill CON_LVL_1) GetDescription() string {
 	return "Ogłusza przeciwnika na jedną turę"
 }
 
-func (skill CON_LVL_1) GetPath() types.SkillPath {
-	return types.PathControl
-}
-
 func (skill CON_LVL_1) GetLevel() int {
 	return 1
 }
 
 var CON_LVL_2_UUID = uuid.MustParse("00000000-0001-0000-0000-000000000001")
 
-type CON_LVL_2 struct{ BaseLvlSkill }
-
-func (skill CON_LVL_2) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	return nil
+type CON_LVL_2 struct {
+	ControlSkill
+	NoExecute
+	NoEvents
+	NoTrigger
 }
 
-func (skill CON_LVL_2) GetCD() int {
-	return 0
-}
-
-func (skill CON_LVL_2) GetCooldown(upgrades int) int {
-	return 0
+func (skill CON_LVL_2) GetName() string {
+	return "Poziom 2 - Kontrola"
 }
 
 func (skill CON_LVL_2) GetDescription() string {
 	return "Dostajesz 5 SPD i AGL"
 }
 
-func (skill CON_LVL_2) GetPath() types.SkillPath {
-	return types.PathControl
-}
-
 func (skill CON_LVL_2) GetLevel() int {
 	return 2
 }
 
-type CON_LVL_EFFECT_1 struct{}
+type CON_LVL_EFFECT_1 struct {
+	NoLevel
+	NoCooldown
+	NoEvents
+	NoCost
+}
 
 func (skill CON_LVL_EFFECT_1) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
@@ -169,31 +191,16 @@ func (skill CON_LVL_EFFECT_1) GetName() string {
 	return "Kontrola 2 - Ulepszenie 1"
 }
 
-func (skill CON_LVL_EFFECT_1) GetUUID() uuid.UUID {
-	return uuid.Nil
-}
-
-func (skill CON_LVL_EFFECT_1) GetCost() int {
-	return 0
-}
-
-func (skill CON_LVL_EFFECT_1) IsLevelSkill() bool {
-	return false
-}
-
-func (skill CON_LVL_EFFECT_1) GetCD() int {
-	return 0
-}
-
-func (skill CON_LVL_EFFECT_1) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
-}
-
 func (skill CON_LVL_EFFECT_1) GetDescription() string {
 	return "Po trafieniu spowalnia przeciwnika o 10 SPD"
 }
 
-type CON_LVL_EFFECT_3 struct{}
+type CON_LVL_EFFECT_3 struct {
+	NoLevel
+	NoCooldown
+	NoCost
+	NoEvents
+}
 
 func (skill CON_LVL_EFFECT_3) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
@@ -231,26 +238,6 @@ func (skill CON_LVL_EFFECT_3) GetTrigger() types.Trigger {
 
 func (skill CON_LVL_EFFECT_3) GetName() string {
 	return "Kontrola 2 - Ulepszenie 3"
-}
-
-func (skill CON_LVL_EFFECT_3) GetUUID() uuid.UUID {
-	return uuid.Nil
-}
-
-func (skill CON_LVL_EFFECT_3) GetCost() int {
-	return 0
-}
-
-func (skill CON_LVL_EFFECT_3) IsLevelSkill() bool {
-	return false
-}
-
-func (skill CON_LVL_EFFECT_3) GetCD() int {
-	return 0
-}
-
-func (skill CON_LVL_EFFECT_3) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
 }
 
 func (skill CON_LVL_EFFECT_3) GetDescription() string {
@@ -342,7 +329,7 @@ func (skill CON_LVL_2) GetStats(upgrades int) map[types.Stat]int {
 		types.STAT_AGL: 5,
 	}
 
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		stats[types.STAT_SPD] = 10
 		stats[types.STAT_AGL] = 10
 	}
@@ -350,7 +337,15 @@ func (skill CON_LVL_2) GetStats(upgrades int) map[types.Stat]int {
 	return stats
 }
 
-type CON_LVL_3 struct{ BaseLvlSkill }
+type CON_LVL_3 struct {
+	ControlSkill
+	NoEvents
+	NoStats
+}
+
+func (skill CON_LVL_3) GetName() string {
+	return "Poziom 3 - Kontrola"
+}
 
 func (skill CON_LVL_3) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	target.(battle.PlayerEntity).Cleanse()
@@ -365,7 +360,7 @@ func (skill CON_LVL_3) GetCD() int {
 func (skill CON_LVL_3) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		return baseCD - 1
 	}
 
@@ -376,20 +371,22 @@ func (skill CON_LVL_3) GetDescription() string {
 	return "Usuwa wszystkie negatywne efekty"
 }
 
-func (skill CON_LVL_3) GetPath() types.SkillPath {
-	return types.PathControl
-}
-
 func (skill CON_LVL_3) GetLevel() int {
 	return 3
 }
 
+func (skill CON_LVL_3) GetCost() int {
+	return 1
+}
+
 func (skill CON_LVL_3) GetUpgradableCost(upgrades int) int {
-	if upgrades&(1<<2) == 1 {
+	base := skill.GetCost()
+
+	if HasUpgrade(upgrades, 3) {
 		return 0
 	}
 
-	return 1
+	return base
 }
 
 func (skill CON_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
@@ -415,6 +412,7 @@ func (skill CON_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
+// TODO add ally target
 func (skill CON_LVL_3) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type:  types.TRIGGER_ACTIVE,
@@ -424,9 +422,23 @@ func (skill CON_LVL_3) GetTrigger() types.Trigger {
 	}
 }
 
-type CON_LVL_4 struct{ BaseLvlSkill }
+type CON_LVL_4 struct {
+	ControlSkill
+	DefaultActiveTrigger
+	DefaultCost
+	NoEvents
+	NoStats
+}
+
+func (skill CON_LVL_4) GetName() string {
+	return "Poziom 4 - Kontrola"
+}
 
 type CON_LVL_4_EFFECT struct {
+	NoCooldown
+	NoCost
+	NoLevel
+	NoEvents
 	Ripple  bool
 	CanMiss bool
 }
@@ -462,14 +474,6 @@ func (skill CON_LVL_4_EFFECT) Execute(owner, target, fightInstance, meta interfa
 	return nil
 }
 
-func (skill CON_LVL_4_EFFECT) GetCD() int {
-	return 0
-}
-
-func (skill CON_LVL_4_EFFECT) GetCost() int {
-	return 0
-}
-
 func (skill CON_LVL_4_EFFECT) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
@@ -485,19 +489,7 @@ func (skill CON_LVL_4_EFFECT) GetTrigger() types.Trigger {
 }
 
 func (skill CON_LVL_4_EFFECT) GetName() string {
-	return "Kontrola 4"
-}
-
-func (skill CON_LVL_4_EFFECT) GetUUID() uuid.UUID {
-	return uuid.New()
-}
-
-func (skill CON_LVL_4_EFFECT) IsLevelSkill() bool {
-	return false
-}
-
-func (skill CON_LVL_4_EFFECT) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
+	return "Kontrola 4 - Efekt"
 }
 
 func (skill CON_LVL_4_EFFECT) GetDescription() string {
@@ -507,8 +499,8 @@ func (skill CON_LVL_4_EFFECT) GetDescription() string {
 func (skill CON_LVL_4) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value: CON_LVL_4_EFFECT{
-			Ripple:  upgrades&(1<<0) == 1,
-			CanMiss: upgrades&(1<<1) == 1,
+			Ripple:  HasUpgrade(upgrades, 1),
+			CanMiss: HasUpgrade(upgrades, 2),
 		},
 		Expire:     1,
 		AfterUsage: true,
@@ -527,10 +519,6 @@ func (skill CON_LVL_4) GetCooldown(upgrades int) int {
 
 func (skill CON_LVL_4) GetDescription() string {
 	return "Po trafieniu ataku zmniejsza CD wszystkich umiejętności o 1"
-}
-
-func (skill CON_LVL_4) GetPath() types.SkillPath {
-	return types.PathControl
 }
 
 func (skill CON_LVL_4) GetLevel() int {

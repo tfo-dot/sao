@@ -126,7 +126,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_ADAPTIVE,
 						Value:     10 + (partyMemberCount-1)*5,
@@ -137,7 +137,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_DEF,
 						Value:     25,
@@ -148,7 +148,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_MR,
 						Value:     25,
@@ -159,7 +159,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_HP,
 						Value:     (partyMemberCount - 1) * 5,
@@ -170,7 +170,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_DEF,
 						Value:     (partyMemberCount - 1) * 5,
@@ -181,7 +181,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_MR,
 						Value:     (partyMemberCount - 1) * 5,
@@ -192,7 +192,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				if partyMemberCount > 2 {
 					effects = append(effects, battle.ActionEffect{
 						Effect:   battle.EFFECT_TAUNT,
-						Source:   battle.SOURCE_PARTY,
+						Source:   types.SOURCE_PARTY,
 						Duration: -1,
 						Meta:     nil,
 					})
@@ -201,7 +201,7 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 				effects = append(effects, battle.ActionEffect{
 					Effect:   battle.EFFECT_STAT_INC,
 					Duration: -1,
-					Source:   battle.SOURCE_PARTY,
+					Source:   types.SOURCE_PARTY,
 					Meta: battle.ActionEffectStat{
 						Stat:      types.STAT_HEAL_POWER,
 						Value:     15 + (partyMemberCount-1)*5,
@@ -302,7 +302,7 @@ func (w *World) RegisterFight(fight battle.Fight) uuid.UUID {
 	w.Fights[uuid] = fight
 
 	for _, entity := range fight.Entities {
-		if entity.Entity.IsAuto() {
+		if entity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 			w.Entities[entity.Entity.GetUUID()] = &entity.Entity
 		}
 	}
@@ -341,7 +341,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			allAuto := true
 
 			for _, entity := range wonEntities {
-				if !entity.IsAuto() {
+				if entity.GetFlags()&types.ENTITY_AUTO != 0 {
 					allAuto = false
 					break
 				}
@@ -355,7 +355,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				for _, entity := range wonEntities {
 					wonSideText += fmt.Sprintf("%v", entity.GetName())
 
-					if !entity.IsAuto() {
+					if entity.GetFlags()&types.ENTITY_AUTO != 0 {
 						wonSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
 					}
 
@@ -396,9 +396,9 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					for _, loot := range lootList {
 						switch loot.Type {
 						case battle.LOOT_EXP:
-							overallXp += (*loot.Meta)["value"].(int)
+							overallXp += loot.Count
 						case battle.LOOT_GOLD:
-							overallGold += (*loot.Meta)["value"].(int)
+							overallGold += loot.Count
 						case battle.LOOT_ITEM:
 							lootedItems = append(lootedItems, loot)
 						}
@@ -421,18 +421,18 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					}
 
 					for _, loot := range lootedItems {
-						itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
+						itemUuid := loot.Meta.Uuid
 
-						if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
+						if loot.Meta.Type == types.ITEM_OTHER {
 							itemObj := data.Items[itemUuid]
 
-							itemObj.Count = (*loot.Meta)["count"].(int)
+							itemObj.Count = loot.Count
 
 							partyLeader.Inventory.Items = append(partyLeader.Inventory.Items, &itemObj)
 						} else {
 							ingredient := data.Ingredients[itemUuid]
 
-							ingredient.Count = (*loot.Meta)["count"].(int)
+							ingredient.Count = loot.Count
 
 							partyLeader.Inventory.AddIngredient(&ingredient)
 						}
@@ -441,7 +441,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					for _, entity := range wonEntities {
 						entityUuid := entity.GetUUID()
 
-						if entity.IsAuto() {
+						if entity.GetFlags()&types.ENTITY_AUTO != 0 {
 							continue
 						}
 
@@ -451,18 +451,18 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 						player.AddGold(overallGold)
 
 						for _, loot := range lootedItems {
-							itemUuid := (*loot.Meta)["uuid"].(uuid.UUID)
+							itemUuid := loot.Meta.Uuid
 
-							if (*loot.Meta)["type"].(types.ItemType) == types.ITEM_OTHER {
+							if loot.Meta.Type == types.ITEM_OTHER {
 								itemObj := data.Items[itemUuid]
 
-								itemObj.Count = (*loot.Meta)["count"].(int)
+								itemObj.Count = loot.Count
 
 								player.Inventory.Items = append(player.Inventory.Items, &itemObj)
 							} else {
 								ingredient := data.Ingredients[itemUuid]
 
-								ingredient.Count = (*loot.Meta)["count"].(int)
+								ingredient.Count = loot.Count
 
 								player.Inventory.AddIngredient(&ingredient)
 							}
@@ -476,7 +476,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			for _, entity := range wonEntities {
 				wonSideText += fmt.Sprintf("%v", entity.GetName())
 
-				if !entity.IsAuto() {
+				if entity.GetFlags()&types.ENTITY_AUTO != 0 {
 					wonSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
 				}
 
@@ -510,7 +510,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			for _, entity := range oneSide {
 				oneSideText += fmt.Sprintf("%v", entity.GetName())
-				if !entity.IsAuto() {
+				if entity.GetFlags()&types.ENTITY_AUTO == 0 {
 					oneSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
 				}
 
@@ -524,7 +524,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			for _, entity := range otherSide {
 				otherSideText += fmt.Sprintf("%v", entity.GetName())
 
-				if !entity.IsAuto() {
+				if entity.GetFlags()&types.ENTITY_AUTO == 0 {
 					otherSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
 				}
 
@@ -650,7 +650,7 @@ func (w *World) DeregisterFight(uuid uuid.UUID) {
 	tmp := w.Fights[uuid]
 
 	for _, entity := range tmp.Entities {
-		if !entity.Entity.IsAuto() {
+		if entity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 			entity.Entity.(*player.Player).Meta.FightInstance = nil
 		} else {
 			delete(w.Entities, entity.Entity.GetUUID())
@@ -1130,12 +1130,25 @@ func (w *World) Serialize() map[string]interface{} {
 	storeData := make([]map[string]interface{}, 0)
 
 	for _, store := range w.Stores {
+
+		stocks := make([]map[string]interface{}, 0)
+
+		for _, stock := range store.Stock {
+			stocks = append(stocks, map[string]interface{}{
+				"type":     stock.ItemType,
+				"uuid":     stock.ItemUUID,
+				"quantity": stock.Quantity,
+				"price":    stock.Price,
+				"limit":    stock.Limit,
+			})
+		}
+
 		storeData = append(storeData, map[string]interface{}{
 			"uuid":            store.Uuid,
 			"name":            store.Name,
 			"restockInterval": store.RestockInterval.Serialize(),
 			"lastRestock":     store.LastRestock.Serialize(),
-			"stock":           store.Stock,
+			"stock":           stocks,
 		})
 	}
 
@@ -1145,13 +1158,30 @@ func (w *World) Serialize() map[string]interface{} {
 		tournamentData = append(tournamentData, tournament.Serialize())
 	}
 
+	partyData := make(map[uuid.UUID]map[string]interface{})
+
+	for key, party := range w.Parties {
+		partyData[key] = party.Serialize()
+	}
+
 	return map[string]interface{}{
 		"players":     playerData,
+		"parties":     partyData,
 		"stores":      storeData,
 		"time":        w.Time.Serialize(),
 		"test":        w.TestMode,
 		"tournaments": tournamentData,
 	}
+}
+
+func (w *World) DumpBackup() []byte {
+	jsonFile, err := json.Marshal(w.Serialize())
+
+	if err != nil {
+		panic(err)
+	}
+
+	return jsonFile
 }
 
 func (w *World) CreateBackup() {
@@ -1211,7 +1241,6 @@ func (w *World) LoadBackup() {
 	allBackups, err := os.ReadDir(backupPath)
 
 	if err != nil {
-		//HONESTLY I DON'T KNOW WHAT COULD HAPPEN HERE
 		panic(err)
 	}
 
@@ -1263,7 +1292,41 @@ func (w *World) LoadBackup() {
 		w.Players[player.GetUUID()] = player
 	}
 
-	//TODO Load stores
+	for key, partyData := range backupData["parties"].(map[string]interface{}) {
+		party := party.Deserialize(partyData.(map[string]interface{}))
+
+		w.Parties[uuid.MustParse(key)] = party
+	}
+	w.Stores = make(map[uuid.UUID]*npc.NPCStore)
+
+	for _, sData := range backupData["stores"].([]interface{}) {
+		tempData := sData.(map[string]interface{})
+
+		restock := calendar.Deserialize(tempData["restockInterval"].(map[string]interface{}))
+		lastRestock := calendar.Deserialize(tempData["lastRestock"].(map[string]interface{}))
+
+		stocks := make([]*npc.Stock, 0)
+
+		for _, stockData := range tempData["stock"].([]interface{}) {
+			stock := stockData.(map[string]interface{})
+
+			stocks = append(stocks, &npc.Stock{
+				ItemType: types.ItemType(stock["type"].(int)),
+				ItemUUID: uuid.MustParse(stock["uuid"].(string)),
+				Quantity: stock["quantity"].(int),
+				Price:    stock["price"].(int),
+				Limit:    stock["limit"].(int),
+			})
+		}
+
+		w.Stores[uuid.MustParse(tempData["uuid"].(string))] = &npc.NPCStore{
+			Uuid:            uuid.MustParse(tempData["uuid"].(string)),
+			Name:            tempData["name"].(string),
+			RestockInterval: *restock,
+			LastRestock:     *lastRestock,
+			Stock:           stocks,
+		}
+	}
 
 	for _, tData := range backupData["tournaments"].([]interface{}) {
 		tempData := tData.(map[string]interface{})

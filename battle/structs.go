@@ -118,112 +118,6 @@ func (f *Fight) GetAlliesFor(uuid uuid.UUID) []Entity {
 	return alliesList
 }
 
-func (f *Fight) TriggerPassive(entityUuid uuid.UUID, triggerType types.SkillTrigger, meta interface{}) {
-	entityEntry, exists := f.Entities[entityUuid]
-
-	if !exists {
-		return
-	}
-
-	if entityEntry.Entity.IsAuto() {
-		return
-	}
-
-	sourceEntity := entityEntry.Entity.(PlayerEntity)
-
-	for _, skill := range sourceEntity.GetAllSkills() {
-		if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-			continue
-		}
-
-		if skill.GetTrigger().Event.TriggerType != triggerType {
-			continue
-		}
-
-		//TODO CD for skills that are not lvl bound
-		if skill.IsLevelSkill() {
-			sourceEntity.SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
-		}
-
-		if skill.GetCost() != 0 {
-			sourceEntity.RestoreMana(-skill.GetCost())
-		}
-
-		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.GetTrigger().Event)
-
-		if skill.GetTrigger().Event.TargetCount != -1 {
-			count := skill.GetTrigger().Event.TargetCount
-
-			if count > len(targets) {
-				count = len(targets)
-			}
-
-			targets = targets[:count]
-		}
-
-		var tempFight interface{} = f
-
-		for _, target := range targets {
-			skill.Execute(sourceEntity, f.Entities[target].Entity, &tempFight, meta)
-		}
-	}
-}
-
-func (f *Fight) TriggerPassiveWithCheck(entityUuid uuid.UUID, triggerType types.SkillTrigger, meta interface{}, additionalCheck func(Entity, types.PlayerSkill) bool) {
-	entityEntry, exists := f.Entities[entityUuid]
-
-	if !exists {
-		return
-	}
-
-	if entityEntry.Entity.IsAuto() {
-		return
-	}
-
-	sourceEntity := entityEntry.Entity.(PlayerEntity)
-
-	for _, skill := range sourceEntity.GetAllSkills() {
-		if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-			continue
-		}
-
-		if skill.GetTrigger().Event.TriggerType != triggerType {
-			continue
-		}
-
-		if !additionalCheck(sourceEntity, skill) {
-			continue
-		}
-
-		//TODO handle CD for not lvl skills
-		if skill.IsLevelSkill() {
-			sourceEntity.SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
-		}
-
-		if skill.GetCost() != 0 {
-			sourceEntity.RestoreMana(-skill.GetCost())
-		}
-
-		targets := f.FindValidTargets(sourceEntity.GetUUID(), *skill.GetTrigger().Event)
-
-		if skill.GetTrigger().Event.TargetCount != -1 {
-			count := skill.GetTrigger().Event.TargetCount
-
-			if count > len(targets) {
-				count = len(targets)
-			}
-
-			targets = targets[:count]
-		}
-
-		var tempFight interface{} = f
-
-		for _, target := range targets {
-			skill.Execute(sourceEntity, f.Entities[target].Entity, &tempFight, meta)
-		}
-	}
-}
-
 func (f *Fight) HandleAction(act Action) {
 	channelId := f.Location.CID
 
@@ -259,7 +153,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := tempMeta.(ActionDamage)
 
-		if !sourceEntity.IsAuto() {
+		if sourceEntity.GetFlags()&types.ENTITY_AUTO != 0 {
 			for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
 				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 					continue
@@ -330,7 +224,7 @@ func (f *Fight) HandleAction(act Action) {
 		tempEmbed := discord.NewEmbedBuilder().SetTitle("Atak")
 
 		if !dodged {
-			if !sourceEntity.IsAuto() {
+			if sourceEntity.GetFlags()&types.ENTITY_AUTO != 0 {
 				for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
 					if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 						continue
@@ -353,7 +247,8 @@ func (f *Fight) HandleAction(act Action) {
 				}
 			}
 
-			f.TriggerPassive(act.Target, types.TRIGGER_ATTACK_GOT_HIT, nil)
+			//TODO trigger passive
+			//f.TriggerPassive(act.Target, types.TRIGGER_ATTACK_GOT_HIT, nil)
 
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
@@ -393,21 +288,23 @@ func (f *Fight) HandleAction(act Action) {
 
 				sourceEntity.Heal(value)
 
-				f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+				//TODO trigger passive
+				//f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
 
 				tempEmbed.AddField("Wampyryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
 			}
 
 		} else {
-			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
-			f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
+			//TODO trigger passive
+			// f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
+			// f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
 
 		targetEntity := f.Entities[act.Target]
 
-		if !targetEntity.Entity.IsAuto() {
+		if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
 				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
 					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
@@ -476,12 +373,12 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 
-		f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
+		//f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
 
-		if !entity.Entity.IsAuto() {
+		if entity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 			entity.Entity.(PlayerEntity).SetDefendingState(true)
 
-			f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
+			//f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
 
 			f.HandleAction(Action{
 				Event:  ACTION_EFFECT,
@@ -516,7 +413,7 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_SKILL:
 		sourceEntity := f.Entities[act.Source]
 
-		if !sourceEntity.Entity.IsAuto() {
+		if sourceEntity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 			for _, skill := range sourceEntity.Entity.(PlayerEntity).GetAllSkills() {
 				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 					continue
@@ -552,7 +449,7 @@ func (f *Fight) HandleAction(act Action) {
 					skill.Execute(sourceEntity.Entity, targetEntity, &tempFight, nil)
 
 					//Check if it's dmg skill so it doesn't trigger on heal/barrier etc
-					if !targetEntity.Entity.IsAuto() && beforeSkillHP > targetEntity.Entity.GetCurrentHP() {
+					if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO != 0 && beforeSkillHP > targetEntity.Entity.GetCurrentHP() {
 						if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
 							if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
 								f.HandleAction(Action{
@@ -584,11 +481,11 @@ func (f *Fight) HandleAction(act Action) {
 					return
 				}
 
-				if skillUsageMeta.Lvl%10 != 0 {
-					f.TriggerPassive(act.Source, types.TRIGGER_CAST_LVL, nil)
-				} else {
-					f.TriggerPassive(act.Source, types.TRIGGER_CAST_ULT, nil)
-				}
+				// if skillUsageMeta.Lvl%10 != 0 {
+				// 	f.TriggerPassive(act.Source, types.TRIGGER_CAST_LVL, nil)
+				// } else {
+				// 	f.TriggerPassive(act.Source, types.TRIGGER_CAST_ULT, nil)
+				// }
 
 				var tempFight interface{} = f
 
@@ -626,33 +523,33 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
-		f.TriggerPassive(act.Source, types.TRIGGER_DAMAGE_BEFORE, nil)
+		//f.TriggerPassive(act.Source, types.TRIGGER_DAMAGE_BEFORE, nil)
 
 		if meta.CanDodge && targetEntity.Entity.CanDodge() {
 			targetEntity.Entity.(DodgeEntity).TakeDMGOrDodge(meta)
 
-			f.TriggerPassive(act.Target, types.TRIGGER_DAMAGE_AFTER, nil)
+			//f.TriggerPassive(act.Target, types.TRIGGER_DAMAGE_AFTER, nil)
 		} else {
 			targetEntity.Entity.TakeDMG(meta)
 
-			f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
+			//f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
 		}
 
 		if targetEntity.Entity.GetCurrentHP() <= 0 {
-			f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE, nil)
+			//f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE, nil)
 		}
 
-		f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HEALTH, nil, func(e Entity, ps types.PlayerSkill) bool {
-			hpValue := 0
+		// f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HEALTH, nil, func(e Entity, ps types.PlayerSkill) bool {
+		// 	hpValue := 0
 
-			if ps.GetTrigger().Event.Meta["value"] != nil {
-				hpValue = ps.GetTrigger().Event.Meta["value"].(int)
-			} else {
-				hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetStat(types.STAT_HP) / 100)
-			}
+		// 	if ps.GetTrigger().Event.Meta["value"] != nil {
+		// 		hpValue = ps.GetTrigger().Event.Meta["value"].(int)
+		// 	} else {
+		// 		hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetStat(types.STAT_HP) / 100)
+		// 	}
 
-			return hpValue < e.GetCurrentHP()
-		})
+		// 	return hpValue < e.GetCurrentHP()
+		// })
 	case ACTION_COUNTER:
 		sourceEntityEntry := f.Entities[act.Source]
 		sourceEntity := sourceEntityEntry.Entity
@@ -665,7 +562,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := act.Meta.(ActionDamage)
 
-		if !sourceEntity.IsAuto() {
+		if sourceEntity.GetFlags()&types.ENTITY_AUTO != 0 {
 			for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
 				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 					continue
@@ -736,7 +633,7 @@ func (f *Fight) HandleAction(act Action) {
 		tempEmbed := discord.NewEmbedBuilder().SetTitle("Kontra!")
 
 		if !dodged {
-			if !sourceEntity.IsAuto() {
+			if sourceEntity.GetFlags()&types.ENTITY_AUTO != 0 {
 				for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
 					if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
 						continue
@@ -797,14 +694,14 @@ func (f *Fight) HandleAction(act Action) {
 
 				sourceEntity.Heal(value)
 
-				f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+				//f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
 
 				tempEmbed.AddField("Wampyryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
 			}
 
 		} else {
-			f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
-			f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
+			// f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
+			// f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s chciał skontrować ale nie trafił!", sourceEntity.GetName())
 		}
@@ -816,7 +713,7 @@ func (f *Fight) HandleAction(act Action) {
 
 		targetEntity := f.Entities[act.Target]
 
-		if !targetEntity.Entity.IsAuto() {
+		if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
 			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
 				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
 
@@ -914,7 +811,7 @@ func (f *Fight) HandleAction(act Action) {
 		count := 0
 
 		for _, entity := range entities {
-			if entity.GetCurrentHP() > 0 && !entity.IsAuto() {
+			if entity.GetCurrentHP() > 0 && entity.GetFlags()&types.ENTITY_AUTO != 0 {
 				count++
 			}
 		}
@@ -939,9 +836,10 @@ func (f *Fight) HandleAction(act Action) {
 }
 
 func (f *Fight) TriggerAll(triggerType types.SkillTrigger, meta interface{}) {
-	for entityUuid := range f.Entities {
-		f.TriggerPassive(entityUuid, triggerType, meta)
-	}
+	// for entityUuid := range f.Entities {
+	// 	//TODO trigger passive
+	// 	//f.TriggerPassive(entityUuid, triggerType, meta)
+	// }
 }
 
 func (f *Fight) Init() {
@@ -1053,14 +951,16 @@ func (f *Fight) Run() {
 				continue
 			}
 
-			f.TriggerPassive(entityUuid, types.TRIGGER_TURN, nil)
+			//TODO trigger passive
+			//f.TriggerPassive(entityUuid, types.TRIGGER_TURN, nil)
 
-			if !entity.IsAuto() {
+			if entity.GetFlags()&types.ENTITY_AUTO != 0 {
 				player := entity.(PlayerEntity)
 
 				player.SetDefendingState(false)
 
-				f.TriggerPassive(entityUuid, types.TRIGGER_DEFEND_END, nil)
+				//TODO trigger passive
+				//f.TriggerPassive(entityUuid, types.TRIGGER_DEFEND_END, nil)
 
 				for lvl, cd := range player.GetLevelSkillsCD() {
 					data := player.GetLvlSkill(lvl)

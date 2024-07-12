@@ -167,8 +167,8 @@ func (m *MobEntity) GetAP() int {
 	return 0
 }
 
-func (m *MobEntity) IsAuto() bool {
-	return true
+func (m *MobEntity) GetFlags() types.EntityFlag {
+	return types.ENTITY_AUTO
 }
 
 func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) []battle.Damage {
@@ -389,17 +389,15 @@ func Spawn(id string) *MobEntity {
 	switch id {
 	case "LV0_Rycerz":
 		return &MobEntity{
-			Id:      id,
-			MaxHP:   90,
-			HP:      90,
-			SPD:     40,
-			ATK:     25,
-			Effects: make(EffectList, 0),
-			UUID:    uuid.New(),
-			Props:   make(map[string]interface{}, 0),
-			Loot: []battle.Loot{{
-				Type: battle.LOOT_EXP, Meta: &map[string]interface{}{"value": 55},
-			}},
+			Id:        id,
+			MaxHP:     90,
+			HP:        90,
+			SPD:       40,
+			ATK:       25,
+			Effects:   make(EffectList, 0),
+			UUID:      uuid.New(),
+			Props:     make(map[string]interface{}, 0),
+			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
 			TempSkill: make([]types.WithExpire[types.PlayerSkill], 0),
 		}
 	}

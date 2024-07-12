@@ -8,9 +8,38 @@ import (
 	"github.com/google/uuid"
 )
 
-type DMG_LVL_1 struct{ BaseLvlSkill }
+type DamageSkill struct{}
+
+func (skill DamageSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return nil
+}
+
+func (skill DamageSkill) GetPath() types.SkillPath {
+	return types.PathDamage
+}
+
+func (skill DamageSkill) GetUUID() uuid.UUID {
+	return uuid.Nil
+}
+
+func (skill DamageSkill) IsLevelSkill() bool {
+	return true
+}
+
+type DMG_LVL_1 struct {
+	DamageSkill
+	DefaultCost
+	DefaultActiveTrigger
+	NoEvents
+	NoStats
+}
+
+func (skill DMG_LVL_1) GetName() string {
+	return "Poziom 1 - obrażenia"
+}
 
 type DMG_LVL_1_Effect struct {
+	NoEvents
 	Damage int
 }
 
@@ -59,21 +88,17 @@ func (skill DMG_LVL_1_Effect) Execute(owner, target, fightInstance, meta interfa
 	}
 }
 
-func (skill DMG_LVL_1_Effect) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
-}
-
 func (skill DMG_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	baseIncrease := 10
 	baseDuration := 1
 
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		baseIncrease = 20
 		baseIncrease += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 1)
 		baseIncrease += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 1)
 	}
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 3) {
 		baseDuration++
 	}
 
@@ -93,7 +118,7 @@ func (skill DMG_LVL_1) GetCD() int {
 func (skill DMG_LVL_1) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		return baseCD - 1
 	}
 
@@ -102,10 +127,6 @@ func (skill DMG_LVL_1) GetCooldown(upgrades int) int {
 
 func (skill DMG_LVL_1) GetDescription() string {
 	return "Zwiększa obrażenia o 10 na jedną turę"
-}
-
-func (skill DMG_LVL_1) GetPath() types.SkillPath {
-	return types.PathDamage
 }
 
 func (skill DMG_LVL_1) GetLevel() int {
@@ -135,18 +156,24 @@ func (skill DMG_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-type DMG_LVL_2 struct{ BaseLvlSkill }
+type DMG_LVL_2 struct {
+	DamageSkill
+	NoExecute
+	NoStats
+	NoEvents
+	NoTrigger
+}
 
-func (skill DMG_LVL_2) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	return nil
+func (skill DMG_LVL_2) GetName() string {
+	return "Poziom 2 - obrażenia"
+}
+
+func (skill DMG_LVL_2) GetLevel() int {
+	return 2
 }
 
 func (skill DMG_LVL_2) GetDescription() string {
 	return "Zwiększa otrzymywany atak co poziom o 20"
-}
-
-func (skill DMG_LVL_2) GetPath() types.SkillPath {
-	return types.PathDamage
 }
 
 func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
@@ -205,17 +232,39 @@ func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 }
 
 // TODO ripple effect
-type DMG_LVL_3 struct{ BaseLvlSkill }
+type DMG_LVL_3 struct {
+	DamageSkill
+	DefaultActiveTrigger
+	DefaultCost
+	NoStats
+	NoEvents
+}
+
+func (skill DMG_LVL_3) GetName() string {
+	return "Poziom 3 - obrażenia"
+}
 
 func (skill DMG_LVL_3) GetDescription() string {
 	return "Zadaje dodatkowe 25 obrażeń"
 }
 
-func (skill DMG_LVL_3) GetPath() types.SkillPath {
-	return types.PathDamage
+func (skill DMG_LVL_3) GetLevel() int {
+	return 3
+}
+
+func (skill DMG_LVL_3) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill DMG_LVL_3) GetCooldown(upgrades int) int {
+	return skill.GetCD()
 }
 
 type DMG_LVL_3_Effect struct {
+	NoEvents
+	NoCost
+	NoLevel
+	NoCooldown
 	Damage int
 	Ripple bool
 }
@@ -232,20 +281,8 @@ func (skill DMG_LVL_3_Effect) Execute(owner, target, fightInstance, meta interfa
 	}
 }
 
-func (skill DMG_LVL_3_Effect) GetCD() int {
-	return 0
-}
-
-func (skill DMG_LVL_3_Effect) GetCost() int {
-	return 0
-}
-
 func (skill DMG_LVL_3_Effect) GetDescription() string {
 	return "Zadaje dodatkowe 25 obrażeń"
-}
-
-func (skill DMG_LVL_3_Effect) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return nil
 }
 
 func (skill DMG_LVL_3_Effect) GetName() string {
@@ -265,25 +302,17 @@ func (skill DMG_LVL_3_Effect) GetTrigger() types.Trigger {
 	}
 }
 
-func (skill DMG_LVL_3_Effect) IsLevelSkill() bool {
-	return false
-}
-
-func (skill DMG_LVL_3_Effect) GetUUID() uuid.UUID {
-	return uuid.New()
-}
-
 func (skill DMG_LVL_3) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	baseDamage := 25
-	ripple := upgrades&(1<<1) == 1
+	ripple := HasUpgrade(upgrades, 2)
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		baseDamage = 30
 		baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 2)
 		baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 2)
 	}
 
-	if upgrades&(1<<2) == 1 && len(fightInstance.(*battle.Fight).GetAlliesFor(target.(battle.Entity).GetUUID())) == 0 {
+	if HasUpgrade(upgrades, 3) && len(fightInstance.(*battle.Fight).GetAlliesFor(target.(battle.Entity).GetUUID())) == 0 {
 		baseDamage += utils.PercentOf(baseDamage, 125)
 	}
 
@@ -320,7 +349,7 @@ func (skill DMG_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 }
 
 // TODO rest of it lmao
-type DMG_LVL_4 struct{ BaseLvlSkill }
+type DMG_LVL_4 struct{ DamageSkill }
 
 type DMG_LVL_4_Effect struct {
 	IncreaseValue int

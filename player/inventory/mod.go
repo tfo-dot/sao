@@ -61,8 +61,10 @@ func (inv *PlayerInventory) SerializeItems() []map[string]interface{} {
 func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
 	inv := PlayerInventory{
 		Gold:                int(rawData["gold"].(float64)),
+		TempSkills:          []*types.WithExpire[types.PlayerSkill]{},
 		Items:               []*types.PlayerItem{},
 		Ingredients:         map[uuid.UUID]*types.Ingredient{},
+		Cooldowns:           map[uuid.UUID]int{},
 		LevelSkillsCDS:      map[int]int{},
 		LevelSkills:         map[int]PlayerSkillLevel{},
 		LevelSkillsUpgrades: map[int]int{},

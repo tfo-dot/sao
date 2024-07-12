@@ -1,7 +1,6 @@
 package inventory
 
 import (
-	"fmt"
 	"sao/battle"
 	"sao/types"
 
@@ -64,59 +63,92 @@ var BaseCooldowns = map[int]int{
 	4: 4,
 }
 
-type BaseLvlSkill struct{}
-
-func (skill BaseLvlSkill) IsLevelSkill() bool {
-	return true
+func HasUpgrade(upgrades, check int) bool {
+	return upgrades&(1<<(check-1)) != 0
 }
 
-func (skill BaseLvlSkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type:  types.TRIGGER_ACTIVE,
-		Event: nil,
-	}
-}
+type NoEvents struct{}
 
-func (skill BaseLvlSkill) GetUUID() uuid.UUID {
-	return uuid.Nil
-}
-
-func (skill BaseLvlSkill) GetLevel() int {
-	return 1
-}
-
-func (skill BaseLvlSkill) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
+func (n NoEvents) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
 	return nil
 }
 
-func (skill BaseLvlSkill) GetName() string {
-	return fmt.Sprintf("Poziom %v", skill.GetLevel())
-}
+type NoStats struct{}
 
-func (skill BaseLvlSkill) GetCost() int {
-	return 1
-}
-
-func (skill BaseLvlSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	return nil
-}
-
-func (skill BaseLvlSkill) GetStats(upgrades int) map[types.Stat]int {
+func (n NoStats) GetStats(upgrades int) map[types.Stat]int {
 	return map[types.Stat]int{}
 }
 
-func (skill BaseLvlSkill) GetUpgradableCost(upgrades int) int {
+type DefaultCost struct{}
+
+func (d DefaultCost) GetCost() int {
 	return 1
 }
 
-func (skill BaseLvlSkill) GetCooldown(upgrades int) int {
+func (d DefaultCost) GetUpgradableCost(upgrades int) int {
+	return 1
+}
+
+type DefaultActiveTrigger struct{}
+
+func (d DefaultActiveTrigger) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE}
+}
+
+type NoTrigger struct{}
+
+func (n NoTrigger) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_TYPE_NONE}
+}
+
+type NoExecute struct{}
+
+func (n NoExecute) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+	return nil
+}
+
+func (n NoExecute) GetCD() int {
 	return 0
 }
 
-func (skill BaseLvlSkill) GetCD() int {
-	if cd, ok := BaseCooldowns[skill.GetLevel()]; ok {
-		return cd
-	}
+func (n NoExecute) GetCooldown(upgrades int) int {
+	return 0
+}
 
+func (n NoExecute) GetCost() int {
+	return 0
+}
+
+func (n NoExecute) GetUpgradableCost(upgrades int) int {
+	return 0
+}
+
+type NoCost struct{}
+
+func (n NoCost) GetCost() int {
+	return 0
+}
+
+func (n NoCost) GetUpgradableCost(upgrades int) int {
+	return 0
+}
+
+type NoLevel struct{}
+
+func (n NoLevel) IsLevelSkill() bool {
+	return false
+}
+
+func (n NoLevel) GetUUID() uuid.UUID {
+	return uuid.New()
+}
+
+type NoCooldown struct{}
+
+func (n NoCooldown) GetCD() int {
+	return 0
+}
+
+func (n NoCooldown) GetCooldown(upgrades int) int {
 	return 0
 }

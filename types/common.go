@@ -65,3 +65,26 @@ const (
 	ADAPTIVE_DEF AdaptiveRes = iota
 	ADAPTIVE_RES
 )
+
+type EffectSource int
+
+const (
+	SOURCE_ND EffectSource = iota
+	SOURCE_PARTY
+	SOURCE_LOCATION
+	SOURCE_ITEM
+)
+
+type EntityFlag int
+
+const (
+	ENTITY_AUTO EntityFlag = 1 << iota
+	ENTITY_SUMMON
+)
+
+var PathToString = map[SkillPath]string{
+	PathControl:   "Kontrola",
+	PathDamage:    "Obrażenia",
+	PathEndurance: "Wytrzymałość",
+	PathSpecial:   "Specjalista",
+}

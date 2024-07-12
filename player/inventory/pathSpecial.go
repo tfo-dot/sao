@@ -4,19 +4,49 @@ import (
 	"sao/battle"
 	"sao/types"
 	"sao/utils"
+
+	"github.com/google/uuid"
 )
 
-type SPC_LVL_1 struct{ BaseLvlSkill }
+type SpecialSkill struct{}
+
+func (skill SpecialSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return nil
+}
+
+func (skill SpecialSkill) GetPath() types.SkillPath {
+	return types.PathSpecial
+}
+
+func (skill SpecialSkill) GetUUID() uuid.UUID {
+	return uuid.Nil
+}
+
+func (skill SpecialSkill) IsLevelSkill() bool {
+	return true
+}
+
+type SPC_LVL_1 struct {
+	SpecialSkill
+	DefaultCost
+	NoEvents
+	NoStats
+	DefaultActiveTrigger
+}
+
+func (skill SPC_LVL_1) GetName() string {
+	return "Poziom 1 - Specjalista"
+}
 
 func (skill SPC_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	baseIncrease := 10
 	baseDuration := 1
 
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		baseIncrease = 12
 	}
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 3) {
 		baseDuration++
 	}
 
@@ -51,7 +81,7 @@ func (skill SPC_LVL_1) GetCD() int {
 func (skill SPC_LVL_1) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		return baseCD - 1
 	}
 
@@ -60,10 +90,6 @@ func (skill SPC_LVL_1) GetCooldown(upgrades int) int {
 
 func (skill SPC_LVL_1) GetDescription() string {
 	return "Zwiększa losowy atrybut o 10% na jedną turę"
-}
-
-func (skill SPC_LVL_1) GetPath() types.SkillPath {
-	return types.PathSpecial
 }
 
 func (skill SPC_LVL_1) GetLevel() int {
@@ -93,26 +119,19 @@ func (skill SPC_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-type SPC_LVL_2 struct{ BaseLvlSkill }
-
-func (skill SPC_LVL_2) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	return nil
+type SPC_LVL_2 struct {
+	SpecialSkill
+	NoExecute
+	NoEvents
+	NoTrigger
 }
 
-func (skill SPC_LVL_2) GetCD() int {
-	return 0
-}
-
-func (skill SPC_LVL_2) GetCooldown(upgrades int) int {
-	return 0
+func (skill SPC_LVL_2) GetName() string {
+	return "Poziom 2 - Specjalista"
 }
 
 func (skill SPC_LVL_2) GetDescription() string {
 	return "Dostajesz 5 kradzieży życia"
-}
-
-func (skill SPC_LVL_2) GetPath() types.SkillPath {
-	return types.PathSpecial
 }
 
 func (skill SPC_LVL_2) GetLevel() int {
@@ -127,15 +146,15 @@ func (skill SPC_LVL_2) GetStats(upgrades int) map[types.Stat]int {
 	vampValue := 5
 	vampType := types.STAT_ATK_VAMP
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		vampType = types.STAT_OMNI_VAMP
 	}
 
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		vampValue = 10
 	}
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 3) {
 		stats[types.STAT_HEAL_SELF] = 20
 	}
 
@@ -167,17 +186,27 @@ func (skill SPC_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-type SPC_LVL_3 struct{ BaseLvlSkill }
+type SPC_LVL_3 struct {
+	SpecialSkill
+	DefaultCost
+	NoEvents
+	NoStats
+	DefaultActiveTrigger
+}
+
+func (skill SPC_LVL_3) GetName() string {
+	return "Poziom 3 - Specjalista"
+}
 
 func (skill SPC_LVL_3) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	baseDmg := 25
 	baseHeal := 20
 
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		baseDmg = utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 2) + utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 2)
 	}
 
-	if upgrades&(1<<2) == 1 {
+	if HasUpgrade(upgrades, 3) {
 		baseHeal = 25
 	}
 
@@ -219,7 +248,7 @@ func (skill SPC_LVL_3) GetCD() int {
 func (skill SPC_LVL_3) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		return baseCD - 1
 	}
 
@@ -228,10 +257,6 @@ func (skill SPC_LVL_3) GetCooldown(upgrades int) int {
 
 func (skill SPC_LVL_3) GetDescription() string {
 	return "Zadaje 25 obrażeń i leczy o 20% tej wartości"
-}
-
-func (skill SPC_LVL_3) GetPath() types.SkillPath {
-	return types.PathSpecial
 }
 
 func (skill SPC_LVL_3) GetLevel() int {
@@ -261,7 +286,16 @@ func (skill SPC_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-type SPC_LVL_4 struct{ BaseLvlSkill }
+type SPC_LVL_4 struct {
+	SpecialSkill
+	NoEvents
+	NoStats
+	DefaultActiveTrigger
+}
+
+func (skill SPC_LVL_4) GetName() string {
+	return "Poziom 4 - Specjalista"
+}
 
 func (skill SPC_LVL_4) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	tempSkill := target.(battle.PlayerEntity).GetLvlSkill(meta.(types.SkillChoice).Choice)
@@ -269,7 +303,7 @@ func (skill SPC_LVL_4) UpgradableExecute(owner, target, fightInstance, meta inte
 	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value:      tempSkill,
 		Expire:     1,
-		AfterUsage: upgrades&(1<<2) == 1,
+		AfterUsage: HasUpgrade(upgrades, 3),
 	})
 
 	return nil
@@ -282,7 +316,7 @@ func (skill SPC_LVL_4) GetCD() int {
 func (skill SPC_LVL_4) GetCooldown(upgrades int) int {
 	baseCD := skill.GetCD()
 
-	if upgrades&(1<<0) == 1 {
+	if HasUpgrade(upgrades, 1) {
 		return baseCD - 1
 	}
 
@@ -290,11 +324,7 @@ func (skill SPC_LVL_4) GetCooldown(upgrades int) int {
 }
 
 func (skill SPC_LVL_4) GetDescription() string {
-	return "Używa umiejętności sojusznika"
-}
-
-func (skill SPC_LVL_4) GetPath() types.SkillPath {
-	return types.PathSpecial
+	return "Pożycza umiejętność sojusznika"
 }
 
 func (skill SPC_LVL_4) GetLevel() int {
@@ -325,7 +355,7 @@ func (skill SPC_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 }
 
 func (skill SPC_LVL_4) GetUpgradableCost(upgrades int) int {
-	if upgrades&(1<<1) == 1 {
+	if HasUpgrade(upgrades, 2) {
 		return 1
 	}
 
