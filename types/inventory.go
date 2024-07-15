@@ -258,3 +258,10 @@ type DerivedStat struct {
 type SkillChoice struct {
 	Choice int
 }
+
+type DelayedAction struct {
+	Target  uuid.UUID
+	Execute func(owner, fightInstance interface{})
+	//TODO pass event default: TRIGGER_TURN
+	Turns int
+}

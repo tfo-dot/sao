@@ -221,7 +221,11 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			lvlText += fmt.Sprintf(" %d/%d", playerChar.XP.Exp, (playerChar.XP.Level*100)+100)
 		}
 
-		//TODO show derived stats
+		derivedStatsText := ""
+
+		for _, stat := range playerChar.DynamicStats {
+			derivedStatsText += fmt.Sprintf("- +%d%s %% jako %s\n", stat.Percent, types.StatToString[stat.Base], types.StatToString[stat.Derived])
+		}
 
 		event.CreateMessage(
 			discord.NewMessageCreateBuilder().
@@ -240,6 +244,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						AddField("SPD/AGL", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_SPD), playerChar.GetStat(types.STAT_AGL)), true).
 						AddField("W walce?", inFightText, true).
 						AddField("W party?", inPartyText, true).
+						AddField("Dynamiczne statystyki", derivedStatsText, true).
 						Build(),
 				).
 				Build(),

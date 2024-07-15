@@ -437,6 +437,7 @@ func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
 	return true
 }
 
+// TODO rewrite it so it knows what type of skill what used (uuid moment)
 func (p *Player) GetAllSkills() []types.PlayerSkill {
 	tempArr := make([]types.PlayerSkill, 0)
 
@@ -548,9 +549,113 @@ func (p *Player) GetStat(stat types.Stat) int {
 		}
 	}
 
-	//TODO adaptive stats
+	if stat == types.STAT_AD || stat == types.STAT_AP {
+		adaptive := p.GetStat(types.STAT_ADAPTIVE)
+
+		if adaptive > 0 {
+			adaptiveType := p.GetAdaptiveAttackType()
+
+			if adaptiveType == types.ADAPTIVE_ATK && stat == types.STAT_AD {
+				statValue += adaptive
+			}
+
+			if adaptiveType == types.ADAPTIVE_AP && stat == types.STAT_AP {
+				statValue += adaptive
+			}
+		}
+	}
+
+	baseStat := statValue + (statValue * percentValue / 100)
+
+	if stat == types.STAT_AD || stat == types.STAT_AP {
+		adaptive := p.GetStat(types.STAT_ADAPTIVE_PERCENT)
+
+		if adaptive > 0 {
+			adaptiveType := p.GetAdaptiveAttackType()
+
+			if adaptiveType == types.ADAPTIVE_ATK && stat == types.STAT_AD {
+				baseStat += utils.PercentOf(baseStat, adaptive)
+			}
+
+			if adaptiveType == types.ADAPTIVE_AP && stat == types.STAT_AP {
+				baseStat += utils.PercentOf(baseStat, adaptive)
+			}
+		}
+	}
+	return baseStat
+}
+
+func (p *Player) GetRawStat(stat types.Stat) int {
+	switch stat {
+	case types.STAT_MANA_PLUS:
+		return p.GetDefaultStat(types.STAT_MANA) - p.GetStat(types.STAT_MANA)
+	case types.STAT_HP_PLUS:
+		return p.GetDefaultStat(types.STAT_HP) + ((p.XP.Level - 1) * 10) - p.GetStat(types.STAT_HP)
+	}
+
+	statValue := p.GetDefaultStat(stat)
+	percentValue := 0
+
+	for _, effect := range p.GetAllEffects() {
+		if effect.Effect == battle.EFFECT_STAT_INC {
+
+			if value, ok := effect.Meta.(battle.ActionEffectStat); ok {
+				if value.Stat != stat {
+					continue
+				}
+
+				if value.IsPercent {
+					percentValue += value.Value
+				} else {
+					statValue += value.Value
+				}
+			}
+		}
+
+		if effect.Effect == battle.EFFECT_STAT_DEC {
+
+			if value, ok := effect.Meta.(battle.ActionEffectStat); ok {
+				if value.Stat != stat {
+					continue
+				}
+
+				if value.IsPercent {
+					percentValue -= value.Value
+				} else {
+					statValue -= value.Value
+				}
+			}
+		}
+	}
+
+	if value, ok := p.LevelStats[stat]; ok {
+		statValue += ((p.XP.Level - 1) * value)
+	}
+
+	statValue += p.Inventory.GetStat(stat)
+
+	if p.Meta.Fury != nil {
+		statValue += p.Meta.Fury.GetStat(stat)
+	}
+
+	for _, effect := range p.DynamicStats {
+		if effect.Derived == stat {
+			statValue += utils.PercentOf(p.GetStat(effect.Base), effect.Percent)
+		}
+	}
 
 	return statValue + (statValue * percentValue / 100)
+}
+
+func (p *Player) GetAdaptiveAttackType() types.AdaptiveAttackType {
+	adStat := p.GetRawStat(types.STAT_AD)
+	apStat := p.GetRawStat(types.STAT_AP)
+
+	if apStat > adStat {
+		return types.ADAPTIVE_AP
+	}
+
+	return types.ADAPTIVE_ATK
 }
 
 func (p *Player) Cleanse() {
@@ -642,9 +747,10 @@ func (p *Player) SetLevelStat(stat types.Stat, value int) {
 	p.LevelStats[stat] = value
 }
 
-func (p *Player) ReduceCooldowns() {
+func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
 	for skill, cd := range p.Inventory.Cooldowns {
 		//TODO check if skill has different cd pass event trigger
+		//TODO check if this is even used
 		if cd > 0 {
 			p.Inventory.Cooldowns[skill]--
 		}
@@ -654,12 +760,46 @@ func (p *Player) ReduceCooldowns() {
 		skillData := p.Inventory.LevelSkills[skill]
 		cdMeta := skillData.GetTrigger().Cooldown
 
-		if cdMeta == nil || cdMeta.PassEvent != types.TRIGGER_TURN {
+		if cdMeta == nil || cdMeta.PassEvent != event {
 			continue
 		}
 
 		if cd > 0 {
 			p.Inventory.LevelSkillsCDS[skill]--
+		}
+	}
+}
+
+// TODO Supply all data to the events
+// TODO add cooldowns
+// TODO returns meta effect (used for example in TRIGGER_ATTACK_ATTEMPT)
+// TODO skill costs
+func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) {
+	for _, item := range p.Inventory.Items {
+		for _, effect := range item.Effects {
+			trigger := effect.GetTrigger()
+
+			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
+				effect.Execute(p, nil, nil, meta)
+			}
+		}
+	}
+
+	for _, skill := range p.Inventory.LevelSkills {
+		trigger := skill.GetTrigger()
+
+		if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
+			skill.Execute(p, nil, nil, meta)
+		}
+	}
+
+	if p.Meta.Fury != nil {
+		for _, skill := range p.Meta.Fury.GetSkills() {
+			trigger := skill.GetTrigger()
+
+			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
+				skill.Execute(p, nil, nil, meta)
+			}
 		}
 	}
 }

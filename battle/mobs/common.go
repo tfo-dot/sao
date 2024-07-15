@@ -171,6 +171,8 @@ func (m *MobEntity) GetFlags() types.EntityFlag {
 	return types.ENTITY_AUTO
 }
 
+func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, target interface{}) {}
+
 func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) []battle.Damage {
 	dmgStats := []battle.Damage{
 		{Value: 0, Type: battle.DMG_PHYSICAL},

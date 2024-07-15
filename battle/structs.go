@@ -23,6 +23,7 @@ type Fight struct {
 	Location        *location.Location
 	Tournament      *TournamentData
 	AdditionalLoot  []types.WithTarget[Loot]
+	DelayedActions  []types.DelayedAction
 	PlayerActions   chan Action
 }
 
@@ -95,6 +96,10 @@ func (f *Fight) AddAdditionalLoot(loot Loot, source uuid.UUID, teamWide bool) {
 			Target: source,
 		},
 	)
+}
+
+func (f *Fight) AddDelayedAction(act types.DelayedAction) {
+	f.DelayedActions = append(f.DelayedActions, act)
 }
 
 func (f *Fight) IsFinished() bool {
@@ -176,41 +181,8 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := tempMeta.(ActionDamage)
 
-		if sourceEntity.GetFlags()&types.ENTITY_AUTO == 0 {
-			for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
-				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-					continue
-				}
-
-				if skill.GetTrigger().Event.TriggerType != types.TRIGGER_ATTACK_BEFORE {
-					continue
-				}
-
-				//TODO CD for skills that are not lvl bound
-				if skill.IsLevelSkill() {
-					sourceEntity.(PlayerEntity).SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
-				}
-
-				if skill.GetCost() != 0 {
-					sourceEntity.RestoreMana(-skill.GetCost())
-				}
-
-				eventData := skill.Execute(sourceEntity, f.Entities[act.Target].Entity, &f, meta)
-
-				if eventData != nil {
-					castMeta := make([]Damage, len(eventData.(types.AttackTriggerMeta).Effects))
-
-					for idx, effect := range eventData.(types.AttackTriggerMeta).Effects {
-						castMeta[idx] = Damage{
-							Value:     effect.Value,
-							Type:      DamageType(effect.Type),
-							IsPercent: effect.Percent,
-						}
-					}
-					meta.Damage = append(meta.Damage, castMeta...)
-				}
-			}
-		}
+		//TODO Update when TriggerEvent is updated
+		sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_BEFORE, meta)
 
 		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
 			if left.IsPercent && !right.IsPercent {
@@ -247,37 +219,14 @@ func (f *Fight) HandleAction(act Action) {
 		tempEmbed := discord.NewEmbedBuilder().SetTitle("Atak")
 
 		if !dodged {
-			if sourceEntity.GetFlags()&types.ENTITY_AUTO == 0 {
-				for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
-					if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-						continue
-					}
-
-					if skill.GetTrigger().Event.TriggerType != types.TRIGGER_ATTACK_HIT {
-						continue
-					}
-
-					//TODO CD for skills that are not lvl bound
-					if skill.IsLevelSkill() {
-						sourceEntity.(PlayerEntity).SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
-					}
-
-					if skill.GetCost() != 0 {
-						sourceEntity.RestoreMana(-skill.GetCost())
-					}
-
-					skill.Execute(sourceEntity, f.Entities[act.Target].Entity, &f, meta)
-				}
-			}
-
-			//TODO trigger passive
-			//f.TriggerPassive(act.Target, types.TRIGGER_ATTACK_GOT_HIT, nil)
+			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_HIT, meta)
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, nil)
 
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
-			tempEmbed.SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
-
-			tempEmbed.SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum)
+			tempEmbed.
+				SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName()).
+				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum)
 
 			dmgText := ""
 
@@ -311,16 +260,14 @@ func (f *Fight) HandleAction(act Action) {
 
 				sourceEntity.Heal(value)
 
-				//TODO trigger passive
-				//f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
 
 				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
 			}
 
 		} else {
-			//TODO trigger passive
-			// f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
-			// f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
+			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, nil)
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
@@ -396,12 +343,10 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 
-		//f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
+		entity.Entity.TriggerEvent(types.TRIGGER_DEFEND_START, nil)
 
 		if entity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
 			entity.Entity.(PlayerEntity).SetDefendingState(true)
-
-			//f.TriggerPassive(act.Source, types.TRIGGER_DEFEND_START, nil)
 
 			f.HandleAction(Action{
 				Event:  ACTION_EFFECT,
@@ -437,53 +382,10 @@ func (f *Fight) HandleAction(act Action) {
 		sourceEntity := f.Entities[act.Source]
 
 		if sourceEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
-			for _, skill := range sourceEntity.Entity.(PlayerEntity).GetAllSkills() {
-				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-					continue
-				}
+			//TODO Update when TriggerEvent is updated
+			sourceEntity.Entity.TriggerEvent(types.TRIGGER_MANA, nil)
 
-				if skill.GetTrigger().Event.TriggerType != types.TRIGGER_MANA {
-					continue
-				}
-
-				if skill.GetTrigger().Event.Meta["value"].(int) > sourceEntity.Entity.GetCurrentMana() {
-					continue
-				}
-
-				targets := f.FindValidTargets(sourceEntity.Entity.GetUUID(), *skill.GetTrigger().Event)
-
-				for _, target := range targets {
-					targetEntity := f.Entities[target]
-
-					beforeSkillHP := targetEntity.Entity.GetCurrentHP()
-
-					var tempFight interface{} = f
-
-					skill.Execute(sourceEntity.Entity, targetEntity, &tempFight, nil)
-
-					//Check if it's dmg skill so it doesn't trigger on heal/barrier etc
-					if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 && beforeSkillHP > targetEntity.Entity.GetCurrentHP() {
-						if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-							if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
-								f.HandleAction(Action{
-									Event:  ACTION_ATTACK,
-									Source: act.Target,
-									Target: act.Source,
-									Meta: ActionDamage{
-										Damage: []Damage{{
-											Value:    targetEntity.Entity.GetStat(types.STAT_AD),
-											Type:     DMG_PHYSICAL,
-											CanDodge: true,
-										}},
-										CanDodge: true,
-									},
-								})
-
-							}
-						}
-					}
-				}
-			}
+			//TODO add counter to damage
 
 			skillUsageMeta := act.Meta.(ActionSkillMeta)
 
@@ -494,11 +396,11 @@ func (f *Fight) HandleAction(act Action) {
 					return
 				}
 
-				// if skillUsageMeta.Lvl%10 != 0 {
-				// 	f.TriggerPassive(act.Source, types.TRIGGER_CAST_LVL, nil)
-				// } else {
-				// 	f.TriggerPassive(act.Source, types.TRIGGER_CAST_ULT, nil)
-				// }
+				if skillUsageMeta.Lvl%10 != 0 {
+					sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_LVL, nil)
+				} else {
+					sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_ULT, nil)
+				}
 
 				var tempFight interface{} = f
 
@@ -529,6 +431,7 @@ func (f *Fight) HandleAction(act Action) {
 			}
 		}
 	case ACTION_DMG:
+		//TODO this whole event is a mess
 		targetEntity := f.Entities[act.Target]
 		meta := act.Meta.(ActionDamage)
 
@@ -536,23 +439,23 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
-		//f.TriggerPassive(act.Source, types.TRIGGER_DAMAGE_BEFORE, nil)
+		f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE_BEFORE, nil)
 
 		if meta.CanDodge && targetEntity.Entity.CanDodge() {
 			targetEntity.Entity.(DodgeEntity).TakeDMGOrDodge(meta)
 
-			//f.TriggerPassive(act.Target, types.TRIGGER_DAMAGE_AFTER, nil)
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE_AFTER, nil)
 		} else {
 			targetEntity.Entity.TakeDMG(meta)
 
-			//f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE, nil)
 		}
 
 		if targetEntity.Entity.GetCurrentHP() <= 0 {
-			println("DEAD")
-			//f.TriggerPassive(act.Source, types.TRIGGER_EXECUTE, nil)
+			f.Entities[act.Source].Entity.TriggerEvent(types.TRIGGER_EXECUTE, nil)
 		}
 
+		//TODO event with check
 		// f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HEALTH, nil, func(e Entity, ps types.PlayerSkill) bool {
 		// 	hpValue := 0
 
@@ -576,41 +479,8 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := act.Meta.(ActionDamage)
 
-		if sourceEntity.GetFlags()&types.ENTITY_AUTO == 0 {
-			for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
-				if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-					continue
-				}
-
-				if skill.GetTrigger().Event.TriggerType != types.TRIGGER_COUNTER_ATTEMPT {
-					continue
-				}
-
-				//TODO CD for skills that are not lvl bound
-				if skill.IsLevelSkill() {
-					sourceEntity.(PlayerEntity).SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
-				}
-
-				if skill.GetCost() != 0 {
-					sourceEntity.RestoreMana(-skill.GetCost())
-				}
-
-				eventData := skill.Execute(sourceEntity, f.Entities[act.Target].Entity, &f, meta)
-
-				if eventData != nil {
-					castMeta := make([]Damage, len(eventData.(types.AttackTriggerMeta).Effects))
-
-					for idx, effect := range eventData.(types.AttackTriggerMeta).Effects {
-						castMeta[idx] = Damage{
-							Value:     effect.Value,
-							Type:      DamageType(effect.Type),
-							IsPercent: effect.Percent,
-						}
-					}
-					meta.Damage = append(meta.Damage, castMeta...)
-				}
-			}
-		}
+		//TODO Update when TriggerEvent is updated
+		sourceEntity.TriggerEvent(types.TRIGGER_COUNTER_ATTEMPT, nil)
 
 		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
 			if left.IsPercent && !right.IsPercent {
@@ -647,34 +517,13 @@ func (f *Fight) HandleAction(act Action) {
 		tempEmbed := discord.NewEmbedBuilder().SetTitle("Kontra!")
 
 		if !dodged {
-			if sourceEntity.GetFlags()&types.ENTITY_AUTO == 0 {
-				for _, skill := range sourceEntity.(PlayerEntity).GetAllSkills() {
-					if skill.GetTrigger().Type == types.TRIGGER_ACTIVE {
-						continue
-					}
-
-					if skill.GetTrigger().Event.TriggerType != types.TRIGGER_ATTACK_HIT {
-						continue
-					}
-
-					//TODO CD for skills that are not lvl bound
-					if skill.IsLevelSkill() {
-						sourceEntity.(PlayerEntity).SetLvlCD(skill.(types.PlayerSkillLevel).GetLevel(), skill.GetCD())
-					}
-
-					if skill.GetCost() != 0 {
-						sourceEntity.RestoreMana(-skill.GetCost())
-					}
-
-					skill.Execute(sourceEntity, f.Entities[act.Target].Entity, &f, meta)
-				}
-			}
+			sourceEntity.TriggerEvent(types.TRIGGER_COUNTER_HIT, meta)
 
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
-			tempEmbed.SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
-
-			tempEmbed.SetDescriptionf("Zadano łącznie %d obrażeń", dmgSum)
+			tempEmbed.
+				SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName()).
+				SetDescriptionf("Zadano łącznie %d obrażeń", dmgSum)
 
 			dmgText := ""
 
@@ -708,14 +557,14 @@ func (f *Fight) HandleAction(act Action) {
 
 				sourceEntity.Heal(value)
 
-				//f.TriggerPassive(act.Source, types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
 
 				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
 			}
 
 		} else {
-			// f.TriggerPassive(act.Source, types.TRIGGER_ATTACK_MISS, nil)
-			// f.TriggerPassive(act.Target, types.TRIGGER_DODGE, nil)
+			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, nil)
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s chciał skontrować ale nie trafił!", sourceEntity.GetName())
 		}
@@ -861,10 +710,9 @@ func (f *Fight) HandleAction(act Action) {
 }
 
 func (f *Fight) TriggerAll(triggerType types.SkillTrigger, meta interface{}) {
-	// for entityUuid := range f.Entities {
-	// 	//TODO trigger passive
-	// 	//f.TriggerPassive(entityUuid, triggerType, meta)
-	// }
+	for _, entityEntry := range f.Entities {
+		entityEntry.Entity.TriggerEvent(triggerType, meta)
+	}
 }
 
 func (f *Fight) Init() {
@@ -976,44 +824,24 @@ func (f *Fight) Run() {
 				continue
 			}
 
-			//TODO trigger passive
-			//f.TriggerPassive(entityUuid, types.TRIGGER_TURN, nil)
+			for idx, action := range f.DelayedActions {
+				if action.Target == entity.GetUUID() {
+					f.DelayedActions[idx].Turns--
+				}
+
+				if action.Turns == 0 {
+					action.Execute(entity, f)
+				}
+			}
+
+			entity.TriggerEvent(types.TRIGGER_TURN, nil)
 
 			if entity.GetFlags()&types.ENTITY_AUTO == 0 {
-				player := entity.(PlayerEntity)
+				entity.(PlayerEntity).SetDefendingState(false)
 
-				player.SetDefendingState(false)
+				entity.TriggerEvent(types.TRIGGER_DEFEND_END, nil)
 
-				//TODO trigger passive
-				//f.TriggerPassive(entityUuid, types.TRIGGER_DEFEND_END, nil)
-
-				for lvl, cd := range player.GetLevelSkillsCD() {
-					data := player.GetLvlSkill(lvl)
-
-					if cdMeta := data.GetTrigger().Cooldown; cdMeta != nil {
-						if cdMeta.PassEvent != types.TRIGGER_TURN {
-							//TODO not default event
-							continue
-						}
-					}
-
-					player.SetLvlCD(lvl, cd-1)
-				}
-
-				for sUuid, cd := range player.GetSkillsCD() {
-
-					data := player.GetSkill(sUuid)
-
-					if cdMeta := data.GetTrigger().Cooldown; cdMeta != nil {
-						if cdMeta.PassEvent != types.TRIGGER_TURN {
-							//TODO not default event
-							continue
-						}
-					}
-
-					player.SetCD(sUuid, cd-1)
-
-				}
+				entity.(PlayerEntity).ReduceCooldowns(types.TRIGGER_TURN)
 
 				f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
 				f.HandleAction(<-f.PlayerActions)

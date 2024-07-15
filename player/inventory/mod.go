@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"errors"
-	"fmt"
 	"sao/battle"
 	"sao/data"
 	"sao/types"
@@ -26,7 +25,7 @@ func (inv *PlayerInventory) AddTempSkill(skill types.WithExpire[types.PlayerSkil
 }
 
 func (inv *PlayerInventory) Serialize() map[string]interface{} {
-
+	//TODO finish this
 	lvlSkills := make([]int, 0)
 
 	for key := range inv.LevelSkills {
@@ -35,7 +34,7 @@ func (inv *PlayerInventory) Serialize() map[string]interface{} {
 
 	return map[string]interface{}{
 		"gold":        inv.Gold,
-		"items":       inv.SerializeItems(),
+		"items":       []*types.PlayerItem{},
 		"ingredients": inv.Ingredients,
 		"skills": map[string]interface{}{
 			"skills":   lvlSkills,
@@ -43,19 +42,6 @@ func (inv *PlayerInventory) Serialize() map[string]interface{} {
 			"cds":      inv.LevelSkillsCDS,
 		},
 	}
-}
-
-func (inv *PlayerInventory) SerializeItems() []map[string]interface{} {
-	items := []map[string]interface{}{}
-
-	for _, item := range inv.Items {
-		items = append(items, map[string]interface{}{
-			"uuid":  item.UUID,
-			"count": item.Count,
-		})
-	}
-
-	return items
 }
 
 func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
@@ -212,7 +198,7 @@ func (inv *PlayerInventory) UnlockSkill(path types.SkillPath, lvl int, playerLvl
 	if len(skill) == 1 {
 		inv.LevelSkills[lvl] = skill[0]
 	} else {
-		fmt.Println("Multiple options")
+		panic("Multiple options")
 		//TODO: Implement skill selection
 	}
 

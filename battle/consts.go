@@ -196,6 +196,7 @@ type Entity interface {
 	TriggerAllEffects() []ActionEffect
 
 	AppendTempSkill(types.WithExpire[types.PlayerSkill])
+	TriggerEvent(types.SkillTrigger, interface{})
 }
 
 type DodgeEntity interface {
@@ -235,5 +236,5 @@ type PlayerEntity interface {
 	AppendDerivedStat(types.DerivedStat)
 	SetLevelStat(types.Stat, int)
 	GetDefaultStat(types.Stat) int
-	ReduceCooldowns()
+	ReduceCooldowns(types.SkillTrigger)
 }

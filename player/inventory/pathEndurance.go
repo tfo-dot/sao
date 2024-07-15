@@ -481,7 +481,6 @@ func (skill END_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
 }
 
 func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-
 	enemiesCount := len(fightInstance.(*battle.Fight).GetEnemiesFor(owner.(battle.PlayerEntity).GetUUID()))
 
 	baseShield := 25
@@ -496,8 +495,9 @@ func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 		duration++
 	}
 
-	//TODO heal upgrade
+	shieldUuid := uuid.New()
 
+	//TODO: Add heal effect
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Target: owner.(battle.Entity).GetUUID(),
@@ -507,6 +507,7 @@ func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 			Value:    enemiesCount * baseShield,
 			Duration: duration,
 			Caster:   owner.(battle.PlayerEntity).GetUUID(),
+			Uuid:     shieldUuid,
 		},
 	})
 

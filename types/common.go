@@ -52,17 +52,17 @@ var StatToString = map[Stat]string{
 	STAT_ADAPTIVE:          "SIła adaptacyjna",
 }
 
-type AdaptiveType int
+type AdaptiveAttackType int
 
 const (
-	ADAPTIVE_ATK AdaptiveType = iota
+	ADAPTIVE_ATK AdaptiveAttackType = iota
 	ADAPTIVE_AP
 )
 
-type AdaptiveRes int
+type AdaptiveDefenseType int
 
 const (
-	ADAPTIVE_DEF AdaptiveRes = iota
+	ADAPTIVE_DEF AdaptiveDefenseType = iota
 	ADAPTIVE_RES
 )
 

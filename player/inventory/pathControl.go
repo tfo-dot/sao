@@ -443,7 +443,7 @@ type CON_LVL_4_EFFECT struct {
 }
 
 func (skill CON_LVL_4_EFFECT) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	owner.(battle.PlayerEntity).ReduceCooldowns()
+	owner.(battle.PlayerEntity).ReduceCooldowns(types.TRIGGER_TURN)
 
 	if skill.Ripple {
 		dmgValue := 0
