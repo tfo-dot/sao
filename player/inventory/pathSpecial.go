@@ -365,3 +365,137 @@ func (skill SPC_LVL_4) GetUpgradableCost(upgrades int) int {
 func (skill SPC_LVL_4) GetCost() int {
 	return 2
 }
+
+type SPC_LVL_5 struct {
+	SpecialSkill
+	DefaultCost
+	NoEvents
+	NoStats
+	DefaultActiveTrigger
+}
+
+func (skill SPC_LVL_5) GetName() string {
+	return "Poziom 5 - Specjalista"
+}
+
+func (skill SPC_LVL_5) GetDescription() string {
+	return "Zmniejsza SPD do podstawowej wartości, zwiększa kolejny atak SPD-40%"
+}
+
+func (skill SPC_LVL_5) GetLevel() int {
+	return 5
+}
+
+func (skill SPC_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
+	return []PlayerSkillUpgrade{
+		{
+			Name:        "Ulepszenie 1",
+			Id:          "Skill",
+			Events:      nil,
+			Description: "Działa na kolejną umiejętność",
+		},
+		{
+			Name:        "Ulepszenie 2",
+			Id:          "Duration",
+			Events:      nil,
+			Description: "Działa przez całą turę",
+		},
+		{
+			Name:        "Ulepszenie 3",
+			Id:          "DmgReduction",
+			Events:      nil,
+			Description: "Zmniejsza obrażenia o 10% podczas trwania",
+		},
+	}
+}
+
+type SPC_LVL_5_EFFECT struct {
+	NoCooldown
+	NoCost
+	NoStats
+	NoLevel
+	NoEvents
+}
+
+func (skill SPC_LVL_5_EFFECT) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	tempMeta := meta.(types.AttackTriggerMeta)
+
+	for _, effect := range tempMeta.Effects {
+		effect.Value = utils.PercentOf(effect.Value, 20)
+	}
+
+	return tempMeta
+}
+
+func (skill SPC_LVL_5_EFFECT) GetName() string {
+	return "Poziom 5 - Specjalista - Efekt"
+}
+
+func (skill SPC_LVL_5_EFFECT) GetDescription() string {
+	return "Poziom 5 - Specjalista - Efekt"
+}
+
+func (skill SPC_LVL_5_EFFECT) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType: types.TRIGGER_ATTACK_BEFORE,
+		},
+	}
+}
+
+func (skill SPC_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+
+	spdReduction := owner.(battle.PlayerEntity).GetStat(types.STAT_SPD) - owner.(battle.PlayerEntity).GetDefaultStat(types.STAT_SPD)
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Target: owner.(battle.PlayerEntity).GetUUID(),
+		Source: owner.(battle.PlayerEntity).GetUUID(),
+		Meta: battle.ActionEffect{
+			Effect:   battle.EFFECT_STAT_DEC,
+			Value:    spdReduction,
+			Duration: 1,
+			Caster:   owner.(battle.PlayerEntity).GetUUID(),
+			Meta: battle.ActionEffectStat{
+				Stat:      types.STAT_SPD,
+				Value:     spdReduction,
+				IsPercent: false,
+			},
+		},
+	})
+
+	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value:      SPC_LVL_5_EFFECT{},
+		Expire:     1,
+		AfterUsage: HasUpgrade(upgrades, 2),
+	})
+
+	if HasUpgrade(upgrades, 3) {
+		fightInstance.(*battle.Fight).HandleAction(battle.Action{
+			Event:  battle.ACTION_EFFECT,
+			Target: owner.(battle.PlayerEntity).GetUUID(),
+			Source: owner.(battle.PlayerEntity).GetUUID(),
+			Meta: battle.ActionEffect{
+				Effect:   battle.EFFECT_RESIST,
+				Value:    10,
+				Duration: 1,
+				Caster:   owner.(battle.PlayerEntity).GetUUID(),
+				Meta: battle.ActionEffectResist{
+					Value:     10,
+					IsPercent: true,
+				},
+			},
+		})
+	}
+
+	return nil
+}
+
+func (skill SPC_LVL_5) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill SPC_LVL_5) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}

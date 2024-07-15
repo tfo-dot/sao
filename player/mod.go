@@ -448,7 +448,9 @@ func (p *Player) GetAllSkills() []types.PlayerSkill {
 		tempArr = append(tempArr, skill)
 	}
 
-	tempArr = append(tempArr, p.Meta.Fury.GetSkills()...)
+	if p.Meta.Fury != nil {
+		tempArr = append(tempArr, p.Meta.Fury.GetSkills()...)
+	}
 
 	return tempArr
 }

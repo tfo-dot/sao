@@ -52,8 +52,6 @@ type EventTriggerDetails struct {
 	TriggerType   SkillTrigger
 	TargetType    []TargetTag
 	TargetDetails []TargetDetails
-	//-1 for no limit
-	TargetCount int
 	//If og trigger won't trigger it can work as a fallback i. e. attack miss / attack hit
 	OptionalEvent SkillTrigger
 	Meta          map[string]interface{}
@@ -241,6 +239,13 @@ type WithExpire[v any] struct {
 	Value      v
 	AfterUsage bool
 	Expire     int
+	//After usage or after turns
+	Either bool
+}
+
+type WithTarget[v any] struct {
+	Value  v
+	Target uuid.UUID
 }
 
 type DerivedStat struct {

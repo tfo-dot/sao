@@ -15,7 +15,7 @@ func (skill EnduranceSkill) Execute(owner, target, fightInstance, meta interface
 }
 
 func (skill EnduranceSkill) GetPath() types.SkillPath {
-	return types.PathControl
+	return types.PathEndurance
 }
 
 func (skill EnduranceSkill) GetUUID() uuid.UUID {
@@ -304,4 +304,223 @@ func (skill END_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa leczenie o X",
 		},
 	}
+}
+
+type END_LVL_4 struct {
+	EnduranceSkill
+	DefaultCost
+	DefaultActiveTrigger
+	NoEvents
+	NoStats
+}
+
+type END_LVL_4_EFFECT struct {
+	NoCost
+	NoCooldown
+	NoEvents
+	NoLevel
+	Reduce int
+	Event  types.SkillTrigger
+}
+
+func (skill END_LVL_4_EFFECT) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	if skill.Event == types.TRIGGER_ATTACK_GOT_HIT {
+		tempMeta := meta.(types.AttackTriggerMeta)
+
+		for idx, dmg := range tempMeta.Effects {
+			tempMeta.Effects[idx].Value = -utils.PercentOf(dmg.Value, skill.Reduce)
+		}
+
+		return tempMeta
+	}
+
+	tempMeta := meta.(types.DamageTriggerMeta)
+
+	for idx, dmg := range tempMeta.Effects {
+		tempMeta.Effects[idx].Value = -utils.PercentOf(dmg.Value, skill.Reduce)
+	}
+
+	return tempMeta
+}
+
+func (skill END_LVL_4_EFFECT) GetDescription() string {
+	return "Zmniejsza obrażenia o x%"
+}
+
+func (skill END_LVL_4_EFFECT) GetName() string {
+	return "Efekt wytrzymałości - poziom 4"
+}
+
+func (skill END_LVL_4_EFFECT) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type: types.TRIGGER_PASSIVE,
+		Event: &types.EventTriggerDetails{
+			TriggerType: skill.Event,
+		},
+	}
+}
+
+func (skill END_LVL_4) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+	baseReduce := 20
+
+	if HasUpgrade(upgrades, 1) {
+		baseReduce += 5
+	}
+
+	baseEvent := types.TRIGGER_ATTACK_GOT_HIT
+
+	if HasUpgrade(upgrades, 3) {
+		baseEvent = types.TRIGGER_DAMAGE_BEFORE
+	}
+
+	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value: END_LVL_4_EFFECT{
+			Reduce: baseReduce,
+			Event:  baseEvent,
+		},
+		AfterUsage: true,
+		Expire:     1,
+		Either:     HasUpgrade(upgrades, 3),
+	})
+
+	return nil
+}
+
+func (skill END_LVL_4) GetName() string {
+	return "Poziom 4 - wytrzymałość"
+}
+
+func (skill END_LVL_4) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill END_LVL_4) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill END_LVL_4) GetDescription() string {
+	return "Zmniejsza kolejny otrzymany atak o 20%"
+}
+
+func (skill END_LVL_4) GetLevel() int {
+	return 4
+}
+
+func (skill END_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
+	return []PlayerSkillUpgrade{
+		{
+			Name:        "Ulepszenie 1",
+			Id:          "Reduce",
+			Events:      nil,
+			Description: "Zwiększa redukcję do 25%",
+		},
+		{
+			Name:        "Ulepszenie 2",
+			Id:          "Duration",
+			Events:      nil,
+			Description: "Działa przez całą ture",
+		},
+		{
+			Name:        "Ulepszenie 3",
+			Id:          "Type",
+			Events:      nil,
+			Description: "Działa na obrażenia",
+		},
+	}
+}
+
+type END_LVL_5 struct {
+	EnduranceSkill
+	DefaultCost
+	NoEvents
+	NoStats
+	DefaultActiveTrigger
+}
+
+func (skill END_LVL_5) GetName() string {
+	return "Poziom 5 - wytrzymałość"
+}
+
+func (skill END_LVL_5) GetDescription() string {
+	return "Dostaje 25 tarczy za każdego przeciwnika prowokując ich wszystkich"
+}
+
+func (skill END_LVL_5) GetLevel() int {
+	return 5
+}
+
+func (skill END_LVL_5) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill END_LVL_5) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill END_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
+	return []PlayerSkillUpgrade{
+		{
+			Name:        "Ulepszenie 1",
+			Id:          "Duration",
+			Events:      nil,
+			Description: "Działa turę dłużej",
+		},
+		{
+			Name:        "Ulepszenie 2",
+			Id:          "Increase",
+			Events:      nil,
+			Description: "Zwiększa wartość tarczy o 10% AP",
+		},
+		{
+			Name:        "Ulepszenie 3",
+			Id:          "Heal",
+			Events:      nil,
+			Description: "Po zakończeniu leczy o 50% pozostałej tarczy",
+		},
+	}
+}
+
+func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+
+	enemiesCount := len(fightInstance.(*battle.Fight).GetEnemiesFor(owner.(battle.PlayerEntity).GetUUID()))
+
+	baseShield := 25
+
+	if HasUpgrade(upgrades, 2) {
+		baseShield += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 10)
+	}
+
+	duration := 1
+
+	if HasUpgrade(upgrades, 1) {
+		duration++
+	}
+
+	//TODO heal upgrade
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Target: owner.(battle.Entity).GetUUID(),
+		Source: owner.(battle.PlayerEntity).GetUUID(),
+		Meta: battle.ActionEffect{
+			Effect:   battle.EFFECT_SHIELD,
+			Value:    enemiesCount * baseShield,
+			Duration: duration,
+			Caster:   owner.(battle.PlayerEntity).GetUUID(),
+		},
+	})
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Target: owner.(battle.Entity).GetUUID(),
+		Source: owner.(battle.PlayerEntity).GetUUID(),
+		Meta: battle.ActionEffect{
+			Effect:   battle.EFFECT_TAUNT,
+			Value:    0,
+			Duration: duration,
+			Caster:   owner.(battle.PlayerEntity).GetUUID(),
+		},
+	})
+
+	return nil
 }

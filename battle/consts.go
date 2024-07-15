@@ -56,6 +56,7 @@ const (
 	ACTION_COUNTER
 	ACTION_EFFECT
 	ACTION_DMG
+	ACTION_SUMMON
 )
 
 type Effect int
@@ -93,10 +94,19 @@ type Action struct {
 	Meta   any
 }
 
-type ActionPartial struct {
-	Event ActionEnum
-	Meta  *uuid.UUID
+type ActionSummon struct {
+	Flags       SummonFlags
+	ExpireTimer int
+	Entity      Entity
 }
+
+type SummonFlags int
+
+const (
+	SUMMON_FLAG_NONE SummonFlags = 1 << iota
+	SUMMON_FLAG_ATTACK
+	SUMMON_FLAG_EXPIRE
+)
 
 type ActionDamage struct {
 	Damage   []Damage
@@ -224,5 +234,6 @@ type PlayerEntity interface {
 
 	AppendDerivedStat(types.DerivedStat)
 	SetLevelStat(types.Stat, int)
+	GetDefaultStat(types.Stat) int
 	ReduceCooldowns()
 }

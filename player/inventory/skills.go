@@ -36,23 +36,29 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]PlayerSkillLevel{
 		1: []PlayerSkillLevel{DMG_LVL_1{}},
 		2: []PlayerSkillLevel{DMG_LVL_2{}},
 		3: []PlayerSkillLevel{DMG_LVL_3{}},
+		4: []PlayerSkillLevel{DMG_LVL_4{}},
+		5: []PlayerSkillLevel{DMG_LVL_5{}},
 	},
 	types.PathEndurance: {
 		1: []PlayerSkillLevel{END_LVL_1{}},
 		2: []PlayerSkillLevel{END_LVL_2{}},
 		3: []PlayerSkillLevel{END_LVL_3{}},
+		4: []PlayerSkillLevel{END_LVL_4{}},
+		5: []PlayerSkillLevel{END_LVL_5{}},
 	},
 	types.PathControl: {
 		1: []PlayerSkillLevel{CON_LVL_1{}},
 		2: []PlayerSkillLevel{CON_LVL_2{}},
 		3: []PlayerSkillLevel{CON_LVL_3{}},
 		4: []PlayerSkillLevel{CON_LVL_4{}},
+		5: []PlayerSkillLevel{CON_LVL_5{}},
 	},
 	types.PathSpecial: {
 		1: []PlayerSkillLevel{SPC_LVL_1{}},
 		2: []PlayerSkillLevel{SPC_LVL_2{}},
 		3: []PlayerSkillLevel{SPC_LVL_3{}},
 		4: []PlayerSkillLevel{SPC_LVL_4{}},
+		5: []PlayerSkillLevel{SPC_LVL_5{}},
 	},
 }
 
@@ -61,6 +67,7 @@ var BaseCooldowns = map[int]int{
 	1: 3,
 	3: 4,
 	4: 4,
+	5: 4,
 }
 
 func HasUpgrade(upgrades, check int) bool {

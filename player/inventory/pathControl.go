@@ -3,6 +3,7 @@ package inventory
 import (
 	"fmt"
 	"sao/battle"
+	"sao/battle/mobs"
 	"sao/types"
 	"sao/utils"
 
@@ -181,7 +182,6 @@ func (skill CON_LVL_EFFECT_1) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 			Meta:          nil,
 		},
 	}
@@ -230,7 +230,6 @@ func (skill CON_LVL_EFFECT_3) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 			Meta:          nil,
 		},
 	}
@@ -481,7 +480,6 @@ func (skill CON_LVL_4_EFFECT) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 			Meta:          nil,
 			OptionalEvent: types.TRIGGER_ATTACK_MISS,
 		},
@@ -538,6 +536,85 @@ func (skill CON_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 			Id:          "CanMiss",
 			Events:      nil,
 			Description: "Może nie trafić",
+		},
+	}
+}
+
+type CON_LVL_5 struct {
+	ControlSkill
+	DefaultActiveTrigger
+	DefaultCost
+	NoEvents
+	NoStats
+}
+
+func (skill CON_LVL_5) GetName() string {
+	return "Poziom 5 - Kontrola"
+}
+
+func (skill CON_LVL_5) GetDescription() string {
+	//DEF, MR, SPD, AD, AP, HP
+	return "Tworzy klona który ma 25% statystyk użytkownika, może tylko atakować i bronić"
+}
+
+func (skill CON_LVL_5) GetLevel() int {
+	return 5
+}
+
+func (skill CON_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+	//TODO Upgrades
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_SUMMON,
+		Target: owner.(battle.Entity).GetUUID(),
+		Source: owner.(battle.PlayerEntity).GetUUID(),
+		Meta: battle.ActionSummon{
+			Flags:       battle.SUMMON_FLAG_EXPIRE,
+			ExpireTimer: 5,
+			Entity: &mobs.MobEntity{
+				Id:        "Klon",
+				MaxHP:     90,
+				HP:        90,
+				SPD:       40,
+				ATK:       25,
+				Effects:   make(mobs.EffectList, 0),
+				UUID:      uuid.New(),
+				Props:     make(map[string]interface{}, 0),
+				Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
+				TempSkill: make([]types.WithExpire[types.PlayerSkill], 0),
+			},
+		},
+	})
+
+	return nil
+}
+
+func (skill CON_LVL_5) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill CON_LVL_5) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill CON_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
+	return []PlayerSkillUpgrade{
+		{
+			Name:        "Ulepszenie 1",
+			Id:          "Actions",
+			Events:      nil,
+			Description: "20% szans że użyje umiejętności",
+		},
+		{
+			Name:        "Ulepszenie 2",
+			Id:          "Stats",
+			Events:      nil,
+			Description: "Klon ma 50% statystyk",
+		},
+		{
+			Name:        "Ulepszenie 3",
+			Id:          "MaxCount",
+			Events:      nil,
+			Description: "Możesz mieć 2 klony. Po przyzwaniu klon prowokuje wszystkich przeciwników",
 		},
 	}
 }

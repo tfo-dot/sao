@@ -331,12 +331,12 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				upgradeMsg := ""
 
 				for _, upgrade := range skill.GetUpgrades() {
-					upgradeMsg += fmt.Sprintf("\n- %s - %s", upgrade.Name, upgrade.Description)
+					upgradeMsg += fmt.Sprintf("\n- %s", upgrade.Description)
 				}
 
 				embed.AddField(
 					skill.GetName(),
-					fmt.Sprintf("Ścieżka: %s\n\n%s\nUlepszenia:%s", types.PathToString[skill.GetPath()], skill.GetDescription(), upgradeMsg),
+					fmt.Sprintf("%s\nUlepszenia:%s", skill.GetDescription(), upgradeMsg),
 					false,
 				)
 

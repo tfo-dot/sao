@@ -337,56 +337,57 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 							Build(),
 					)
 
-					if skill.GetTrigger().Event.TargetCount == -1 {
-						fight.PlayerActions <- battle.Action{
-							Event:  battle.ACTION_SKILL,
-							Source: player.GetUUID(),
-							Target: uuid.Nil,
-							Meta: battle.ActionSkillMeta{
-								IsForLevel: true,
-								Lvl:        skill.GetLevel(),
-								SkillUuid:  uuid.Nil,
-								Targets: utils.Map(
-									fight.GetEnemiesFor(player.GetUUID()),
-									func(entity battle.Entity) uuid.UUID { return entity.GetUUID() },
-								),
-							},
-						}
+					//TODO fix
+					// if skill.GetTrigger().Event.TargetCount == -1 {
+					// 	fight.PlayerActions <- battle.Action{
+					// 		Event:  battle.ACTION_SKILL,
+					// 		Source: player.GetUUID(),
+					// 		Target: uuid.Nil,
+					// 		Meta: battle.ActionSkillMeta{
+					// 			IsForLevel: true,
+					// 			Lvl:        skill.GetLevel(),
+					// 			SkillUuid:  uuid.Nil,
+					// 			Targets: utils.Map(
+					// 				fight.GetEnemiesFor(player.GetUUID()),
+					// 				func(entity battle.Entity) uuid.UUID { return entity.GetUUID() },
+					// 			),
+					// 		},
+					// 	}
 
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Użyto umiejętności!").
-								SetEphemeral(true).
-								Build(),
-						)
-					} else {
-						options := utils.Map(
-							fight.GetEnemiesFor(player.GetUUID()),
-							func(entity battle.Entity) discord.StringSelectMenuOption {
-								return discord.NewStringSelectMenuOption(entity.GetName(), entity.GetUUID().String())
-							},
-						)
+					// 	event.CreateMessage(
+					// 		discord.
+					// 			NewMessageCreateBuilder().
+					// 			SetContent("Użyto umiejętności!").
+					// 			SetEphemeral(true).
+					// 			Build(),
+					// 	)
+					// } else {
+					options := utils.Map(
+						fight.GetEnemiesFor(player.GetUUID()),
+						func(entity battle.Entity) discord.StringSelectMenuOption {
+							return discord.NewStringSelectMenuOption(entity.GetName(), entity.GetUUID().String())
+						},
+					)
 
-						event.UpdateMessage(
-							discord.
-								NewMessageUpdateBuilder().
-								ClearContainerComponents().
-								AddActionRow(
-									discord.
-										NewStringSelectMenu(
-											"f/skill/usage/target+"+rawSkillUuid,
-											"Wybierz cel umiejętności",
-											options...,
-										).
-										WithMaxValues(skill.GetTrigger().Event.TargetCount),
-								).
-								Build(),
-						)
-					}
-
-					return
+					event.UpdateMessage(
+						discord.
+							NewMessageUpdateBuilder().
+							ClearContainerComponents().
+							AddActionRow(
+								discord.
+									NewStringSelectMenu(
+										"f/skill/usage/target+"+rawSkillUuid,
+										"Wybierz cel umiejętności",
+										options...,
+									).
+									//TODO fix target
+									WithMaxValues(1),
+							).
+							Build(),
+					)
 				}
+
+				return
 			}
 		case "skill/usage/target":
 			rawSkillUuid := meta

@@ -610,7 +610,6 @@ func (rbs ReimiBlessingSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_HEAL_SELF,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -688,7 +687,6 @@ func (gss GiantSlayerSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 		},
 	}
 }
@@ -722,7 +720,6 @@ func (gks GiantKillerSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 		},
 	}
 }
@@ -759,7 +756,6 @@ func (mks MageKillerSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_HAS_EFFECT},
-			TargetCount:   -1,
 			Meta:          map[string]interface{}{"effect": battle.EFFECT_SHIELD},
 		},
 	}
@@ -792,7 +788,6 @@ func (sbs SandBladeSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_DAMAGE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -841,7 +836,6 @@ func (wbs WaterBladeSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -879,10 +873,7 @@ func (dvs DefenseVisageSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_NONE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   0,
+			TriggerType: types.TRIGGER_NONE,
 		},
 	}
 }
@@ -918,10 +909,7 @@ func (avs AttackVisageSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_NONE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   0,
+			TriggerType: types.TRIGGER_NONE,
 		},
 	}
 }
@@ -960,7 +948,6 @@ func (wls WarriorsLegacySkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 		},
 	}
 }
@@ -1000,7 +987,6 @@ func (lws LilithsWrathSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_TURN,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 		},
 	}
 }
@@ -1038,10 +1024,7 @@ func (rls RyuLegacySkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_NONE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   0,
+			TriggerType: types.TRIGGER_NONE,
 		},
 	}
 }
@@ -1087,7 +1070,6 @@ func (dbs DefenderBladeSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1125,7 +1107,6 @@ func (gas GrudgeArmorSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_GOT_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1185,7 +1166,6 @@ func (acs AmplifyingCoatSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_NONE,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1224,7 +1204,6 @@ func (cbs ControllersBraceletSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
 			TargetType:    []types.TargetTag{types.TARGET_ALLY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_LOW_HP},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1270,7 +1249,6 @@ func (cis CursedIceSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1312,7 +1290,6 @@ func (crs ControllersRuneSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_EXECUTE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_HAS_EFFECT},
-			TargetCount:   -1,
 		},
 	}
 }
@@ -1357,7 +1334,6 @@ func (cns ControllersNecklaceSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1410,7 +1386,6 @@ func (cbs ControllersBladeSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 		Cooldown: &types.CooldownMeta{
 			PassEvent: types.TRIGGER_ATTACK_HIT,
@@ -1459,10 +1434,7 @@ func (chs ControllersHatSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
 		Type: types.TRIGGER_PASSIVE,
 		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_NONE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   0,
+			TriggerType: types.TRIGGER_NONE,
 		},
 	}
 }
@@ -1501,7 +1473,6 @@ func (acs ArdentCenserSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_HEAL_OTHER,
 			TargetType:    []types.TargetTag{types.TARGET_ALLY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1569,7 +1540,6 @@ func (scs SirensCallSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_HEAL_OTHER,
 			TargetType:    []types.TargetTag{types.TARGET_ALLY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1629,7 +1599,6 @@ func (fes FogsEmpowermentSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_NONE,
 			TargetType:    []types.TargetTag{types.TARGET_SELF},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   0,
 		},
 	}
 }
@@ -1668,7 +1637,6 @@ func (wes WindsEmpowermentSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_HIT,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1736,7 +1704,6 @@ func (lss LightingSupportSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
 			TargetType:    []types.TargetTag{types.TARGET_ALLY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1785,7 +1752,6 @@ func (gss GodlySupportSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_CAST_ULT,
 			TargetType:    []types.TargetTag{types.TARGET_ALLY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   -1,
 		},
 	}
 }
@@ -1822,7 +1788,6 @@ func (kbs KyokiBeltSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_DAMAGE_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1860,7 +1825,6 @@ func (sfs ShikiFlameSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_DAMAGE_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }
@@ -1886,7 +1850,6 @@ func (shs StormHarbingerSkill) GetTrigger() types.Trigger {
 			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
 			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
 			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			TargetCount:   1,
 		},
 	}
 }

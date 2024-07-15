@@ -302,7 +302,7 @@ func (w *World) RegisterFight(fight battle.Fight) uuid.UUID {
 	w.Fights[uuid] = fight
 
 	for _, entity := range fight.Entities {
-		if entity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
+		if entity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
 			w.Entities[entity.Entity.GetUUID()] = &entity.Entity
 		}
 	}
@@ -650,7 +650,7 @@ func (w *World) DeregisterFight(uuid uuid.UUID) {
 	tmp := w.Fights[uuid]
 
 	for _, entity := range tmp.Entities {
-		if entity.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
+		if entity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
 			entity.Entity.(*player.Player).Meta.FightInstance = nil
 		} else {
 			delete(w.Entities, entity.Entity.GetUUID())
