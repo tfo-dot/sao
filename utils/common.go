@@ -3,6 +3,8 @@ package utils
 import (
 	"math"
 	"math/rand"
+
+	"github.com/google/uuid"
 )
 
 func RandomElement[v any](slice []v) v {
@@ -45,4 +47,14 @@ func BoolToText(value bool, ifTrue string, ifFalse string) string {
 	} else {
 		return ifFalse
 	}
+}
+
+func SkillUUIDToItemUUID(skillUuid uuid.UUID) uuid.UUID {
+	bytes, _ := skillUuid.MarshalBinary()
+
+	copy(bytes[6:8], []byte{0, 0})
+
+	parsedUuid, _ := uuid.FromBytes(bytes)
+
+	return parsedUuid
 }

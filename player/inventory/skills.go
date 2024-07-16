@@ -18,7 +18,6 @@ type PlayerSkillUpgradable interface {
 }
 
 type PlayerSkillUpgrade struct {
-	Name        string
 	Description string
 	Id          string
 	Events      *map[types.CustomTrigger]func(owner battle.PlayerEntity)

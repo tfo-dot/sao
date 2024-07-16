@@ -99,21 +99,15 @@ func (skill SPC_LVL_1) GetLevel() int {
 func (skill SPC_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Percent",
-			Events:      nil,
 			Description: "Zwiększa wartość atrybutu do 12%",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Zwiększa czas trwania o 1 turę",
 		},
 	}
@@ -166,21 +160,15 @@ func (skill SPC_LVL_2) GetStats(upgrades int) map[types.Stat]int {
 func (skill SPC_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Skill",
-			Events:      nil,
 			Description: "Kradzież życia działa na umiejętności",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Increase",
-			Events:      nil,
 			Description: "Zwiększa wartości dwukrotnie",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "ShieldInc",
-			Events:      nil,
 			Description: "Moc leczenia i tarcz (na sobie) zwiększona o 20%",
 		},
 	}
@@ -219,7 +207,7 @@ func (skill SPC_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 		Meta: battle.ActionDamage{
 			Damage: []battle.Damage{
 				{
-					Type:  battle.DMG_TRUE,
+					Type:  types.DMG_TRUE,
 					Value: baseDmg,
 				},
 			},
@@ -266,21 +254,15 @@ func (skill SPC_LVL_3) GetLevel() int {
 func (skill SPC_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Damage",
-			Events:      nil,
 			Description: "Zwiększa obrażenia o 2%AP + 2%AD",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Heal",
-			Events:      nil,
 			Description: "Zwiększa leczenie do 25%",
 		},
 	}
@@ -334,21 +316,15 @@ func (skill SPC_LVL_4) GetLevel() int {
 func (skill SPC_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Cost",
-			Events:      nil,
 			Description: "Zmniejsza koszt o 1",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Umiejętność wygasa do końca walki",
 		},
 	}
@@ -389,21 +365,15 @@ func (skill SPC_LVL_5) GetLevel() int {
 func (skill SPC_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Skill",
-			Events:      nil,
 			Description: "Działa na kolejną umiejętność",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Działa przez całą turę",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "DmgReduction",
-			Events:      nil,
 			Description: "Zmniejsza obrażenia o 10% podczas trwania",
 		},
 	}

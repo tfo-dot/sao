@@ -165,7 +165,7 @@ func (f *Fight) HandleAction(act Action) {
 				Damage: []Damage{
 					{
 						Value:    sourceEntity.GetStat(types.STAT_AD),
-						Type:     DMG_PHYSICAL,
+						Type:     types.DMG_PHYSICAL,
 						CanDodge: true,
 					},
 				},
@@ -174,9 +174,9 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		overallDmg := []Damage{
-			{Value: 0, Type: DMG_PHYSICAL},
-			{Value: 0, Type: DMG_MAGICAL},
-			{Value: 0, Type: DMG_TRUE},
+			{Value: 0, Type: types.DMG_PHYSICAL},
+			{Value: 0, Type: types.DMG_MAGICAL},
+			{Value: 0, Type: types.DMG_TRUE},
 		}
 
 		meta := tempMeta.(ActionDamage)
@@ -238,9 +238,9 @@ func (f *Fight) HandleAction(act Action) {
 				dmgType := "fizycznych"
 
 				switch dmg.Type {
-				case DMG_MAGICAL:
+				case types.DMG_MAGICAL:
 					dmgType = "magicznych"
-				case DMG_TRUE:
+				case types.DMG_TRUE:
 					dmgType = "prawdziwych"
 				}
 
@@ -290,7 +290,7 @@ func (f *Fight) HandleAction(act Action) {
 							Damage: []Damage{
 								{
 									Value:    counterDmg,
-									Type:     DMG_PHYSICAL,
+									Type:     types.DMG_PHYSICAL,
 									CanDodge: true,
 								},
 							},
@@ -472,9 +472,9 @@ func (f *Fight) HandleAction(act Action) {
 		sourceEntity := sourceEntityEntry.Entity
 
 		overallDmg := []Damage{
-			{Value: 0, Type: DMG_PHYSICAL},
-			{Value: 0, Type: DMG_MAGICAL},
-			{Value: 0, Type: DMG_TRUE},
+			{Value: 0, Type: types.DMG_PHYSICAL},
+			{Value: 0, Type: types.DMG_MAGICAL},
+			{Value: 0, Type: types.DMG_TRUE},
 		}
 
 		meta := act.Meta.(ActionDamage)
@@ -535,9 +535,9 @@ func (f *Fight) HandleAction(act Action) {
 				dmgType := "fizycznych"
 
 				switch dmg.Type {
-				case DMG_MAGICAL:
+				case types.DMG_MAGICAL:
 					dmgType = "magicznych"
-				case DMG_TRUE:
+				case types.DMG_TRUE:
 					dmgType = "prawdziwych"
 				}
 
@@ -593,7 +593,7 @@ func (f *Fight) HandleAction(act Action) {
 							Damage: []Damage{
 								{
 									Value:    counterDmg,
-									Type:     DMG_PHYSICAL,
+									Type:     types.DMG_PHYSICAL,
 									CanDodge: true,
 								},
 							},
@@ -846,7 +846,7 @@ func (f *Fight) Run() {
 				f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
 				f.HandleAction(<-f.PlayerActions)
 			} else {
-				if !(entity.GetEffectByType(EFFECT_DISARM) != nil || entity.GetEffectByType(EFFECT_STUN) != nil || entity.GetEffectByType(EFFECT_STUN) != nil || entity.GetEffectByType(EFFECT_ROOT) != nil || entity.GetEffectByType(EFFECT_GROUND) != nil || entity.GetEffectByType(EFFECT_BLIND) != nil) {
+				if entity.GetEffectByType(EFFECT_STUN) == nil {
 					for _, action := range entity.Action(f) {
 						f.HandleAction(action)
 					}

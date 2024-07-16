@@ -474,102 +474,102 @@ var Items = map[uuid.UUID]types.PlayerItem{
 }
 
 var ReimiBlessingUUID = uuid.MustParse("00000000-0000-0000-0000-000000000000")
-var ReimiBlessingSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000001")
-var ReimiBlessingEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000001")
+var ReimiBlessingSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000001")
+var ReimiBlessingEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000001")
 
 var GiantSlayerUUID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-var GiantSlayerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000001")
+var GiantSlayerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000001")
 
 var GiantKillerUUID = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-var GiantKillerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000002")
+var GiantKillerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000002")
 
 var MageKillerUUID = uuid.MustParse("00000000-0000-0000-0000-000000000003")
-var MageKillerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000003")
+var MageKillerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000003")
 
 var SandBladeUUID = uuid.MustParse("00000000-0000-0000-0000-000000000004")
-var SandBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000004")
+var SandBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000004")
 
 var WaterBladeUUID = uuid.MustParse("00000000-0000-0000-0000-000000000005")
-var WaterBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000005")
+var WaterBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000005")
 
 var DefenseVisageUUID = uuid.MustParse("00000000-0000-0000-0000-000000000006")
-var DefenseVisageSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000006")
-var DefenseVisageEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000006")
+var DefenseVisageSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000006")
+var DefenseVisageEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000006")
 
 var AttackVisageUUID = uuid.MustParse("00000000-0000-0000-0000-000000000007")
-var AttackVisageSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000007")
-var AttackVisageEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000007")
+var AttackVisageSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000007")
+var AttackVisageEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000007")
 
 var WarriorsLegacyUUID = uuid.MustParse("00000000-0000-0000-0000-000000000008")
-var WarriorsLegacySkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000008")
+var WarriorsLegacySkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000008")
 
 var SecondBreathUUID = uuid.MustParse("00000000-0000-0000-0000-000000000009")
 
 var LilithsWrathUUID = uuid.MustParse("00000000-0000-0000-0000-00000000000A")
-var LilithsWrathSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000000A")
+var LilithsWrathSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000000A")
 
 var RyuLegacyUUID = uuid.MustParse("00000000-0000-0000-0000-00000000000B")
-var RyuLegacySkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000000B")
+var RyuLegacySkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000000B")
 
 var DefenderBladeUUID = uuid.MustParse("00000000-0000-0000-0000-00000000000C")
-var DefenderBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000000C")
+var DefenderBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000000C")
 
 var GrudgeArmorUUID = uuid.MustParse("00000000-0000-0000-0000-00000000000D")
-var GrudgeArmorSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000000D")
+var GrudgeArmorSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000000D")
 
 var AmplifyingCoatUUID = uuid.MustParse("00000000-0000-0000-0000-00000000000E")
-var AmplifyingCoatSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000000E")
+var AmplifyingCoatSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000000E")
 
 var ControllersBraceletUUID = uuid.MustParse("00000000-0000-0000-0000-00000000000F")
-var ControllersBraceletSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000000F")
+var ControllersBraceletSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000000F")
 
 var CursedIceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000010")
-var CursedIceSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000010")
+var CursedIceSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000010")
 
 var ControllersRuneUUID = uuid.MustParse("00000000-0000-0000-0000-000000000011")
-var ControllersRuneSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000011")
-var ControllersRuneEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000011")
+var ControllersRuneSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000011")
+var ControllersRuneEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000011")
 
 var ControllersNecklaceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000012")
-var ControllersNecklaceSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000012")
-var ControllersNecklaceEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000012")
+var ControllersNecklaceSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000012")
+var ControllersNecklaceEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000012")
 
 var ControllersBladeUUID = uuid.MustParse("00000000-0000-0000-0000-000000000013")
-var ControllersBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000013")
-var ControllersBladeEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000013")
+var ControllersBladeSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000013")
+var ControllersBladeEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000013")
 
 var ControllersHatUUID = uuid.MustParse("00000000-0000-0000-0000-000000000014")
-var ControllersHatSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000014")
+var ControllersHatSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000014")
 
 var ArdentCenserUUID = uuid.MustParse("00000000-0000-0000-0000-000000000015")
-var ArdentCenserSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000015")
-var ArdentCenserEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000015")
+var ArdentCenserSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000015")
+var ArdentCenserEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000015")
 
 var SirensCallUUID = uuid.MustParse("00000000-0000-0000-0000-000000000016")
-var SirensCallSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000016")
-var SirensCallEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000016")
+var SirensCallSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000016")
+var SirensCallEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000016")
 
 var FogsEmpowermentUUID = uuid.MustParse("00000000-0000-0000-0000-000000000017")
-var FogsEmpowermentSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000017")
+var FogsEmpowermentSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000017")
 
 var WindsEmpowermentUUID = uuid.MustParse("00000000-0000-0000-0000-000000000018")
-var WindsEmpowermentSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000018")
+var WindsEmpowermentSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000018")
 
 var LightingSupportUUID = uuid.MustParse("00000000-0000-0000-0000-000000000019")
-var LightingSupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-100000000019")
-var LightingSupportEffectUUID = uuid.MustParse("00000000-0000-0001-0001-100000000019")
+var LightingSupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-000000000019")
+var LightingSupportEffectUUID = uuid.MustParse("00000000-0000-0001-0001-000000000019")
 
 var GodlySupportUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001A")
-var GodlySupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001A")
+var GodlySupportSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000001A")
 
 var KyokiBeltUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001B")
-var KyokiBeltSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001B")
+var KyokiBeltSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000001B")
 
 var ShikiFlameUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001C")
-var ShikiFlameSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001C")
+var ShikiFlameSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000001C")
 
 var StormHarbingerUUID = uuid.MustParse("00000000-0000-0000-0000-00000000001D")
-var StormHarbingerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-10000000001D")
+var StormHarbingerSkillUUID = uuid.MustParse("00000000-0000-0001-0000-00000000001D")
 
 type BasePassiveSkill struct{}
 
@@ -699,7 +699,7 @@ func (gss GiantSlayerSkill) Execute(owner, target, fightInstance, meta interface
 	damageValue := utils.PercentOf((target.(battle.Entity).GetStat(types.STAT_DEF)), 10)
 
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
-		{Value: damageValue, Type: int(battle.DMG_PHYSICAL)}},
+		{Value: damageValue, Type: types.DMG_PHYSICAL}},
 	}
 }
 
@@ -735,7 +735,7 @@ func (gks GiantKillerSkill) Execute(owner, target, fightInstance, meta interface
 	println(damageValue)
 
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
-		{Value: damageValue, Type: int(battle.DMG_PHYSICAL)}},
+		{Value: damageValue, Type: types.DMG_PHYSICAL}},
 	}
 }
 
@@ -767,7 +767,7 @@ func (mks MageKillerSkill) GetUUID() uuid.UUID {
 
 func (mks MageKillerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
-		{Value: 10, Type: int(battle.DMG_PHYSICAL), Percent: true}},
+		{Value: 10, Type: types.DMG_PHYSICAL, Percent: true}},
 	}
 }
 
@@ -963,7 +963,7 @@ func (wls WarriorsLegacySkill) Execute(owner, target, fightInstance, meta interf
 		Effects: []types.DamagePartial{
 			{
 				Value:   dmgPercent,
-				Type:    int(battle.DMG_PHYSICAL),
+				Type:    types.DMG_PHYSICAL,
 				Percent: true,
 			},
 		},
@@ -1002,7 +1002,7 @@ func (lws LilithsWrathSkill) Execute(owner, target, fightInstance, meta interfac
 		Target: target.(battle.Entity).GetUUID(),
 		Meta: []battle.Damage{{
 			Value:    utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_HP), 5),
-			Type:     battle.DMG_PHYSICAL,
+			Type:     types.DMG_PHYSICAL,
 			CanDodge: false,
 		}},
 	})
@@ -1085,7 +1085,7 @@ func (dbs DefenderBladeSkill) Execute(owner, target, fightInstance, meta interfa
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
 		{
 			Value: utils.PercentOf(defStat, 2) + utils.PercentOf(mrStat, 3),
-			Type:  int(battle.DMG_PHYSICAL),
+			Type:  types.DMG_PHYSICAL,
 		},
 	}}
 }
@@ -1124,7 +1124,7 @@ func (gas GrudgeArmorSkill) Execute(owner, target, fightInstance, meta interface
 			Damage: []battle.Damage{
 				{
 					Value:    utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_DEF), 10),
-					Type:     battle.DMG_TRUE,
+					Type:     types.DMG_TRUE,
 					CanDodge: false,
 				},
 			},
@@ -1482,22 +1482,19 @@ func (acs ArdentCenserSkill) GetUUID() uuid.UUID {
 }
 
 func (acs ArdentCenserSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: target.(battle.Entity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_ON_HIT,
-			Value:    10,
-			Duration: 1,
-			Uuid:     ArdentCenserEffectUUID,
-			Meta: battle.ActionEffectOnHit{
-				Skill:     false,
-				Attack:    true,
-				IsPercent: true,
+	target.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value: types.BaseAttackIncreaseSkill{
+			Calculate: func(meta types.AttackTriggerMeta) types.AttackTriggerMeta {
+				return types.AttackTriggerMeta{
+					Effects: []types.DamagePartial{
+						{
+							Value:   utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 25),
+							Percent: false,
+							Type:    1,
+						},
+					},
+				}
 			},
-			Caster: owner.(battle.Entity).GetUUID(),
-			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -1713,22 +1710,19 @@ func (lss LightingSupportSkill) GetUUID() uuid.UUID {
 }
 
 func (lss LightingSupportSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: target.(battle.Entity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_ON_HIT,
-			Value:    owner.(battle.Entity).GetStat(types.STAT_AP),
-			Duration: 1,
-			Uuid:     LightingSupportEffectUUID,
-			Meta: battle.ActionEffectOnHit{
-				Skill:     false,
-				Attack:    true,
-				IsPercent: false,
+	target.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value: types.BaseAttackIncreaseSkill{
+			Calculate: func(meta types.AttackTriggerMeta) types.AttackTriggerMeta {
+				return types.AttackTriggerMeta{
+					Effects: []types.DamagePartial{
+						{
+							Value:   utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 25),
+							Percent: false,
+							Type:    1,
+						},
+					},
+				}
 			},
-			Caster: owner.(battle.Entity).GetUUID(),
-			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -1801,7 +1795,7 @@ func (kbs KyokiBeltSkill) Execute(owner, target, fightInstance, meta interface{}
 		Effects: []types.DamagePartial{
 			{
 				Value:   utils.RandomNumber(0, 100) - 20,
-				Type:    int(battle.DMG_MAGICAL),
+				Type:    types.DMG_MAGICAL,
 				Percent: true,
 			},
 		},
@@ -1863,7 +1857,7 @@ func (shs StormHarbingerSkill) Execute(owner, target, fightInstance, meta interf
 		Effects: []types.DamagePartial{
 			{
 				Value:   utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AP), 20),
-				Type:    int(battle.DMG_MAGICAL),
+				Type:    types.DMG_MAGICAL,
 				Percent: false,
 			},
 		},

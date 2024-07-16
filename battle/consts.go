@@ -36,14 +36,6 @@ type LootMeta struct {
 	Uuid uuid.UUID
 }
 
-type DamageType int
-
-const (
-	DMG_PHYSICAL DamageType = iota
-	DMG_MAGICAL
-	DMG_TRUE
-)
-
 type ActionEnum int
 
 const (
@@ -62,29 +54,20 @@ const (
 type Effect int
 
 const (
+	//TODO Rewrite it to damage over time
 	EFFECT_POISON Effect = iota
-	EFFECT_FEAR
 	EFFECT_HEAL_SELF
 	EFFECT_HEAL_OTHER
+	//TODO rewrite it to HEAL_SHIELD_POWER, STAT_DEC
 	EFFECT_HEAL_REDUCE
 	EFFECT_MANA_RESTORE
-	EFFECT_VAMP
-	EFFECT_LIFESTEAL
 	EFFECT_SHIELD
-	EFFECT_BLIND
-	EFFECT_DISARM
-	EFFECT_GROUND
-	EFFECT_ROOT
-	EFFECT_SILENCE
 	EFFECT_STUN
-	EFFECT_IMMUNE
 	EFFECT_STAT_INC
 	EFFECT_STAT_DEC
 	EFFECT_RESIST
-	EFFECT_FASTEN
 	EFFECT_TAUNT
 	EFFECT_TAUNTED
-	EFFECT_ON_HIT
 )
 
 type Action struct {
@@ -120,7 +103,9 @@ type ActionEffect struct {
 	Uuid     uuid.UUID
 	Meta     any
 	Caster   uuid.UUID
+	Target   uuid.UUID
 	Source   types.EffectSource
+	OnExpire func(owner, fightInstance interface{}, meta ActionEffect)
 }
 
 type ActionEffectHeal struct {
@@ -138,12 +123,6 @@ type ActionEffectResist struct {
 	IsPercent bool
 }
 
-type ActionEffectOnHit struct {
-	Skill     bool
-	Attack    bool
-	IsPercent bool
-}
-
 type ActionSkillMeta struct {
 	Lvl        int
 	IsForLevel bool
@@ -158,7 +137,7 @@ type ActionItemMeta struct {
 
 type Damage struct {
 	Value int
-	Type  DamageType
+	Type  types.DamageType
 	//Its ignored when []Damage is of 1
 	IsPercent bool
 	CanDodge  bool
@@ -196,7 +175,7 @@ type Entity interface {
 	TriggerAllEffects() []ActionEffect
 
 	AppendTempSkill(types.WithExpire[types.PlayerSkill])
-	TriggerEvent(types.SkillTrigger, interface{})
+	TriggerEvent(types.SkillTrigger, interface{}) []interface{}
 }
 
 type DodgeEntity interface {
@@ -208,21 +187,11 @@ type DodgeEntity interface {
 type PlayerEntity interface {
 	DodgeEntity
 
-	GetUID() string
-
-	GetAllSkills() []types.PlayerSkill
 	GetUpgrades(int) int
 	GetLvlSkill(int) types.PlayerSkill
-	GetSkill(uuid.UUID) types.PlayerSkill
 
 	SetLvlCD(int, int)
 	GetLvlCD(int) int
-
-	SetCD(uuid.UUID, int)
-	GetCD(uuid.UUID) int
-
-	GetLevelSkillsCD() map[int]int
-	GetSkillsCD() map[uuid.UUID]int
 
 	SetDefendingState(bool)
 	GetDefendingState() bool
@@ -230,8 +199,6 @@ type PlayerEntity interface {
 	GetAllItems() []*types.PlayerItem
 	AddItem(*types.PlayerItem)
 	RemoveItem(int)
-
-	GetParty() *uuid.UUID
 
 	AppendDerivedStat(types.DerivedStat)
 	SetLevelStat(types.Stat, int)

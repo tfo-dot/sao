@@ -305,8 +305,16 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			options := make([]discord.StringSelectMenuOption, 0)
 
 			for _, skill := range player.Inventory.LevelSkills {
-				if player.CanUseLvlSkill(skill) {
+				if player.CanUseSkill(skill) {
 					options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), fmt.Sprint(skill.GetLevel())))
+				}
+			}
+
+			if player.Meta.Fury != nil {
+				for _, skill := range player.Meta.Fury.GetSkills() {
+					if player.CanUseSkill(skill) {
+						options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), skill.GetUUID().String()))
+					}
 				}
 			}
 
@@ -327,6 +335,21 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			)
 		case "skill/usage":
 			rawSkillUuid := event.ComponentInteraction.StringSelectMenuInteractionData().Values[0]
+
+			if player.Meta.Fury != nil {
+				for _, skill := range player.Meta.Fury.GetSkills() {
+					if skill.GetUUID().String() == rawSkillUuid {
+						event.UpdateMessage(
+							discord.
+								NewMessageUpdateBuilder().
+								ClearContainerComponents().
+								Build(),
+						)
+
+						return
+					}
+				}
+			}
 
 			for _, skill := range player.Inventory.LevelSkills {
 				if fmt.Sprint(skill.GetLevel()) == rawSkillUuid {

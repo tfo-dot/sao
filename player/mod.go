@@ -1,8 +1,10 @@
 package player
 
 import (
+	"fmt"
 	"sao/battle"
 	"sao/battle/mobs"
+	"sao/data"
 	"sao/player/inventory"
 	"sao/types"
 	"sao/utils"
@@ -230,14 +232,14 @@ func (p *Player) Action(f *battle.Fight) []battle.Action { return []battle.Actio
 
 func (p *Player) TakeDMG(dmgList battle.ActionDamage) []battle.Damage {
 	dmgStats := []battle.Damage{
-		{Value: 0, Type: battle.DMG_PHYSICAL},
-		{Value: 0, Type: battle.DMG_MAGICAL},
-		{Value: 0, Type: battle.DMG_TRUE},
+		{Value: 0, Type: types.DMG_PHYSICAL},
+		{Value: 0, Type: types.DMG_MAGICAL},
+		{Value: 0, Type: types.DMG_TRUE},
 	}
 
 	for _, dmg := range dmgList.Damage {
 		//Skip shield and such
-		if dmg.Type == battle.DMG_TRUE {
+		if dmg.Type == types.DMG_TRUE {
 			p.Stats.HP -= dmg.Value
 			dmgStats[2].Value += dmg.Value
 			continue
@@ -246,9 +248,9 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) []battle.Damage {
 		rawDmg := dmg.Value
 
 		switch dmg.Type {
-		case battle.DMG_PHYSICAL:
+		case types.DMG_PHYSICAL:
 			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetStat(types.STAT_DEF))
-		case battle.DMG_MAGICAL:
+		case types.DMG_MAGICAL:
 			rawDmg = utils.CalcReducedDamage(dmg.Value, p.GetStat(types.STAT_MR))
 		}
 
@@ -265,9 +267,9 @@ func (p *Player) TakeDMG(dmgList battle.ActionDamage) []battle.Damage {
 func (p *Player) TakeDMGOrDodge(dmg battle.ActionDamage) ([]battle.Damage, bool) {
 	if utils.RandomNumber(0, 100) <= p.GetStat(types.STAT_AGL) && dmg.CanDodge {
 		return []battle.Damage{
-			{Value: 0, Type: battle.DMG_PHYSICAL},
-			{Value: 0, Type: battle.DMG_MAGICAL},
-			{Value: 0, Type: battle.DMG_TRUE},
+			{Value: 0, Type: types.DMG_PHYSICAL},
+			{Value: 0, Type: types.DMG_MAGICAL},
+			{Value: 0, Type: types.DMG_TRUE},
 		}, true
 	}
 
@@ -384,15 +386,15 @@ func (p *Player) GetAllEffects() []battle.ActionEffect {
 }
 
 func (p *Player) CanAttack() bool {
-	return !(p.GetEffectByType(battle.EFFECT_DISARM) != nil || p.GetEffectByType(battle.EFFECT_STUN) != nil)
+	return p.GetEffectByType(battle.EFFECT_STUN) == nil
 }
 
 func (p *Player) CanDodgeNow() bool {
-	return !(p.GetEffectByType(battle.EFFECT_STUN) != nil || p.GetEffectByType(battle.EFFECT_ROOT) != nil || p.GetEffectByType(battle.EFFECT_GROUND) != nil || p.GetEffectByType(battle.EFFECT_BLIND) != nil)
+	return p.GetEffectByType(battle.EFFECT_STUN) == nil
 }
 
 func (p *Player) CanDefend() bool {
-	return !(p.GetEffectByType(battle.EFFECT_STUN) != nil || p.GetEffectByType(battle.EFFECT_ROOT) != nil)
+	return p.GetEffectByType(battle.EFFECT_STUN) == nil
 }
 
 func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
@@ -400,14 +402,15 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 		return false
 	}
 
-	if p.GetEffectByType(battle.EFFECT_SILENCE) != nil {
-		return false
-	}
-
 	if skill.IsLevelSkill() {
-		if p.GetLvlCD(skill.(types.PlayerSkillLevel).GetLevel()) > 0 {
+		lvl := skill.(types.PlayerSkillLevel).GetLevel()
+
+		if currentCD, onCooldown := p.Inventory.LevelSkillsCDS[lvl]; onCooldown && currentCD != 0 {
 			return false
 		}
+	} else {
+		fmt.Println("JUMPSCARE")
+		//TODO somehow resolve the actual skill? XD
 	}
 
 	if p.GetCurrentMana() < skill.GetCost() {
@@ -415,45 +418,6 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 	}
 
 	return true
-}
-
-func (p *Player) CanUseLvlSkill(skill inventory.PlayerSkillLevel) bool {
-	if skill.GetTrigger().Type == types.TRIGGER_PASSIVE {
-		return false
-	}
-
-	if p.GetEffectByType(battle.EFFECT_SILENCE) != nil {
-		return false
-	}
-
-	if p.Inventory.LevelSkillsCDS[skill.GetLevel()] > 0 {
-		return false
-	}
-
-	if p.GetCurrentMana() < skill.GetCost() {
-		return false
-	}
-
-	return true
-}
-
-// TODO rewrite it so it knows what type of skill what used (uuid moment)
-func (p *Player) GetAllSkills() []types.PlayerSkill {
-	tempArr := make([]types.PlayerSkill, 0)
-
-	for _, item := range p.Inventory.Items {
-		tempArr = append(tempArr, item.Effects...)
-	}
-
-	for _, skill := range p.Inventory.LevelSkills {
-		tempArr = append(tempArr, skill)
-	}
-
-	if p.Meta.Fury != nil {
-		tempArr = append(tempArr, p.Meta.Fury.GetSkills()...)
-	}
-
-	return tempArr
 }
 
 func (p *Player) AddItem(item *types.PlayerItem) {
@@ -676,30 +640,8 @@ func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
 	return skill
 }
 
-func (p *Player) GetSkill(uuid uuid.UUID) types.PlayerSkill {
-	for _, skill := range p.GetAllSkills() {
-		if skill.GetUUID() == uuid {
-			return skill
-		}
-	}
-
-	return nil
-}
-
 func (p *Player) GetUID() string {
 	return p.Meta.UserID
-}
-
-func (p *Player) GetCD(skill uuid.UUID) int {
-	return p.Inventory.Cooldowns[skill]
-}
-
-func (p *Player) SetCD(skill uuid.UUID, value int) {
-	if value == 0 {
-		delete(p.Inventory.Cooldowns, skill)
-	} else {
-		p.Inventory.Cooldowns[skill] = value
-	}
 }
 
 func (p *Player) GetLvlCD(lvl int) int {
@@ -725,20 +667,6 @@ func (p *Player) GetLevelSkillsCD() map[int]int {
 	return mapTemp
 }
 
-func (p *Player) GetSkillsCD() map[uuid.UUID]int {
-	mapTemp := make(map[uuid.UUID]int, 0)
-
-	for skill, cd := range p.Inventory.Cooldowns {
-		mapTemp[skill] = cd
-	}
-
-	return mapTemp
-}
-
-func (p *Player) GetParty() *uuid.UUID {
-	return p.Meta.Party
-}
-
 func (p *Player) AppendDerivedStat(stat types.DerivedStat) {
 	p.DynamicStats = append(p.DynamicStats, stat)
 }
@@ -748,48 +676,123 @@ func (p *Player) SetLevelStat(stat types.Stat, value int) {
 }
 
 func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
-	for skill, cd := range p.Inventory.Cooldowns {
-		//TODO check if skill has different cd pass event trigger
-		//TODO check if this is even used
-		if cd > 0 {
-			p.Inventory.Cooldowns[skill]--
+	for skill := range p.Inventory.ItemSkillCD {
+		item := data.Items[utils.SkillUUIDToItemUUID(skill)]
+
+		for _, effect := range item.Effects {
+			cdMeta := effect.GetTrigger().Cooldown
+
+			if cdMeta == nil && event == types.TRIGGER_TURN {
+				p.Inventory.ItemSkillCD[skill]--
+			}
+
+			if cdMeta != nil && event != cdMeta.PassEvent {
+				continue
+			}
 		}
 	}
 
-	for skill, cd := range p.Inventory.LevelSkillsCDS {
-		skillData := p.Inventory.LevelSkills[skill]
+	for skillLevel := range p.Inventory.LevelSkillsCDS {
+		skillData := p.Inventory.LevelSkills[skillLevel]
 		cdMeta := skillData.GetTrigger().Cooldown
 
-		if cdMeta == nil || cdMeta.PassEvent != event {
-			continue
+		if cdMeta == nil && event == types.TRIGGER_TURN {
+			p.Inventory.LevelSkillsCDS[skillLevel]--
 		}
 
-		if cd > 0 {
-			p.Inventory.LevelSkillsCDS[skill]--
+		if cdMeta != nil && event != cdMeta.PassEvent {
+			continue
+		}
+	}
+
+	for skillUuid := range p.Inventory.FurySkillsCD {
+		if p.Meta.Fury == nil {
+			break
+		}
+
+		for _, skillStruct := range p.Meta.Fury.GetSkills() {
+			if skillUuid == skillStruct.GetUUID() {
+				cdMeta := skillStruct.GetTrigger().Cooldown
+
+				if cdMeta == nil && event == types.TRIGGER_TURN {
+					p.Inventory.FurySkillsCD[skillUuid]--
+				}
+
+				if cdMeta != nil && event != cdMeta.PassEvent {
+					continue
+				}
+			}
 		}
 	}
 }
 
 // TODO Supply all data to the events
-// TODO add cooldowns
-// TODO returns meta effect (used for example in TRIGGER_ATTACK_ATTEMPT)
-// TODO skill costs
-func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) {
+func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []interface{} {
+	returnMeta := make([]interface{}, 0)
+
 	for _, item := range p.Inventory.Items {
 		for _, effect := range item.Effects {
 			trigger := effect.GetTrigger()
 
+			if cd := effect.GetCD(); cd != 0 {
+				currentCD, onCooldown := p.Inventory.ItemSkillCD[effect.GetUUID()]
+
+				if onCooldown {
+					if currentCD == 0 {
+						p.Inventory.ItemSkillCD[effect.GetUUID()] = cd
+					} else {
+						continue
+					}
+				}
+			}
+
 			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
-				effect.Execute(p, nil, nil, meta)
+				if cost := effect.GetCost(); cost != 0 {
+					if cost > p.GetCurrentMana() {
+						continue
+					} else {
+						p.Stats.CurrentMana -= cost
+					}
+				}
+
+				temp := effect.Execute(p, nil, nil, meta)
+
+				if temp != nil {
+					returnMeta = append(returnMeta, temp)
+				}
 			}
 		}
 	}
 
-	for _, skill := range p.Inventory.LevelSkills {
-		trigger := skill.GetTrigger()
+	for skillLevel, skillStruct := range p.Inventory.LevelSkills {
+		trigger := skillStruct.GetTrigger()
+
+		if cd := skillStruct.GetUpgradableCost(p.Inventory.LevelSkillsUpgrades[skillLevel]); cd != 0 {
+			currentCD, onCooldown := p.Inventory.LevelSkillsCDS[skillLevel]
+
+			if onCooldown {
+				if currentCD == 0 {
+					p.Inventory.LevelSkillsCDS[skillLevel] = cd
+				} else {
+					continue
+				}
+			}
+		}
 
 		if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
-			skill.Execute(p, nil, nil, meta)
+			if cost := skillStruct.GetCost(); cost != 0 {
+				if cost > p.GetCurrentMana() {
+					continue
+				} else {
+					p.Stats.CurrentMana -= cost
+				}
+			}
+
+			temp := skillStruct.Execute(p, nil, nil, meta)
+
+			if temp != nil {
+				returnMeta = append(returnMeta, temp)
+			}
 		}
 	}
 
@@ -797,11 +800,37 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) {
 		for _, skill := range p.Meta.Fury.GetSkills() {
 			trigger := skill.GetTrigger()
 
+			if cd := skill.GetCost(); cd != 0 {
+				currentCD, onCooldown := p.Inventory.FurySkillsCD[skill.GetUUID()]
+
+				if onCooldown {
+					if currentCD == 0 {
+						p.Inventory.FurySkillsCD[skill.GetUUID()] = cd
+					} else {
+						continue
+					}
+				}
+			}
+
 			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
-				skill.Execute(p, nil, nil, meta)
+				if cost := skill.GetCost(); cost != 0 {
+					if cost > p.GetCurrentMana() {
+						continue
+					} else {
+						p.Stats.CurrentMana -= cost
+					}
+				}
+
+				temp := skill.Execute(p, nil, nil, meta)
+
+				if temp != nil {
+					returnMeta = append(returnMeta, temp)
+				}
 			}
 		}
 	}
+
+	return returnMeta
 }
 
 func NewPlayer(name string, uid string) Player {

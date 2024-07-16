@@ -68,7 +68,7 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 		switch effect.Effect {
 		case battle.EFFECT_POISON:
 			en.TakeDMG(battle.ActionDamage{
-				Damage:   []battle.Damage{{Value: effect.Value, Type: battle.DMG_TRUE, CanDodge: false}},
+				Damage:   []battle.Damage{{Value: effect.Value, Type: types.DMG_TRUE, CanDodge: false}},
 				CanDodge: false,
 			})
 		case battle.EFFECT_HEAL_SELF:
@@ -93,18 +93,6 @@ func (e EffectList) Cleanse() {
 	for _, effect := range e {
 		switch effect.Effect {
 		case battle.EFFECT_POISON:
-			continue
-		case battle.EFFECT_BLIND:
-			continue
-		case battle.EFFECT_DISARM:
-			continue
-		case battle.EFFECT_FEAR:
-			continue
-		case battle.EFFECT_GROUND:
-			continue
-		case battle.EFFECT_ROOT:
-			continue
-		case battle.EFFECT_SILENCE:
 			continue
 		case battle.EFFECT_STUN:
 			continue
@@ -171,18 +159,20 @@ func (m *MobEntity) GetFlags() types.EntityFlag {
 	return types.ENTITY_AUTO
 }
 
-func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, target interface{}) {}
+func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, target interface{}) []interface{} {
+	return []interface{}{}
+}
 
 func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) []battle.Damage {
 	dmgStats := []battle.Damage{
-		{Value: 0, Type: battle.DMG_PHYSICAL},
-		{Value: 0, Type: battle.DMG_MAGICAL},
-		{Value: 0, Type: battle.DMG_TRUE},
+		{Value: 0, Type: types.DMG_PHYSICAL},
+		{Value: 0, Type: types.DMG_MAGICAL},
+		{Value: 0, Type: types.DMG_TRUE},
 	}
 
 	for _, dmg := range dmg.Damage {
 		//Skip shield and such
-		if dmg.Type == battle.DMG_TRUE {
+		if dmg.Type == types.DMG_TRUE {
 			m.HP -= dmg.Value
 			dmgStats[2].Value += dmg.Value
 			continue
@@ -191,9 +181,9 @@ func (m *MobEntity) TakeDMG(dmg battle.ActionDamage) []battle.Damage {
 		rawDmg := dmg.Value
 
 		switch dmg.Type {
-		case battle.DMG_PHYSICAL:
+		case types.DMG_PHYSICAL:
 			rawDmg = utils.CalcReducedDamage(dmg.Value, m.GetDEF())
-		case battle.DMG_MAGICAL:
+		case types.DMG_MAGICAL:
 			rawDmg = utils.CalcReducedDamage(dmg.Value, m.GetMR())
 		}
 

@@ -92,21 +92,15 @@ func (skill END_LVL_1) GetLevel() int {
 func (skill END_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Damage",
-			Events:      nil,
 			Description: "Zwiększa wartość tarczy do 20 + 3%HP + 2%ATK",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Zwiększa czas trwania o 1 turę",
 		},
 	}
@@ -130,8 +124,7 @@ func (skill END_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{
 func (skill END_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name: "Ulepszenie 1",
-			Id:   "Increase",
+			Id: "Increase",
 			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
 					owner.SetLevelStat(types.STAT_HP, 20)
@@ -140,8 +133,7 @@ func (skill END_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa wartość do 20",
 		},
 		{
-			Name: "Ulepszenie 2",
-			Id:   "DEFIncrease",
+			Id: "DEFIncrease",
 			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
 					owner.AppendDerivedStat(types.DerivedStat{
@@ -154,8 +146,7 @@ func (skill END_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa wartość pancerza o 1% dodatkowego HP",
 		},
 		{
-			Name: "Ulepszenie 3",
-			Id:   "RESIncrease",
+			Id: "RESIncrease",
 			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
 					owner.AppendDerivedStat(types.DerivedStat{
@@ -286,21 +277,15 @@ func (skill END_LVL_3) GetDescription() string {
 func (skill END_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Ally",
-			Events:      nil,
 			Description: "Sojusznik może rozbić",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Increase",
-			Events:      nil,
 			Description: "Zwiększa leczenie o X",
 		},
 	}
@@ -409,21 +394,15 @@ func (skill END_LVL_4) GetLevel() int {
 func (skill END_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Reduce",
-			Events:      nil,
 			Description: "Zwiększa redukcję do 25%",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Działa przez całą ture",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Type",
-			Events:      nil,
 			Description: "Działa na obrażenia",
 		},
 	}
@@ -460,21 +439,15 @@ func (skill END_LVL_5) GetCooldown(upgrades int) int {
 func (skill END_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Działa turę dłużej",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Increase",
-			Events:      nil,
 			Description: "Zwiększa wartość tarczy o 10% AP",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Heal",
-			Events:      nil,
 			Description: "Po zakończeniu leczy o 50% pozostałej tarczy",
 		},
 	}
@@ -497,7 +470,6 @@ func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 
 	shieldUuid := uuid.New()
 
-	//TODO: Add heal effect
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Target: owner.(battle.Entity).GetUUID(),
@@ -508,6 +480,24 @@ func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 			Duration: duration,
 			Caster:   owner.(battle.PlayerEntity).GetUUID(),
 			Uuid:     shieldUuid,
+			OnExpire: func(owner, fight interface{}, meta battle.ActionEffect) {
+				if HasUpgrade(upgrades, 3) {
+					if meta.Value > 0 {
+						healValue := utils.PercentOf(meta.Value, 50)
+
+						fight.(*battle.Fight).HandleAction(battle.Action{
+							Event:  battle.ACTION_EFFECT,
+							Target: owner.(battle.PlayerEntity).GetUUID(),
+							Source: owner.(battle.PlayerEntity).GetUUID(),
+							Meta: battle.ActionEffect{
+								Effect:   battle.EFFECT_HEAL_SELF,
+								Value:    healValue,
+								Duration: 0,
+							},
+						})
+					}
+				}
+			},
 		},
 	})
 

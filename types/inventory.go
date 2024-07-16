@@ -104,8 +104,7 @@ type IncreasePartial struct {
 type DamagePartial struct {
 	Value   int
 	Percent bool
-	//0 for physical, 1 for magical, 2 for true
-	Type int
+	Type    DamageType
 }
 
 type AttackTriggerMeta struct {
@@ -156,8 +155,6 @@ type CustomTrigger int
 
 const (
 	CUSTOM_TRIGGER_UNLOCK CustomTrigger = iota
-	CUSTOM_TRIGGER_AFTER_EXECUTE
-	CUSTOM_TRIGGER_BEFORE_EXECUTE
 )
 
 type PlayerItem struct {
@@ -260,8 +257,53 @@ type SkillChoice struct {
 }
 
 type DelayedAction struct {
-	Target  uuid.UUID
-	Execute func(owner, fightInstance interface{})
-	//TODO pass event default: TRIGGER_TURN
-	Turns int
+	Target    uuid.UUID
+	Execute   func(owner, fightInstance interface{})
+	Turns     int
+	PassEvent SkillTrigger
+}
+
+type BaseAttackIncreaseSkill struct {
+	Calculate func(meta AttackTriggerMeta) AttackTriggerMeta
+}
+
+func (base BaseAttackIncreaseSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return base.Calculate(meta.(AttackTriggerMeta))
+}
+
+func (base BaseAttackIncreaseSkill) GetCD() int {
+	return 0
+}
+
+func (base BaseAttackIncreaseSkill) GetCost() int {
+	return 0
+}
+
+func (base BaseAttackIncreaseSkill) GetDescription() string {
+	return "Zwiększa obrażenia ataku"
+}
+
+func (base BaseAttackIncreaseSkill) GetEvents() map[CustomTrigger]func(interface{}) {
+	return map[CustomTrigger]func(interface{}){}
+}
+
+func (base BaseAttackIncreaseSkill) GetName() string {
+	return "Template Skill"
+}
+
+func (base BaseAttackIncreaseSkill) GetTrigger() Trigger {
+	return Trigger{
+		Type: TRIGGER_PASSIVE,
+		Event: &EventTriggerDetails{
+			TriggerType: TRIGGER_ATTACK_BEFORE,
+		},
+	}
+}
+
+func (base BaseAttackIncreaseSkill) GetUUID() uuid.UUID {
+	return uuid.New()
+}
+
+func (base BaseAttackIncreaseSkill) IsLevelSkill() bool {
+	return false
 }

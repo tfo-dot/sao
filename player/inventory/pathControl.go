@@ -1,7 +1,6 @@
 package inventory
 
 import (
-	"fmt"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/types"
@@ -43,21 +42,15 @@ func (skill CON_LVL_1) GetName() string {
 func (skill CON_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Speed",
-			Events:      nil,
 			Description: "Zwiększa prędkość użytkownika o 10 na 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Slow",
-			Events:      nil,
 			Description: "Spowalnia przeciwnika o 10 po zakończeniu ogłuszenia",
 		},
 	}
@@ -84,11 +77,6 @@ func (skill CON_LVL_1) UpgradableExecute(owner, target, fightInstance, meta inte
 
 	}
 
-	if HasUpgrade(upgrades, 3) {
-		//TODO add slow effect after stun ends
-		fmt.Println("SLOW")
-	}
-
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
 		Target: target.(battle.Entity).GetUUID(),
@@ -98,6 +86,28 @@ func (skill CON_LVL_1) UpgradableExecute(owner, target, fightInstance, meta inte
 			Value:    1,
 			Duration: 1,
 			Caster:   owner.(battle.PlayerEntity).GetUUID(),
+			OnExpire: func(owner, fightInstance interface{}, meta battle.ActionEffect) {
+				if !HasUpgrade(upgrades, 3) {
+					return
+				}
+
+				fightInstance.(*battle.Fight).HandleAction(battle.Action{
+					Event:  battle.ACTION_EFFECT,
+					Target: target.(battle.Entity).GetUUID(),
+					Source: owner.(battle.PlayerEntity).GetUUID(),
+					Meta: battle.ActionEffect{
+						Effect:   battle.EFFECT_STAT_DEC,
+						Value:    10,
+						Duration: 1,
+						Caster:   owner.(battle.PlayerEntity).GetUUID(),
+						Meta: battle.ActionEffectStat{
+							Stat:      types.STAT_SPD,
+							Value:     10,
+							IsPercent: false,
+						},
+					},
+				})
+			},
 		},
 	})
 
@@ -130,9 +140,10 @@ var CON_LVL_2_UUID = uuid.MustParse("00000000-0001-0000-0000-000000000001")
 
 type CON_LVL_2 struct {
 	ControlSkill
-	NoExecute
 	NoEvents
 	NoTrigger
+	NoCost
+	NoCooldown
 }
 
 func (skill CON_LVL_2) GetName() string {
@@ -147,176 +158,18 @@ func (skill CON_LVL_2) GetLevel() int {
 	return 2
 }
 
-type CON_LVL_EFFECT_1 struct {
-	NoLevel
-	NoCooldown
-	NoEvents
-	NoCost
-}
-
-func (skill CON_LVL_EFFECT_1) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Target: target.(battle.Entity).GetUUID(),
-		Source: owner.(battle.PlayerEntity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_STAT_DEC,
-			Value:    10,
-			Duration: 1,
-			Caster:   owner.(battle.PlayerEntity).GetUUID(),
-			Meta: battle.ActionEffectStat{
-				Stat:      types.STAT_SPD,
-				Value:     10,
-				IsPercent: false,
-			},
-		},
-	})
-
-	return nil
-}
-
-func (skill CON_LVL_EFFECT_1) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			Meta:          nil,
-		},
-	}
-}
-
-func (skill CON_LVL_EFFECT_1) GetName() string {
-	return "Kontrola 2 - Ulepszenie 1"
-}
-
-func (skill CON_LVL_EFFECT_1) GetDescription() string {
-	return "Po trafieniu spowalnia przeciwnika o 10 SPD"
-}
-
-type CON_LVL_EFFECT_3 struct {
-	NoLevel
-	NoCooldown
-	NoCost
-	NoEvents
-}
-
-func (skill CON_LVL_EFFECT_3) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Target: target.(battle.Entity).GetUUID(),
-		Source: owner.(battle.PlayerEntity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_STAT_DEC,
-			Value:    10,
-			Duration: 1,
-			Caster:   owner.(battle.PlayerEntity).GetUUID(),
-			Meta: battle.ActionEffectStat{
-				Stat:      types.STAT_AGL,
-				Value:     10,
-				IsPercent: false,
-			},
-		},
-	})
-
-	return nil
-}
-
-func (skill CON_LVL_EFFECT_3) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			Meta:          nil,
-		},
-	}
-}
-
-func (skill CON_LVL_EFFECT_3) GetName() string {
-	return "Kontrola 2 - Ulepszenie 3"
-}
-
-func (skill CON_LVL_EFFECT_3) GetDescription() string {
-	return "Po trafieniu spowalnia przeciwnika o 10 SPD"
-}
-
 func (skill CON_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
-	itemEvents1 := map[types.CustomTrigger]func(owner battle.PlayerEntity){
-		types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-			owner.AddItem(&types.PlayerItem{
-				UUID:        CON_LVL_2_UUID,
-				Name:        "Kontrola 2 - Ulepszenie 1",
-				Description: "=-=-=",
-				TakesSlot:   false,
-				Stacks:      false,
-				Consume:     false,
-				Count:       1,
-				MaxCount:    1,
-				Hidden:      true,
-				Stats:       nil,
-				Effects:     []types.PlayerSkill{CON_LVL_EFFECT_1{}},
-			})
-		},
-	}
-
-	itemEvents2 := map[types.CustomTrigger]func(owner battle.PlayerEntity){
-		types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-			owner.AddItem(&types.PlayerItem{
-				UUID:        CON_LVL_2_UUID,
-				Name:        "Kontrola 2 - Ulepszenie 2",
-				Description: "=-=-=",
-				TakesSlot:   false,
-				Stacks:      false,
-				Consume:     false,
-				Count:       1,
-				MaxCount:    1,
-				Hidden:      true,
-				Stats: map[types.Stat]int{
-					types.STAT_SPD: 5,
-					types.STAT_AGL: 5,
-				},
-			})
-		},
-	}
-
-	itemEvents3 := map[types.CustomTrigger]func(owner battle.PlayerEntity){
-		types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-			owner.AddItem(&types.PlayerItem{
-				UUID:        CON_LVL_2_UUID,
-				Name:        "Kontrola 2 - Ulepszenie 3",
-				Description: "=-=-=",
-				TakesSlot:   false,
-				Stacks:      false,
-				Consume:     false,
-				Count:       1,
-				MaxCount:    1,
-				Hidden:      true,
-				Stats:       nil,
-				Effects:     []types.PlayerSkill{CON_LVL_EFFECT_3{}},
-			})
-		},
-	}
-
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "OnHit",
-			Events:      &itemEvents1,
 			Description: "Po trafieniu spowalnia przeciwnika o 10 SPD",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Increase",
-			Events:      &itemEvents2,
 			Description: "Zwiększa wartości dwukrotnie",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "OnHit",
-			Events:      &itemEvents3,
 			Description: "Po trafieniu zmniejsza statystyki przeciwnika o 10 DGD",
 		},
 	}
@@ -334,6 +187,49 @@ func (skill CON_LVL_2) GetStats(upgrades int) map[types.Stat]int {
 	}
 
 	return stats
+}
+
+func (skill CON_LVL_2) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+	if HasUpgrade(upgrades, 1) {
+		fightInstance.(*battle.Fight).HandleAction(battle.Action{
+			Event:  battle.ACTION_EFFECT,
+			Target: target.(battle.Entity).GetUUID(),
+			Source: owner.(battle.PlayerEntity).GetUUID(),
+			Meta: battle.ActionEffect{
+				Effect:   battle.EFFECT_STAT_DEC,
+				Value:    10,
+				Duration: 1,
+				Caster:   owner.(battle.PlayerEntity).GetUUID(),
+				Meta: battle.ActionEffectStat{
+					Stat:      types.STAT_SPD,
+					Value:     10,
+					IsPercent: false,
+				},
+			},
+		})
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		fightInstance.(*battle.Fight).HandleAction(battle.Action{
+			Event:  battle.ACTION_EFFECT,
+			Target: target.(battle.Entity).GetUUID(),
+			Source: owner.(battle.PlayerEntity).GetUUID(),
+			Meta: battle.ActionEffect{
+				Effect:   battle.EFFECT_STAT_DEC,
+				Value:    10,
+				Duration: 1,
+				Caster:   owner.(battle.PlayerEntity).GetUUID(),
+				Meta: battle.ActionEffectStat{
+					Stat:      types.STAT_AGL,
+					Value:     10,
+					IsPercent: false,
+				},
+			},
+		})
+	}
+
+	return nil
+
 }
 
 type CON_LVL_3 struct {
@@ -391,21 +287,15 @@ func (skill CON_LVL_3) GetUpgradableCost(upgrades int) int {
 func (skill CON_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Ally",
-			Events:      nil,
 			Description: "Może być użyte na sojuszniku",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Cost",
-			Events:      nil,
 			Description: "Nie kosztuje many",
 		},
 	}
@@ -461,7 +351,7 @@ func (skill CON_LVL_4_EFFECT) Execute(owner, target, fightInstance, meta interfa
 			Meta: battle.ActionDamage{
 				Damage: []battle.Damage{
 					{
-						Type:  battle.DMG_PHYSICAL,
+						Type:  types.DMG_PHYSICAL,
 						Value: utils.PercentOf(dmgValue, 20),
 					},
 				},
@@ -526,15 +416,11 @@ func (skill CON_LVL_4) GetLevel() int {
 func (skill CON_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Ripple",
-			Events:      nil,
 			Description: "Zadaje 20% obrażeń losowemu przeciwnikowi",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "CanMiss",
-			Events:      nil,
 			Description: "Może nie trafić",
 		},
 	}
@@ -599,21 +485,15 @@ func (skill CON_LVL_5) GetCooldown(upgrades int) int {
 func (skill CON_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Actions",
-			Events:      nil,
 			Description: "20% szans że użyje umiejętności",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Stats",
-			Events:      nil,
 			Description: "Klon ma 50% statystyk",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "MaxCount",
-			Events:      nil,
 			Description: "Możesz mieć 2 klony. Po przyzwaniu klon prowokuje wszystkich przeciwników",
 		},
 	}

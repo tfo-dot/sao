@@ -136,21 +136,15 @@ func (skill DMG_LVL_1) GetLevel() int {
 func (skill DMG_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Cooldown",
-			Events:      nil,
 			Description: "Zmniejsza czas odnowienia o 1 turę",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Damage",
-			Events:      nil,
 			Description: "Zwiększa obrażenia do 20 + 1%ATK + 1%AP",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Duration",
-			Events:      nil,
 			Description: "Zwiększa czas trwania o 1 turę",
 		},
 	}
@@ -187,8 +181,7 @@ func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{
 func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name: "Ulepszenie 1",
-			Id:   "APPen",
+			Id: "APPen",
 			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
 					owner.AppendDerivedStat(types.DerivedStat{
@@ -201,8 +194,7 @@ func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Otrzymujesz 1% AP jako przebicie magiczne",
 		},
 		{
-			Name: "Ulepszenie 2",
-			Id:   "APStat",
+			Id: "APStat",
 			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
 					owner.AppendDerivedStat(types.DerivedStat{
@@ -215,8 +207,7 @@ func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Otrzymujesz 10% ATK jako AP",
 		},
 		{
-			Name: "Ulepszenie 3",
-			Id:   "ADPen",
+			Id: "ADPen",
 			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
 					owner.AppendDerivedStat(types.DerivedStat{
@@ -373,21 +364,15 @@ func (skill DMG_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 func (skill DMG_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Damage",
-			Events:      nil,
 			Description: "Zwiększa obrażenia do 30 + 2%ATK + 2%AP",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "Ripple",
-			Events:      nil,
 			Description: "Zadaje dodatkowe 25 obrażeń sąsiadom",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "Isolate",
-			Events:      nil,
 			Description: "Zadaje dodatkowe 125% obrażeń wyizolowanym celom",
 		},
 	}
@@ -408,21 +393,15 @@ func (skill DMG_LVL_4) GetLevel() int {
 func (skill DMG_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "Increase",
-			Events:      nil,
 			Description: "Zwiększa zasoby o 10% po zabiciu przeciwnika",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "PartyWide",
-			Events:      nil,
 			Description: "Efekt działa na całą drużynę",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "ManaReturn",
-			Events:      nil,
 			Description: "Przywróci punkt many",
 		},
 	}
@@ -538,21 +517,15 @@ func (skill DMG_LVL_5) GetCooldown(upgrades int) int {
 func (skill DMG_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
 	return []PlayerSkillUpgrade{
 		{
-			Name:        "Ulepszenie 1",
 			Id:          "DamageRat",
-			Events:      nil,
 			Description: "Zwiększa skalowanie do 50% ATK + 40% AP",
 		},
 		{
-			Name:        "Ulepszenie 2",
 			Id:          "MaxCount",
-			Events:      nil,
 			Description: "Zwiększa ilość celów do 6",
 		},
 		{
-			Name:        "Ulepszenie 3",
 			Id:          "DamageHP",
-			Events:      nil,
 			Description: "Obrażenia zwiększone o 125% jeśli cel ma więcej niż 70% HP",
 		},
 	}

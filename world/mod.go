@@ -356,7 +356,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					wonSideText += fmt.Sprintf("%v", entity.GetName())
 
 					if entity.GetFlags()&types.ENTITY_AUTO != 0 {
-						wonSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+						wonSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
 					}
 
 					wonSideText += "\n"
@@ -405,7 +405,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 					}
 				}
 
-				partyUuid := wonEntities[0].(battle.PlayerEntity).GetParty()
+				partyUuid := wonEntities[0].(*player.Player).Meta.Party
 
 				unlockedFloors := w.GetUnlockedFloorCount()
 
@@ -477,7 +477,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				wonSideText += fmt.Sprintf("%v", entity.GetName())
 
 				if entity.GetFlags()&types.ENTITY_AUTO != 0 {
-					wonSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+					wonSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
 				}
 
 				wonSideText += "\n"
@@ -511,7 +511,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			for _, entity := range oneSide {
 				oneSideText += fmt.Sprintf("%v", entity.GetName())
 				if entity.GetFlags()&types.ENTITY_AUTO == 0 {
-					oneSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+					oneSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
 				}
 
 				oneSideText += "\n"
@@ -525,7 +525,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				otherSideText += fmt.Sprintf("%v", entity.GetName())
 
 				if entity.GetFlags()&types.ENTITY_AUTO == 0 {
-					otherSideText += fmt.Sprintf(" (<@%v>)", entity.(battle.PlayerEntity).GetUID())
+					otherSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
 				}
 
 				otherSideText += "\n"
@@ -561,7 +561,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				w.DChannel <- types.DiscordMessageStruct{
 					ChannelID: channelId,
 					MessageContent: discord.NewMessageCreateBuilder().
-						SetContentf("<@%v> jest zmuszony do ataku! Pomijamy turę!", player.GetUID()).
+						SetContentf("<@%v> jest zmuszony do ataku! Pomijamy turę!", player.Meta.UserID).
 						Build(),
 				}
 
@@ -584,14 +584,14 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			filteredSkillsCount := 0
 
-			for _, skill := range player.GetAllSkills() {
-				if player.CanUseSkill(skill) {
-					filteredSkillsCount++
+			if player.Meta.Fury != nil {
+				for _, skill := range player.Meta.Fury.GetSkills() {
+					player.CanUseSkill(skill)
 				}
 			}
 
 			for _, skill := range player.Inventory.LevelSkills {
-				if player.CanUseLvlSkill(skill) {
+				if player.CanUseSkill(skill) {
 					filteredSkillsCount++
 				}
 			}
@@ -604,7 +604,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			filteredItemsCount := 0
 
-			for _, item := range player.GetAllItems() {
+			for _, item := range player.Inventory.Items {
 				if item.Consume && item.Count > 0 && !item.Hidden {
 					filteredItemsCount++
 				}
@@ -621,7 +621,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				MessageContent: discord.NewMessageCreateBuilder().
 					AddEmbeds(discord.NewEmbedBuilder().
 						SetTitle("Czas na turę!").
-						SetDescriptionf("Kolej <@%s>!", player.GetUID()).
+						SetDescriptionf("Kolej <@%s>!", player.Meta.UserID).
 						SetAuthorName(player.Name).
 						Build(),
 					).
@@ -797,7 +797,7 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 			w.DChannel <- types.DiscordMessageStruct{
 				ChannelID: tournamentObj.Channel,
 				MessageContent: discord.NewMessageCreateBuilder().
-					SetContentf("Szczęśliwy gracz to <@%v>\nNie musisz walczyć w tej rundzie i możesz spokojnie oglądać!", w.Players[tournamentObj.Participants[luckyPlayer]].GetUID()).
+					SetContentf("Szczęśliwy gracz to <@%v>\nNie musisz walczyć w tej rundzie i możesz spokojnie oglądać!", w.Players[tournamentObj.Participants[luckyPlayer]].Meta.UserID).
 					Build(),
 			}
 
@@ -889,7 +889,7 @@ func (w *World) ListenForTournament(tUuid uuid.UUID) {
 					w.DChannel <- types.DiscordMessageStruct{
 						ChannelID: tournamentObj.Channel,
 						MessageContent: discord.NewMessageCreateBuilder().
-							SetContentf("Turniej zakończony! Wygrał %v (<@%v>)", player.GetName(), player.GetUID()).
+							SetContentf("Turniej zakończony! Wygrał %v (<@%v>)", player.GetName(), player.Meta.UserID).
 							Build(),
 					}
 
@@ -1094,13 +1094,13 @@ func (w *World) InitTrade(tUuid uuid.UUID) {
 	transactionObj.State = transaction.TransactionProgress
 
 	w.DChannel <- types.DiscordMessageStruct{
-		ChannelID:      w.Players[transactionObj.LeftSide.Who].GetUID(),
+		ChannelID:      w.Players[transactionObj.LeftSide.Who].Meta.UserID,
 		MessageContent: discord.NewMessageCreateBuilder().SetContent("Transakcja rozpoczęta!").Build(),
 		DM:             true,
 	}
 
 	w.DChannel <- types.DiscordMessageStruct{
-		ChannelID:      w.Players[transactionObj.RightSide.Who].GetUID(),
+		ChannelID:      w.Players[transactionObj.RightSide.Who].Meta.UserID,
 		MessageContent: discord.NewMessageCreateBuilder().SetContent("Transakcja rozpoczęta!").Build(),
 		DM:             true,
 	}

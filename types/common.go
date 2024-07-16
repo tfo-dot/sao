@@ -88,3 +88,11 @@ var PathToString = map[SkillPath]string{
 	PathEndurance: "Wytrzymałość",
 	PathSpecial:   "Specjalista",
 }
+
+type DamageType int
+
+const (
+	DMG_PHYSICAL DamageType = iota
+	DMG_MAGICAL
+	DMG_TRUE
+)

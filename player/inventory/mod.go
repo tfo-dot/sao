@@ -13,11 +13,12 @@ type PlayerInventory struct {
 	Gold                int
 	TempSkills          []*types.WithExpire[types.PlayerSkill]
 	Items               []*types.PlayerItem
+	ItemSkillCD         map[uuid.UUID]int
 	Ingredients         map[uuid.UUID]*types.Ingredient
-	Cooldowns           map[uuid.UUID]int
 	LevelSkillsCDS      map[int]int
 	LevelSkills         map[int]PlayerSkillLevel
 	LevelSkillsUpgrades map[int]int
+	FurySkillsCD        map[uuid.UUID]int
 }
 
 func (inv *PlayerInventory) AddTempSkill(skill types.WithExpire[types.PlayerSkill]) {
@@ -49,11 +50,12 @@ func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
 		Gold:                int(rawData["gold"].(float64)),
 		TempSkills:          []*types.WithExpire[types.PlayerSkill]{},
 		Items:               []*types.PlayerItem{},
+		ItemSkillCD:         map[uuid.UUID]int{},
 		Ingredients:         map[uuid.UUID]*types.Ingredient{},
-		Cooldowns:           map[uuid.UUID]int{},
 		LevelSkillsCDS:      map[int]int{},
 		LevelSkills:         map[int]PlayerSkillLevel{},
 		LevelSkillsUpgrades: map[int]int{},
+		FurySkillsCD:        map[uuid.UUID]int{},
 	}
 
 	//TODO finish this
