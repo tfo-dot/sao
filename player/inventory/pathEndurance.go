@@ -221,10 +221,8 @@ func (effect END_LVL_3_EFFECT) GetName() string {
 
 func (effect END_LVL_3_EFFECT) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_ATTACK_GOT_HIT,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_GOT_HIT,
 	}
 }
 
@@ -338,10 +336,8 @@ func (skill END_LVL_4_EFFECT) GetName() string {
 
 func (skill END_LVL_4_EFFECT) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: skill.Event,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: skill.Event,
 	}
 }
 

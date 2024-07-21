@@ -200,8 +200,7 @@ func (inv *PlayerInventory) UnlockSkill(path types.SkillPath, lvl int, playerLvl
 	if len(skill) == 1 {
 		inv.LevelSkills[lvl] = skill[0]
 	} else {
-		panic("Multiple options")
-		//TODO: Implement skill selection
+		return errors.New("MULTIPLE_OPTIONS")
 	}
 
 	skillEvents := inv.LevelSkills[lvl].GetEvents()

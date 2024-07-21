@@ -87,6 +87,19 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 func ComponentHandler(event *events.ComponentInteractionCreate) {
 	customId := event.ComponentInteraction.Data.CustomID()
 
+	if strings.HasPrefix(customId, "chc/") {
+		customId, _ = strings.CutPrefix(customId, "chc/")
+
+		for _, value := range Choices {
+			if value.Id == customId {
+				value.Select(event)
+				return
+			}
+		}
+
+		return
+	}
+
 	if strings.HasPrefix(customId, "su") {
 		data := strings.Split(customId, "|")
 
@@ -137,6 +150,11 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 					msgContent = "Umiejętność jest już odblokowana"
 				case "SKILL_NOT_FOUND":
 					msgContent = "Nie znaleziono umiejętności"
+				}
+
+				if res.Error() == "MULTIPLE_OPTIONS" {
+					println("xd?")
+					//TODO wake up
 				}
 
 				event.CreateMessage(
@@ -318,16 +336,22 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 				}
 			}
 
+			selectMenuUuid := uuid.New().String()
+
+			Choices = append(Choices, types.DiscordChoice{
+				Id: selectMenuUuid,
+				Select: func(event *events.ComponentInteractionCreate) {
+					//TODO add it
+				},
+			})
+
 			event.UpdateMessage(
 				discord.
 					NewMessageUpdateBuilder().
 					ClearContainerComponents().
 					AddActionRow(
 						discord.
-							NewStringSelectMenu(
-								"f/skill/usage",
-								"Wybierz umiejętność",
-							).
+							NewStringSelectMenu("chc/"+selectMenuUuid, "Wybierz umiejętność").
 							WithMaxValues(1).
 							AddOptions(options...),
 					).

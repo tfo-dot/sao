@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/disgoorg/disgo/events"
 	"github.com/google/uuid"
 )
 
@@ -16,7 +17,6 @@ type PlayerSkill interface {
 
 	IsLevelSkill() bool
 
-	//Meta is used for passive events mostly ig
 	Execute(owner, target, fightInstance, meta interface{}) interface{}
 	GetEvents() map[CustomTrigger]func(owner interface{})
 }
@@ -38,7 +38,7 @@ const (
 
 type Trigger struct {
 	Type     SkillTriggerType
-	Event    *EventTriggerDetails
+	Event    SkillTrigger
 	Cooldown *CooldownMeta
 	Flags    int
 }
@@ -46,15 +46,6 @@ type Trigger struct {
 type CooldownMeta struct {
 	//Default TRIGGER_TURN
 	PassEvent SkillTrigger
-}
-
-type EventTriggerDetails struct {
-	TriggerType   SkillTrigger
-	TargetType    []TargetTag
-	TargetDetails []TargetDetails
-	//If og trigger won't trigger it can work as a fallback i. e. attack miss / attack hit
-	OptionalEvent SkillTrigger
-	Meta          map[string]interface{}
 }
 
 type SkillTrigger int
@@ -65,35 +56,14 @@ const (
 	TRIGGER_ATTACK_HIT
 	TRIGGER_ATTACK_MISS
 	TRIGGER_ATTACK_GOT_HIT
-	TRIGGER_DEFEND_START
-	TRIGGER_DEFEND_END
-	TRIGGER_DODGE
-	TRIGGER_FIGHT_START
-	TRIGGER_FIGHT_END
 	TRIGGER_EXECUTE
 	TRIGGER_TURN
-	TRIGGER_HEALTH
-	TRIGGER_MANA
-	TRIGGER_COUNTER_ATTEMPT
-	TRIGGER_COUNTER_HIT
-	TRIGGER_COUNTER_MISS
-	TRIGGER_CAST_LVL
 	TRIGGER_CAST_ULT
 	TRIGGER_DAMAGE_BEFORE
-	TRIGGER_DAMAGE_AFTER
 	TRIGGER_DAMAGE
 	TRIGGER_HEAL_SELF
 	TRIGGER_HEAL_OTHER
-	TRIGGER_SHIELD_SELF
-	TRIGGER_SHIELD_OTHER
-	TRIGGER_APPLY_BUFF
-	TRIGGER_APPLY_DEBUFF
-	TRIGGER_REMOVE_BUFF
-	TRIGGER_REMOVE_DEBUFF
 	TRIGGER_APPLY_CROWD_CONTROL
-	TRIGGER_REMOVE_CROWD_CONTROL
-	TRIGGER_APPLY_EFFECT
-	TRIGGER_REMOVE_EFFECT
 )
 
 type IncreasePartial struct {
@@ -127,28 +97,6 @@ const (
 	TARGET_SELF TargetTag = iota
 	TARGET_ENEMY
 	TARGET_ALLY
-)
-
-type TargetDetails int
-
-const (
-	DETAIL_LOW_HP TargetDetails = iota
-	DETAIL_MAX_HP
-	DETAIL_LOW_MP
-	DETAIL_MAX_MP
-	DETAIL_LOW_ATK
-	DETAIL_MAX_ATK
-	DETAIL_LOW_DEF
-	DETAIL_MAX_DEF
-	DETAIL_LOW_SPD
-	DETAIL_MAX_SPD
-	DETAIL_LOW_AP
-	DETAIL_MAX_AP
-	DETAIL_LOW_RES
-	DETAIL_MAX_RES
-	DETAIL_HAS_EFFECT
-	DETAIL_NO_EFFECT
-	DETAIL_ALL
 )
 
 type CustomTrigger int
@@ -263,6 +211,11 @@ type DelayedAction struct {
 	PassEvent SkillTrigger
 }
 
+type DiscordChoice struct {
+	Id     string
+	Select func(*events.ComponentInteractionCreate)
+}
+
 type BaseAttackIncreaseSkill struct {
 	Calculate func(meta AttackTriggerMeta) AttackTriggerMeta
 }
@@ -293,10 +246,8 @@ func (base BaseAttackIncreaseSkill) GetName() string {
 
 func (base BaseAttackIncreaseSkill) GetTrigger() Trigger {
 	return Trigger{
-		Type: TRIGGER_PASSIVE,
-		Event: &EventTriggerDetails{
-			TriggerType: TRIGGER_ATTACK_BEFORE,
-		},
+		Type:  TRIGGER_PASSIVE,
+		Event: TRIGGER_ATTACK_BEFORE,
 	}
 }
 

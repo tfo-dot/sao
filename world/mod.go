@@ -63,14 +63,6 @@ func CreateWorld(discordToken string, testMode bool) World {
 	}
 }
 
-func (w *World) RegisterNewPlayer(name, uid string) *player.Player {
-	newPlayer := player.NewPlayer(name, uid)
-
-	w.Players[newPlayer.GetUUID()] = &newPlayer
-
-	return &newPlayer
-}
-
 func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason string) error {
 	player := w.Players[pUuid]
 
@@ -276,23 +268,21 @@ func (w *World) StartClock() {
 			if player.GetCurrentHP() < player.GetStat(types.STAT_HP) {
 				healRatio := 50
 
-				if w.PlayerInCity(pUuid) {
-					healRatio = 25
+				{
+					player := w.Players[pUuid]
+
+					floor := w.Floors[player.Meta.Location.FloorName]
+					location := floor.FindLocation(player.Meta.Location.LocationName)
+
+					if location.CityPart {
+						healRatio = 25
+					}
 				}
 
 				player.Heal(player.GetStat(types.STAT_HP) / healRatio)
 			}
 		}
 	}
-}
-
-func (w *World) PlayerInCity(uuid uuid.UUID) bool {
-	player := w.Players[uuid]
-
-	floor := w.Floors[player.Meta.Location.FloorName]
-	location := floor.FindLocation(player.Meta.Location.LocationName)
-
-	return location.CityPart
 }
 
 // Fight stuff

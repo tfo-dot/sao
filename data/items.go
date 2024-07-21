@@ -4,7 +4,6 @@ import (
 	"sao/battle"
 	"sao/types"
 	"sao/utils"
-	"sort"
 
 	"github.com/google/uuid"
 )
@@ -605,12 +604,8 @@ func (rbs ReimiBlessingSkill) GetDescription() string {
 
 func (rbs ReimiBlessingSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_HEAL_SELF,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_HEAL_SELF,
 	}
 }
 
@@ -682,12 +677,8 @@ func (gss GiantSlayerSkill) GetDescription() string {
 
 func (gss GiantSlayerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -715,12 +706,8 @@ func (gks GiantKillerSkill) GetDescription() string {
 
 func (gks GiantKillerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -730,9 +717,6 @@ func (gks GiantKillerSkill) GetUUID() uuid.UUID {
 
 func (gks GiantKillerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
 	damageValue := utils.PercentOf((target.(battle.Entity).GetStat(types.STAT_HP)), 2)
-
-	println((target.(battle.Entity).GetStat(types.STAT_HP)))
-	println(damageValue)
 
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
 		{Value: damageValue, Type: types.DMG_PHYSICAL}},
@@ -751,13 +735,8 @@ func (mks MageKillerSkill) GetDescription() string {
 
 func (mks MageKillerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_HAS_EFFECT},
-			Meta:          map[string]interface{}{"effect": battle.EFFECT_SHIELD},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -766,6 +745,10 @@ func (mks MageKillerSkill) GetUUID() uuid.UUID {
 }
 
 func (mks MageKillerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	if target.(battle.Entity).GetEffectByType(battle.EFFECT_SHIELD) == nil {
+		return types.AttackTriggerMeta{Effects: []types.DamagePartial{}}
+	}
+
 	return types.AttackTriggerMeta{Effects: []types.DamagePartial{
 		{Value: 10, Type: types.DMG_PHYSICAL, Percent: true}},
 	}
@@ -783,12 +766,8 @@ func (sbs SandBladeSkill) GetDescription() string {
 
 func (sbs SandBladeSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_DAMAGE,
 	}
 }
 
@@ -802,13 +781,17 @@ func (sbs SandBladeSkill) Execute(owner, target, fightInstance, meta interface{}
 		Source: owner.(battle.Entity).GetUUID(),
 		Target: target.(battle.Entity).GetUUID(),
 		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_HEAL_REDUCE,
-			Value:    20,
+			Effect:   battle.EFFECT_STAT_DEC,
+			Value:    -20,
 			Duration: 1,
 			Uuid:     uuid.New(),
-			Meta:     nil,
-			Caster:   owner.(battle.Entity).GetUUID(),
-			Source:   types.SOURCE_ITEM,
+			Meta: battle.ActionEffectStat{
+				Stat:      types.STAT_HEAL_POWER,
+				Value:     -20,
+				IsPercent: false,
+			},
+			Caster: owner.(battle.Entity).GetUUID(),
+			Source: types.SOURCE_ITEM,
 		},
 	})
 
@@ -831,12 +814,8 @@ func (wbs WaterBladeSkill) GetCD() int {
 
 func (wbs WaterBladeSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_HIT,
 	}
 }
 
@@ -870,12 +849,7 @@ func (dvs DefenseVisageSkill) GetDescription() string {
 }
 
 func (dvs DefenseVisageSkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_NONE,
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE}
 }
 
 func (dvs DefenseVisageSkill) GetUUID() uuid.UUID {
@@ -906,12 +880,7 @@ func (avs AttackVisageSkill) GetDescription() string {
 }
 
 func (avs AttackVisageSkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_NONE,
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE}
 }
 
 func (avs AttackVisageSkill) GetUUID() uuid.UUID {
@@ -943,12 +912,8 @@ func (wls WarriorsLegacySkill) GetDescription() string {
 
 func (wls WarriorsLegacySkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -982,12 +947,8 @@ func (lws LilithsWrathSkill) GetDescription() string {
 
 func (lws LilithsWrathSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_TURN,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_TURN,
 	}
 }
 
@@ -1021,12 +982,7 @@ func (rls RyuLegacySkill) GetDescription() string {
 }
 
 func (rls RyuLegacySkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_NONE,
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE}
 }
 
 func (rls RyuLegacySkill) GetUUID() uuid.UUID {
@@ -1065,12 +1021,8 @@ func (dbs DefenderBladeSkill) GetDescription() string {
 
 func (dbs DefenderBladeSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -1102,12 +1054,8 @@ func (gas GrudgeArmorSkill) GetDescription() string {
 
 func (gas GrudgeArmorSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_GOT_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_GOT_HIT,
 	}
 }
 
@@ -1136,11 +1084,11 @@ func (gas GrudgeArmorSkill) Execute(owner, target, fightInstance, meta interface
 		Source: owner.(battle.Entity).GetUUID(),
 		Target: target.(battle.Entity).GetUUID(),
 		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_HEAL_REDUCE,
-			Value:    20,
+			Effect:   battle.EFFECT_STAT_DEC,
+			Value:    -20,
 			Duration: 1,
 			Uuid:     uuid.New(),
-			Meta:     nil,
+			Meta:     battle.ActionEffectStat{Stat: types.STAT_HEAL_POWER, Value: -20, IsPercent: false},
 			Caster:   owner.(battle.Entity).GetUUID(),
 			Source:   types.SOURCE_ITEM,
 		},
@@ -1160,14 +1108,7 @@ func (acs AmplifyingCoatSkill) GetDescription() string {
 }
 
 func (acs AmplifyingCoatSkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_NONE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE}
 }
 
 func (acs AmplifyingCoatSkill) GetUUID() uuid.UUID {
@@ -1199,12 +1140,8 @@ func (cbs ControllersBraceletSkill) GetDescription() string {
 
 func (cbs ControllersBraceletSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
-			TargetType:    []types.TargetTag{types.TARGET_ALLY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_LOW_HP},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_APPLY_CROWD_CONTROL,
 	}
 }
 
@@ -1244,12 +1181,8 @@ func (cis CursedIceSkill) GetDescription() string {
 
 func (cis CursedIceSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_APPLY_CROWD_CONTROL,
 	}
 }
 
@@ -1285,12 +1218,8 @@ func (crs ControllersRuneSkill) GetDescription() string {
 
 func (crs ControllersRuneSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_EXECUTE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_HAS_EFFECT},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_EXECUTE,
 	}
 }
 
@@ -1329,12 +1258,8 @@ func (cns ControllersNecklaceSkill) GetDescription() string {
 
 func (cns ControllersNecklaceSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_APPLY_CROWD_CONTROL,
 	}
 }
 
@@ -1381,12 +1306,8 @@ func (cbs ControllersBladeSkill) GetCD() int {
 
 func (cbs ControllersBladeSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_HIT,
 		Cooldown: &types.CooldownMeta{
 			PassEvent: types.TRIGGER_ATTACK_HIT,
 		},
@@ -1431,12 +1352,7 @@ func (chs ControllersHatSkill) GetDescription() string {
 }
 
 func (chs ControllersHatSkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_NONE,
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE}
 }
 
 func (chs ControllersHatSkill) GetUUID() uuid.UUID {
@@ -1468,12 +1384,8 @@ func (acs ArdentCenserSkill) GetDescription() string {
 
 func (acs ArdentCenserSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_HEAL_OTHER,
-			TargetType:    []types.TargetTag{types.TARGET_ALLY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_HEAL_OTHER,
 	}
 }
 
@@ -1532,12 +1444,8 @@ func (scs SirensCallSkill) GetDescription() string {
 
 func (scs SirensCallSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_HEAL_OTHER,
-			TargetType:    []types.TargetTag{types.TARGET_ALLY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_HEAL_OTHER,
 	}
 }
 
@@ -1556,15 +1464,8 @@ func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{
 			return nil
 		}
 
-		sortInit := battle.EntitySort{
-			Entities: validTargets,
-			Order:    []types.TargetDetails{types.DETAIL_LOW_HP},
-			Meta:     nil,
-		}
-
-		sort.Sort(sortInit)
-
-		healTarget = sortInit.Entities[0]
+		//TODO add sorting
+		// healTarget = sortInit.Entities[0]
 	}
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
@@ -1590,14 +1491,7 @@ func (fes FogsEmpowermentSkill) GetDescription() string {
 }
 
 func (fes FogsEmpowermentSkill) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_NONE,
-			TargetType:    []types.TargetTag{types.TARGET_SELF},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE}
 }
 
 func (fes FogsEmpowermentSkill) GetUUID() uuid.UUID {
@@ -1629,12 +1523,8 @@ func (wes WindsEmpowermentSkill) GetDescription() string {
 
 func (wes WindsEmpowermentSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_HIT,
 	}
 }
 
@@ -1643,7 +1533,7 @@ func (wes WindsEmpowermentSkill) GetUUID() uuid.UUID {
 }
 
 func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 10)
+	// healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 10)
 
 	validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
 
@@ -1651,22 +1541,14 @@ func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta inte
 		return nil
 	}
 
-	sortInit := battle.EntitySort{
-		Entities: validTargets,
-		Order:    []types.TargetDetails{types.DETAIL_LOW_HP},
-		Meta:     nil,
-	}
+	//TODO sort
 
-	sort.Sort(sortInit)
-
-	healTarget := sortInit.Entities[0]
-
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Source: owner.(battle.Entity).GetUUID(),
-		Target: healTarget.GetUUID(),
-		Meta:   battle.ActionEffectHeal{Value: healValue},
-	})
+	// fightInstance.(*battle.Fight).HandleAction(battle.Action{
+	// 	Event:  battle.ACTION_EFFECT,
+	// 	Source: owner.(battle.Entity).GetUUID(),
+	// 	Target: healTarget.GetUUID(),
+	// 	Meta:   battle.ActionEffectHeal{Value: healValue},
+	// })
 
 	return nil
 }
@@ -1696,12 +1578,8 @@ func (lss LightingSupportSkill) GetDescription() string {
 
 func (lss LightingSupportSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_APPLY_CROWD_CONTROL,
-			TargetType:    []types.TargetTag{types.TARGET_ALLY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_APPLY_CROWD_CONTROL,
 	}
 }
 
@@ -1741,12 +1619,8 @@ func (gss GodlySupportSkill) GetDescription() string {
 
 func (gss GodlySupportSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_CAST_ULT,
-			TargetType:    []types.TargetTag{types.TARGET_ALLY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_CAST_ULT,
 	}
 }
 
@@ -1777,12 +1651,8 @@ func (kbs KyokiBeltSkill) GetDescription() string {
 
 func (kbs KyokiBeltSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_DAMAGE_BEFORE,
 	}
 }
 
@@ -1814,12 +1684,8 @@ func (sfs ShikiFlameSkill) GetDescription() string {
 
 func (sfs ShikiFlameSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_DAMAGE_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_DAMAGE_BEFORE,
 	}
 }
 
@@ -1839,12 +1705,8 @@ func (shs StormHarbingerSkill) GetDescription() string {
 
 func (shs StormHarbingerSkill) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 

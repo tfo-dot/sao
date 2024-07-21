@@ -406,16 +406,10 @@ func (skill SPC_LVL_5_EFFECT) GetDescription() string {
 }
 
 func (skill SPC_LVL_5_EFFECT) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_ATTACK_BEFORE,
-		},
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
 }
 
 func (skill SPC_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-
 	spdReduction := owner.(battle.PlayerEntity).GetStat(types.STAT_SPD) - owner.(battle.PlayerEntity).GetDefaultStat(types.STAT_SPD)
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{

@@ -1,7 +1,6 @@
 package player
 
 import (
-	"fmt"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/data"
@@ -409,8 +408,14 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 			return false
 		}
 	} else {
-		fmt.Println("JUMPSCARE")
-		//TODO somehow resolve the actual skill? XD
+
+		if currentCD, onCooldown := p.Inventory.ItemSkillCD[skill.GetUUID()]; onCooldown && currentCD != 0 {
+			return false
+		}
+
+		if currentCD, onCooldown := p.Inventory.FurySkillsCD[skill.GetUUID()]; onCooldown && currentCD != 0 {
+			return false
+		}
 	}
 
 	if p.GetCurrentMana() < skill.GetCost() {
@@ -746,7 +751,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 				}
 			}
 
-			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
+			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
 				if cost := effect.GetCost(); cost != 0 {
 					if cost > p.GetCurrentMana() {
 						continue
@@ -779,7 +784,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 			}
 		}
 
-		if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
+		if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
 			if cost := skillStruct.GetCost(); cost != 0 {
 				if cost > p.GetCurrentMana() {
 					continue
@@ -812,7 +817,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 				}
 			}
 
-			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event.TriggerType == event {
+			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
 				if cost := skill.GetCost(); cost != 0 {
 					if cost > p.GetCurrentMana() {
 						continue

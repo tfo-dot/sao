@@ -304,8 +304,7 @@ func (skill CON_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 // TODO add ally target
 func (skill CON_LVL_3) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type:  types.TRIGGER_ACTIVE,
-		Event: nil,
+		Type: types.TRIGGER_ACTIVE,
 		//Can use while stunned
 		Flags: 1 << 1,
 	}
@@ -365,14 +364,8 @@ func (skill CON_LVL_4_EFFECT) Execute(owner, target, fightInstance, meta interfa
 
 func (skill CON_LVL_4_EFFECT) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			Meta:          nil,
-			OptionalEvent: types.TRIGGER_ATTACK_MISS,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_HIT,
 	}
 }
 

@@ -54,12 +54,9 @@ const (
 type Effect int
 
 const (
-	//TODO Rewrite it to damage over time
-	EFFECT_POISON Effect = iota
+	EFFECT_DOT Effect = iota
+	EFFECT_HEAL
 	EFFECT_HEAL_SELF
-	EFFECT_HEAL_OTHER
-	//TODO rewrite it to HEAL_SHIELD_POWER, STAT_DEC
-	EFFECT_HEAL_REDUCE
 	EFFECT_MANA_RESTORE
 	EFFECT_SHIELD
 	EFFECT_STUN

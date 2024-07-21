@@ -66,7 +66,7 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 		}
 
 		switch effect.Effect {
-		case battle.EFFECT_POISON:
+		case battle.EFFECT_DOT:
 			en.TakeDMG(battle.ActionDamage{
 				Damage:   []battle.Damage{{Value: effect.Value, Type: types.DMG_TRUE, CanDodge: false}},
 				CanDodge: false,
@@ -92,7 +92,7 @@ func (e EffectList) Cleanse() {
 
 	for _, effect := range e {
 		switch effect.Effect {
-		case battle.EFFECT_POISON:
+		case battle.EFFECT_DOT:
 			continue
 		case battle.EFFECT_STUN:
 			continue

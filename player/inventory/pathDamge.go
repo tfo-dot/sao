@@ -65,10 +65,8 @@ func (skill DMG_LVL_1_Effect) GetCost() int {
 
 func (skill DMG_LVL_1_Effect) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_ATTACK_BEFORE,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -290,13 +288,8 @@ func (skill DMG_LVL_3_Effect_2) Execute(owner, target, fightInstance, meta inter
 
 func (skill DMG_LVL_3_Effect_2) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_HIT,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			Meta:          nil,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_HIT,
 	}
 }
 
@@ -328,13 +321,8 @@ func (skill DMG_LVL_3_Effect) GetName() string {
 
 func (skill DMG_LVL_3_Effect) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType:   types.TRIGGER_ATTACK_BEFORE,
-			TargetType:    []types.TargetTag{types.TARGET_ENEMY},
-			TargetDetails: []types.TargetDetails{types.DETAIL_ALL},
-			Meta:          nil,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_BEFORE,
 	}
 }
 
@@ -443,12 +431,8 @@ func (skill DMG_LVL_4_Effect) GetDescription() string {
 
 func (skill DMG_LVL_4_Effect) GetTrigger() types.Trigger {
 	return types.Trigger{
-		Type: types.TRIGGER_PASSIVE,
-		Event: &types.EventTriggerDetails{
-			TriggerType: types.TRIGGER_ATTACK_HIT,
-			TargetType:  []types.TargetTag{types.TARGET_ENEMY},
-			Meta:        nil,
-		},
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_HIT,
 	}
 }
 

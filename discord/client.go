@@ -26,6 +26,7 @@ import (
 
 var World *world.World
 var Client *bot.Client
+var Choices = make([]types.DiscordChoice, 0)
 
 func StartClient(token string) {
 	client, err := disgo.New(token,
@@ -141,7 +142,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		charName := interactionData.String("nazwa")
 		charUser := interactionData.User("gracz")
 
-		World.RegisterNewPlayer(charName, charUser.ID.String())
+		newPlayer := player.NewPlayer(charName, charUser.ID.String())
+
+		World.Players[newPlayer.GetUUID()] = &newPlayer
 
 		err := event.CreateMessage(MessageContent("Zarejestrowano postać "+charName, false))
 

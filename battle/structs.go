@@ -7,7 +7,6 @@ import (
 	"sao/world/calendar"
 	"sao/world/location"
 	"slices"
-	"sort"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/google/uuid"
@@ -23,7 +22,6 @@ type Fight struct {
 	Location        *location.Location
 	Tournament      *TournamentData
 	AdditionalLoot  []types.WithTarget[Loot]
-	DelayedActions  []types.DelayedAction
 	PlayerActions   chan Action
 }
 
@@ -96,10 +94,6 @@ func (f *Fight) AddAdditionalLoot(loot Loot, source uuid.UUID, teamWide bool) {
 			Target: source,
 		},
 	)
-}
-
-func (f *Fight) AddDelayedAction(act types.DelayedAction) {
-	f.DelayedActions = append(f.DelayedActions, act)
 }
 
 func (f *Fight) IsFinished() bool {
@@ -267,7 +261,6 @@ func (f *Fight) HandleAction(act Action) {
 
 		} else {
 			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, nil)
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
@@ -309,7 +302,7 @@ func (f *Fight) HandleAction(act Action) {
 		meta := act.Meta.(ActionEffect)
 
 		if meta.Duration == 0 {
-			if meta.Effect == EFFECT_HEAL_SELF {
+			if meta.Effect == EFFECT_HEAL {
 				healValue := meta.Value
 
 				if act.Source != act.Target {
@@ -325,6 +318,10 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
+		if meta.Effect == EFFECT_SHIELD {
+			meta.Value = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
+		}
+
 		if meta.Effect == EFFECT_TAUNT {
 			for _, entity := range f.GetEnemiesFor(act.Target) {
 				newEffect := ActionEffect{
@@ -338,12 +335,10 @@ func (f *Fight) HandleAction(act Action) {
 				entity.ApplyEffect(newEffect)
 			}
 		} else {
-			f.Entities[act.Target].Entity.ApplyEffect(act.Meta.(ActionEffect))
+			f.Entities[act.Target].Entity.ApplyEffect(meta)
 		}
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
-
-		entity.Entity.TriggerEvent(types.TRIGGER_DEFEND_START, nil)
 
 		if entity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
 			entity.Entity.(PlayerEntity).SetDefendingState(true)
@@ -355,10 +350,10 @@ func (f *Fight) HandleAction(act Action) {
 				Meta: ActionEffect{
 					Effect:   EFFECT_STAT_INC,
 					Duration: 1,
-					Meta: &map[string]interface{}{
-						"stat":     types.STAT_DEF,
-						"percent":  20,
-						"duration": 1,
+					Meta: ActionEffectStat{
+						Stat:      types.STAT_DEF,
+						Value:     20,
+						IsPercent: true,
 					},
 				},
 			})
@@ -370,10 +365,10 @@ func (f *Fight) HandleAction(act Action) {
 				Meta: ActionEffect{
 					Effect:   EFFECT_STAT_INC,
 					Duration: 0,
-					Meta: &map[string]interface{}{
-						"stat":     types.STAT_MR,
-						"percent":  20,
-						"duration": 1,
+					Meta: ActionEffectStat{
+						Stat:      types.STAT_MR,
+						Value:     20,
+						IsPercent: true,
 					},
 				},
 			})
@@ -382,11 +377,6 @@ func (f *Fight) HandleAction(act Action) {
 		sourceEntity := f.Entities[act.Source]
 
 		if sourceEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
-			//TODO Update when TriggerEvent is updated
-			sourceEntity.Entity.TriggerEvent(types.TRIGGER_MANA, nil)
-
-			//TODO add counter to damage
-
 			skillUsageMeta := act.Meta.(ActionSkillMeta)
 
 			if skillUsageMeta.IsForLevel {
@@ -396,9 +386,7 @@ func (f *Fight) HandleAction(act Action) {
 					return
 				}
 
-				if skillUsageMeta.Lvl%10 != 0 {
-					sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_LVL, nil)
-				} else {
+				if skillUsageMeta.Lvl%10 == 0 {
 					sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_ULT, nil)
 				}
 
@@ -443,8 +431,6 @@ func (f *Fight) HandleAction(act Action) {
 
 		if meta.CanDodge && targetEntity.Entity.CanDodge() {
 			targetEntity.Entity.(DodgeEntity).TakeDMGOrDodge(meta)
-
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE_AFTER, nil)
 		} else {
 			targetEntity.Entity.TakeDMG(meta)
 
@@ -455,18 +441,6 @@ func (f *Fight) HandleAction(act Action) {
 			f.Entities[act.Source].Entity.TriggerEvent(types.TRIGGER_EXECUTE, nil)
 		}
 
-		//TODO event with check
-		// f.TriggerPassiveWithCheck(act.Source, types.TRIGGER_HEALTH, nil, func(e Entity, ps types.PlayerSkill) bool {
-		// 	hpValue := 0
-
-		// 	if ps.GetTrigger().Event.Meta["value"] != nil {
-		// 		hpValue = ps.GetTrigger().Event.Meta["value"].(int)
-		// 	} else {
-		// 		hpValue = (ps.GetTrigger().Event.Meta["percent"].(int) * e.GetStat(types.STAT_HP) / 100)
-		// 	}
-
-		// 	return hpValue < e.GetCurrentHP()
-		// })
 	case ACTION_COUNTER:
 		sourceEntityEntry := f.Entities[act.Source]
 		sourceEntity := sourceEntityEntry.Entity
@@ -478,9 +452,6 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		meta := act.Meta.(ActionDamage)
-
-		//TODO Update when TriggerEvent is updated
-		sourceEntity.TriggerEvent(types.TRIGGER_COUNTER_ATTEMPT, nil)
 
 		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
 			if left.IsPercent && !right.IsPercent {
@@ -517,8 +488,6 @@ func (f *Fight) HandleAction(act Action) {
 		tempEmbed := discord.NewEmbedBuilder().SetTitle("Kontra!")
 
 		if !dodged {
-			sourceEntity.TriggerEvent(types.TRIGGER_COUNTER_HIT, meta)
-
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
 			tempEmbed.
@@ -564,7 +533,6 @@ func (f *Fight) HandleAction(act Action) {
 
 		} else {
 			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, nil)
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DODGE, nil)
 
 			tempEmbed.SetDescriptionf("%s chciał skontrować ale nie trafił!", sourceEntity.GetName())
 		}
@@ -709,12 +677,6 @@ func (f *Fight) HandleAction(act Action) {
 	}
 }
 
-func (f *Fight) TriggerAll(triggerType types.SkillTrigger, meta interface{}) {
-	for _, entityEntry := range f.Entities {
-		entityEntry.Entity.TriggerEvent(triggerType, meta)
-	}
-}
-
 func (f *Fight) Init() {
 	f.SpeedMap = make(map[uuid.UUID]int)
 
@@ -724,67 +686,6 @@ func (f *Fight) Init() {
 
 	f.ExternalChannel = make(chan FightEvent, 10)
 	f.PlayerActions = make(chan Action, 10)
-
-	f.TriggerAll(types.TRIGGER_FIGHT_START, nil)
-}
-
-func (f *Fight) FindValidTargets(source uuid.UUID, trigger types.EventTriggerDetails) []uuid.UUID {
-	sourceEntity := f.Entities[source].Entity
-	sourceSide := f.Entities[source].Side
-
-	if len(trigger.TargetType) == 1 && trigger.TargetType[0] == types.TARGET_SELF {
-		return []uuid.UUID{source}
-	}
-
-	targetEntities := make([]Entity, 0)
-
-	for _, targetType := range trigger.TargetType {
-		if targetType == types.TARGET_SELF {
-			targetEntities = append(targetEntities, sourceEntity)
-		}
-	}
-
-	isAllyValid := false
-
-	for _, targetType := range trigger.TargetType {
-		if targetType == types.TARGET_ALLY {
-			isAllyValid = true
-		}
-	}
-
-	isEnemyValid := false
-
-	for _, targetType := range trigger.TargetType {
-		if targetType == types.TARGET_ENEMY {
-			isEnemyValid = true
-		}
-	}
-
-	for _, entity := range f.Entities {
-		if entity.Side == sourceSide && isAllyValid {
-			targetEntities = append(targetEntities, entity.Entity)
-		}
-
-		if entity.Side != sourceSide && isEnemyValid {
-			targetEntities = append(targetEntities, entity.Entity)
-		}
-	}
-
-	sortInit := EntitySort{
-		Entities: targetEntities,
-		Order:    trigger.TargetDetails,
-		Meta:     &trigger.Meta,
-	}
-
-	sort.Sort(sortInit)
-
-	targets := make([]uuid.UUID, len(targetEntities))
-
-	for i, entity := range sortInit.Entities {
-		targets[i] = entity.GetUUID()
-	}
-
-	return targets
 }
 
 func (f *Fight) Run() {
@@ -824,22 +725,10 @@ func (f *Fight) Run() {
 				continue
 			}
 
-			for idx, action := range f.DelayedActions {
-				if action.Target == entity.GetUUID() {
-					f.DelayedActions[idx].Turns--
-				}
-
-				if action.Turns == 0 {
-					action.Execute(entity, f)
-				}
-			}
-
 			entity.TriggerEvent(types.TRIGGER_TURN, nil)
 
 			if entity.GetFlags()&types.ENTITY_AUTO == 0 {
 				entity.(PlayerEntity).SetDefendingState(false)
-
-				entity.TriggerEvent(types.TRIGGER_DEFEND_END, nil)
 
 				entity.(PlayerEntity).ReduceCooldowns(types.TRIGGER_TURN)
 
@@ -875,6 +764,5 @@ func (f *Fight) Run() {
 		}
 	}
 
-	f.TriggerAll(types.TRIGGER_FIGHT_END, nil)
 	f.ExternalChannel <- FightEndMsg{}
 }
