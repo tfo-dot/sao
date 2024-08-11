@@ -7,5 +7,5 @@ type PlayerLocation struct {
 
 func DefaultPlayerLocation() PlayerLocation {
 	// return PlayerLocation{FloorName: "dev", LocationName: "Las"}
-	return PlayerLocation{FloorName: "dev", LocationName: "Rynek"}
+	return PlayerLocation{FloorName: "Beta-Miasto", LocationName: "Rynek"}
 }

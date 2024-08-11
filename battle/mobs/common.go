@@ -420,13 +420,26 @@ func Spawn(id string) *MobEntity {
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
 		}
+	case "LV0_Wilk":
+		return &MobEntity{
+			Id:        id,
+			MaxHP:     90,
+			HP:        90,
+			SPD:       40,
+			ATK:       40,
+			Effects:   make(EffectList, 0),
+			UUID:      uuid.New(),
+			Props:     make(map[string]interface{}, 0),
+			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
+			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+		}
 	case "LV0_Boss":
 		return &MobEntity{
 			Id:        id,
-			MaxHP:     300,
-			HP:        300,
+			MaxHP:     500,
+			HP:        500,
 			SPD:       30,
-			ATK:       40,
+			ATK:       100,
 			Effects:   make(EffectList, 0),
 			UUID:      uuid.New(),
 			Props:     make(map[string]interface{}, 0),

@@ -142,6 +142,11 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		charName := interactionData.String("nazwa")
 		charUser := interactionData.User("gracz")
 
+		if World.GetPlayer(charUser.ID.String()) != nil {
+			event.CreateMessage(MessageContent("Gracz ma już postać", true))
+			return
+		}
+
 		newPlayer := player.NewPlayer(charName, charUser.ID.String())
 
 		World.Players[newPlayer.GetUUID()] = &newPlayer
@@ -150,6 +155,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		if err != nil {
 			fmt.Println("error while sending message")
+		} else {
+			gid := event.GuildID()
+
+			(*Client).Rest().AddMemberRole(*gid, charUser.ID, snowflake.MustParse("1271178631758090331"))
 		}
 		return
 	case "ruch":
@@ -234,14 +243,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			derivedStatsText = "Brak"
 		}
 
+		rawLocation := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+
 		event.CreateMessage(
 			discord.NewMessageCreateBuilder().
 				AddEmbeds(
 					discord.NewEmbedBuilder().
 						AddField("Nazwa", playerChar.GetName(), true).
 						AddField("Gracz", fmt.Sprintf("<@%s>", playerChar.Meta.UserID), true).
-						AddField("Lokacja", playerChar.Meta.Location.LocationName, true).
-						AddField("Piętro", playerChar.Meta.Location.FloorName, true).
+						AddField("Lokacja", fmt.Sprintf("<#%s>", rawLocation.CID), true).
 						AddField("HP", fmt.Sprintf("%d/%d", playerChar.Stats.HP, playerChar.GetStat(types.STAT_HP)), true).
 						AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetStat(types.STAT_MANA)), true).
 						AddField("Atak", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AD)), true).

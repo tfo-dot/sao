@@ -19,6 +19,7 @@ import (
 	"sao/world/tournament"
 	"sao/world/transaction"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/disgoorg/disgo"
@@ -1312,7 +1313,15 @@ func (w *World) LoadBackup() {
 		panic(err)
 	}
 
-	sort.Slice(allBackups, func(i, j int) bool {
+	filteredBackups := make([]os.DirEntry, 0)
+
+	for _, backup := range allBackups {
+		if strings.HasSuffix(backup.Name(), "json") {
+			filteredBackups = append(filteredBackups, backup)
+		}
+	}
+
+	sort.Slice(filteredBackups, func(i, j int) bool {
 		leftName := allBackups[i].Name()
 		rightName := allBackups[j].Name()
 
@@ -1334,11 +1343,11 @@ func (w *World) LoadBackup() {
 		return leftTime.After(rightTime)
 	})
 
-	if len(allBackups) == 0 {
+	if len(filteredBackups) == 0 {
 		return
 	}
 
-	backupContent, err := os.ReadFile("./" + backupPath + "/" + allBackups[0].Name())
+	backupContent, err := os.ReadFile("./" + backupPath + "/" + filteredBackups[0].Name())
 
 	if err != nil {
 		panic(err)

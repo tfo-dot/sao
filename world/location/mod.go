@@ -46,24 +46,88 @@ type LocationEffect struct {
 func GetFloors(test bool) map[string]Floor {
 	if test {
 		return map[string]Floor{
-			"dev": {
-				Name:     "dev",
-				CID:      "1162450076438900958",
-				Default:  "Las",
+			"Beta-Miasto": {
+				Name:     "beta-miasto",
+				CID:      "1272232915308249119",
+				Default:  "Rynek",
 				Unlocked: true,
 				Locations: []Location{
 					{
 						Name:     "Rynek",
-						CID:      "1162450122249076756",
+						CID:      "1272233088608637050",
 						CityPart: true,
-						Effects:  []LocationEffect{},
 						TP:       true,
 						Unlocked: true,
-						Flags:    []string{},
 					},
 					{
+						Name:     "Tawerna",
+						CID:      "1272233328925343895",
+						CityPart: true,
+						Unlocked: true,
+					},
+					{
+						Name:     "Arena",
+						CID:      "1272233289159278622",
+						CityPart: true,
+						Unlocked: true,
+						Flags:    []string{"arena"},
+					},
+					{
+						Name:     "Brama główna",
+						CID:      "1272233404900839586",
+						CityPart: true,
+						Unlocked: true,
+					},
+					{
+						Name:     "Kuźnia",
+						CID:      "1272233428649250928",
+						CityPart: true,
+						Unlocked: true,
+					},
+					{
+						Name:     "Trybuny areny",
+						CID:      "1272233365935886347",
+						CityPart: true,
+						Unlocked: true,
+					},
+				},
+			},
+			"Beta-Poza-Miastem": {
+				Name:     "beta-poza-miastem",
+				CID:      "1272232994010169426",
+				Default:  "Las",
+				Unlocked: true,
+				Locations: []Location{
+					{
 						Name:     "Las",
-						CID:      "1162450159251234876",
+						CID:      "1272233789200007269",
+						TP:       true,
+						CityPart: false,
+						Enemies: []EnemyMeta{
+							{
+								MinNum: 1,
+								MaxNum: 3,
+								Enemy:  "LV0_Wilk",
+							},
+						},
+					},
+					{
+						Name:     "Polana",
+						CID:      "1272233801837183036",
+						TP:       true,
+						CityPart: false,
+						Enemies: []EnemyMeta{
+							{
+								MinNum: 1,
+								MaxNum: 3,
+								Enemy:  "LV0_Wilk",
+							},
+						},
+					},
+					{
+						Name:     "Podnóże wulkanu",
+						CID:      "1272233986617376829",
+						TP:       true,
 						CityPart: false,
 						Enemies: []EnemyMeta{
 							{
@@ -72,24 +136,13 @@ func GetFloors(test bool) map[string]Floor {
 								Enemy:  "LV0_Rycerz",
 							},
 						},
-						Effects:  []LocationEffect{},
-						TP:       false,
-						Unlocked: true,
-						Flags:    []string{},
 					},
 					{
-						Name:     "Arena",
-						CID:      "1241069460073222225",
-						CityPart: true,
-						Effects:  []LocationEffect{},
+						Name:     "Wulkan",
+						CID:      "1272234002174050394",
 						TP:       true,
-						Unlocked: true,
-						Flags:    []string{"arena"},
-					},
-					{
-						Name:     "Boss",
-						CID:      "1265406962263396463",
 						CityPart: false,
+						Flags:    []string{"boss"},
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
@@ -97,13 +150,8 @@ func GetFloors(test bool) map[string]Floor {
 								Enemy:  "LV0_Boss",
 							},
 						},
-						Effects:  []LocationEffect{},
-						TP:       false,
-						Unlocked: true,
-						Flags:    []string{"boss"},
 					},
 				},
-				Effects: []LocationEffect{},
 			},
 		}
 	} else {
