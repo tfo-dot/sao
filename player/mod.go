@@ -1,6 +1,7 @@
 package player
 
 import (
+	"errors"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/data"
@@ -396,18 +397,49 @@ func (p *Player) CanDefend() bool {
 	return p.GetEffectByType(battle.EFFECT_STUN) == nil
 }
 
-func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
-	if skill.GetTrigger().Type == types.TRIGGER_PASSIVE {
-		return false
+func (p *Player) GetTempSkills() []*types.WithExpire[types.PlayerSkill] {
+	return p.Inventory.TempSkills
+}
+
+func (p *Player) RemoveTempByUUID(uuid uuid.UUID) {
+	tempList := make([]*types.WithExpire[types.PlayerSkill], 0)
+
+	for _, skill := range p.Inventory.TempSkills {
+		if skill.Value.GetUUID() != uuid {
+			tempList = append(tempList, skill)
+		}
 	}
 
+	p.Inventory.TempSkills = tempList
+}
+
+func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 	if skill.IsLevelSkill() {
 		lvl := skill.(types.PlayerSkillLevel).GetLevel()
+
+		skillTrigger := skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(p.Inventory.LevelSkillsUpgrades[lvl])
+
+		if skillTrigger.Type == types.TRIGGER_PASSIVE {
+			return false
+		}
+
+		if p.GetEffectByType(battle.EFFECT_STUN) != nil {
+			return skillTrigger.Flags&types.FLAG_IGNORE_CC != 0
+		}
 
 		if currentCD, onCooldown := p.Inventory.LevelSkillsCDS[lvl]; onCooldown && currentCD != 0 {
 			return false
 		}
 	} else {
+		skillTrigger := skill.GetTrigger()
+
+		if skillTrigger.Type == types.TRIGGER_PASSIVE {
+			return false
+		}
+
+		if p.GetEffectByType(battle.EFFECT_STUN) != nil {
+			return skillTrigger.Flags&types.FLAG_IGNORE_CC != 0
+		}
 
 		if currentCD, onCooldown := p.Inventory.ItemSkillCD[skill.GetUUID()]; onCooldown && currentCD != 0 {
 			return false
@@ -438,6 +470,26 @@ func (p *Player) AddItem(item *types.PlayerItem) {
 
 func (p *Player) GetAllItems() []*types.PlayerItem {
 	return p.Inventory.Items
+}
+
+func (p *Player) GetSkills() []types.PlayerSkill {
+	arr := make([]types.PlayerSkill, 0)
+
+	for _, skill := range p.Inventory.LevelSkills {
+		arr = append(arr, skill)
+	}
+
+	return arr
+}
+
+func (p *Player) GetSkill(uuid uuid.UUID) types.PlayerSkill {
+	for _, skill := range p.Inventory.TempSkills {
+		if skill.Value.GetUUID() == uuid {
+			return skill.Value
+		}
+	}
+
+	return nil
 }
 
 func (p *Player) RemoveItem(item int) {
@@ -699,7 +751,7 @@ func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
 
 	for skillLevel := range p.Inventory.LevelSkillsCDS {
 		skillData := p.Inventory.LevelSkills[skillLevel]
-		cdMeta := skillData.GetTrigger().Cooldown
+		cdMeta := skillData.GetUpgradableTrigger(skillLevel).Cooldown
 
 		if cdMeta == nil && event == types.TRIGGER_TURN {
 			p.Inventory.LevelSkillsCDS[skillLevel]--
@@ -731,8 +783,11 @@ func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
 	}
 }
 
-// TODO Supply all data to the events
-func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []interface{} {
+func (p *Player) GetLvl() int {
+	return p.XP.Level
+}
+
+func (p *Player) TriggerEvent(event types.SkillTrigger, data types.EventData, meta interface{}) []interface{} {
 	returnMeta := make([]interface{}, 0)
 
 	for _, item := range p.Inventory.Items {
@@ -760,7 +815,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 					}
 				}
 
-				temp := effect.Execute(p, nil, nil, meta)
+				temp := effect.Execute(p, data.Target, data.Fight, meta)
 
 				if temp != nil {
 					returnMeta = append(returnMeta, temp)
@@ -770,7 +825,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 	}
 
 	for skillLevel, skillStruct := range p.Inventory.LevelSkills {
-		trigger := skillStruct.GetTrigger()
+		trigger := skillStruct.GetUpgradableTrigger(p.Inventory.LevelSkillsUpgrades[skillLevel])
 
 		if cd := skillStruct.GetUpgradableCost(p.Inventory.LevelSkillsUpgrades[skillLevel]); cd != 0 {
 			currentCD, onCooldown := p.Inventory.LevelSkillsCDS[skillLevel]
@@ -793,7 +848,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 				}
 			}
 
-			temp := skillStruct.Execute(p, nil, nil, meta)
+			temp := skillStruct.Execute(p, data.Target, data.Fight, meta)
 
 			if temp != nil {
 				returnMeta = append(returnMeta, temp)
@@ -826,7 +881,7 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 					}
 				}
 
-				temp := skill.Execute(p, nil, nil, meta)
+				temp := skill.Execute(p, data.Target, data.Fight, meta)
 
 				if temp != nil {
 					returnMeta = append(returnMeta, temp)
@@ -836,6 +891,36 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, meta interface{}) []inte
 	}
 
 	return returnMeta
+}
+
+func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
+	if lvl > p.GetLvl() {
+		return errors.New("PLAYER_LVL_TOO_LOW")
+	}
+
+	if _, exists := p.Inventory.LevelSkills[lvl]; exists {
+		return errors.New("SKILL_ALREADY_UNLOCKED")
+	}
+
+	skill, skillExists := inventory.AVAILABLE_SKILLS[path][lvl]
+
+	if !skillExists {
+		return errors.New("SKILL_NOT_FOUND")
+	}
+
+	if choice >= len(skill) {
+		return errors.New("INVALID_CHOICE")
+	}
+
+	p.Inventory.LevelSkills[lvl] = skill[choice]
+
+	skillEvents := p.Inventory.LevelSkills[lvl].GetEvents()
+
+	if effect, effectExists := skillEvents[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
+		effect(p)
+	}
+
+	return nil
 }
 
 func NewPlayer(name string, uid string) Player {

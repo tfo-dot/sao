@@ -19,7 +19,7 @@ type MobEntity struct {
 	UUID      uuid.UUID
 	Props     map[string]interface{}
 	Loot      []battle.Loot
-	TempSkill []types.WithExpire[types.PlayerSkill]
+	TempSkill []*types.WithExpire[types.PlayerSkill]
 }
 
 type EffectList []battle.ActionEffect
@@ -108,6 +108,8 @@ func (m *MobEntity) GetName() string {
 	switch m.Id {
 	case "LV0_Rycerz":
 		return "Rycerz"
+	case "LV0_Boss":
+		return "Boss"
 	}
 
 	return "Nieznana istota"
@@ -159,7 +161,7 @@ func (m *MobEntity) GetFlags() types.EntityFlag {
 	return types.ENTITY_AUTO
 }
 
-func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, target interface{}) []interface{} {
+func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, evt types.EventData, target interface{}) []interface{} {
 	return []interface{}{}
 }
 
@@ -295,6 +297,28 @@ func (m *MobEntity) TriggerAllEffects() []battle.ActionEffect {
 	return expiredEffects
 }
 
+func (m *MobEntity) GetSkill(uuid uuid.UUID) types.PlayerSkill {
+	for _, skill := range m.TempSkill {
+		if skill.Value.GetUUID() == uuid {
+			return skill.Value
+		}
+	}
+
+	return nil
+}
+
+func (m *MobEntity) RemoveTempByUUID(uuid uuid.UUID) {
+	tempList := make([]*types.WithExpire[types.PlayerSkill], 0)
+
+	for _, skill := range m.TempSkill {
+		if skill.Value.GetUUID() != uuid {
+			tempList = append(tempList, skill)
+		}
+	}
+
+	m.TempSkill = tempList
+}
+
 func (m *MobEntity) RemoveEffect(uuid uuid.UUID) {
 	m.Effects = m.Effects.RemoveEffect(uuid)
 }
@@ -373,7 +397,11 @@ func (m *MobEntity) GetStat(stat types.Stat) int {
 }
 
 func (m *MobEntity) AppendTempSkill(skill types.WithExpire[types.PlayerSkill]) {
-	m.TempSkill = append(m.TempSkill, skill)
+	m.TempSkill = append(m.TempSkill, &skill)
+}
+
+func (m *MobEntity) GetTempSkills() []*types.WithExpire[types.PlayerSkill] {
+	return m.TempSkill
 }
 
 func Spawn(id string) *MobEntity {
@@ -390,7 +418,20 @@ func Spawn(id string) *MobEntity {
 			UUID:      uuid.New(),
 			Props:     make(map[string]interface{}, 0),
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
-			TempSkill: make([]types.WithExpire[types.PlayerSkill], 0),
+			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+		}
+	case "LV0_Boss":
+		return &MobEntity{
+			Id:        id,
+			MaxHP:     300,
+			HP:        300,
+			SPD:       30,
+			ATK:       40,
+			Effects:   make(EffectList, 0),
+			UUID:      uuid.New(),
+			Props:     make(map[string]interface{}, 0),
+			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
+			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
 		}
 	}
 

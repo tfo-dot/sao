@@ -17,14 +17,16 @@ func (fsm FightStartMsg) GetData() any {
 	return nil
 }
 
-type FightEndMsg struct{}
+type FightEndMsg struct {
+	RunAway bool
+}
 
 func (fsm FightEndMsg) GetEvent() FightMessage {
 	return MSG_FIGHT_END
 }
 
 func (fsm FightEndMsg) GetData() any {
-	return nil
+	return fsm.RunAway
 }
 
 type FightActionNeededMsg struct {
@@ -36,5 +38,17 @@ func (fsm FightActionNeededMsg) GetEvent() FightMessage {
 }
 
 func (fsm FightActionNeededMsg) GetData() any {
+	return fsm.Entity
+}
+
+type SummonExpired struct {
+	Entity uuid.UUID
+}
+
+func (fsm SummonExpired) GetEvent() FightMessage {
+	return MSG_SUMMON_EXPIRED
+}
+
+func (fsm SummonExpired) GetData() any {
 	return fsm.Entity
 }

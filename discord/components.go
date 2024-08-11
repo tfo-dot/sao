@@ -6,7 +6,6 @@ import (
 	"sao/data"
 	"sao/player"
 	"sao/types"
-	"sao/utils"
 	"sao/world/npc"
 	"sao/world/party"
 	"sao/world/transaction"
@@ -90,9 +89,11 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 	if strings.HasPrefix(customId, "chc/") {
 		customId, _ = strings.CutPrefix(customId, "chc/")
 
-		for _, value := range Choices {
+		for idx, value := range Choices {
 			if value.Id == customId {
 				value.Select(event)
+
+				Choices = append(Choices[:idx], Choices[idx+1:]...)
 				return
 			}
 		}
@@ -124,9 +125,49 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 		for _, pl := range World.Players {
 			if pl.Meta.UserID == userSnowflake {
-				var tempPlayer battle.PlayerEntity = pl
+				if len(data) == 4 {
+					choice := 0
+					fmt.Sscanf(data[3], "%d", &choice)
 
-				res := pl.Inventory.UnlockSkill(path, lvl, pl.XP.Level, &tempPlayer)
+					res := pl.UnlockSkill(path, lvl, choice)
+
+					if res == nil {
+						event.UpdateMessage(
+							discord.
+								NewMessageUpdateBuilder().
+								SetContent("Odblokowano umiejętność").
+								ClearContainerComponents().
+								ClearEmbeds().
+								Build(),
+						)
+
+						return
+					}
+
+					msgContent := ""
+
+					switch res.Error() {
+					case "PLAYER_LVL_TOO_LOW":
+						msgContent = "Nie masz wystarczającego poziomu"
+					case "SKILL_ALREADY_UNLOCKED":
+						msgContent = "Umiejętność jest już odblokowana"
+					case "SKILL_NOT_FOUND":
+						msgContent = "Nie znaleziono umiejętności"
+					case "INVALID_CHOICE":
+						msgContent = "Nie znaleziono umiejętności"
+					}
+
+					event.CreateMessage(
+						discord.
+							NewMessageCreateBuilder().
+							SetContent(msgContent).
+							Build(),
+					)
+
+					return
+				}
+
+				res := pl.UnlockSkill(path, lvl, 0)
 
 				if res == nil {
 					event.UpdateMessage(
@@ -153,8 +194,67 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 				}
 
 				if res.Error() == "MULTIPLE_OPTIONS" {
-					println("xd?")
-					//TODO wake up
+					options := make([]discord.StringSelectMenuOption, 0)
+
+					selectMenuUuid := uuid.New().String()
+
+					Choices = append(Choices, types.DiscordChoice{
+						Id: selectMenuUuid,
+						Select: func(event *events.ComponentInteractionCreate) {
+							choice := event.StringSelectMenuInteractionData().Values[0]
+
+							parsed := 0
+							fmt.Sscanf(choice, "%d", &parsed)
+
+							res := pl.UnlockSkill(path, lvl, parsed)
+
+							if res == nil {
+								event.UpdateMessage(
+									discord.
+										NewMessageUpdateBuilder().
+										SetContent("Odblokowano umiejętność").
+										ClearContainerComponents().
+										ClearEmbeds().
+										Build(),
+								)
+
+								return
+							}
+
+							msgContent := ""
+
+							switch res.Error() {
+							case "PLAYER_LVL_TOO_LOW":
+								msgContent = "Nie masz wystarczającego poziomu"
+							case "SKILL_ALREADY_UNLOCKED":
+								msgContent = "Umiejętność jest już odblokowana"
+							case "SKILL_NOT_FOUND":
+								msgContent = "Nie znaleziono umiejętności"
+							case "INVALID_CHOICE":
+								msgContent = "Nie znaleziono umiejętności"
+							}
+
+							event.CreateMessage(
+								discord.
+									NewMessageCreateBuilder().
+									SetContent(msgContent).
+									Build(),
+							)
+						},
+					})
+
+					event.UpdateMessage(
+						discord.
+							NewMessageUpdateBuilder().
+							ClearContainerComponents().
+							AddActionRow(
+								discord.
+									NewStringSelectMenu("chc/"+selectMenuUuid, "Wybierz umiejętność").
+									WithMaxValues(1).
+									AddOptions(options...),
+							).
+							Build(),
+					)
 				}
 
 				event.CreateMessage(
@@ -222,14 +322,6 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 	if strings.HasPrefix(customId, "f") {
 		action := customId[2:]
-		meta := ""
-
-		if strings.Contains(action, "+") {
-			split := strings.Split(action, "+")
-
-			action = split[0]
-			meta = split[1]
-		}
 
 		player := World.GetPlayer(event.User().ID.String())
 
@@ -324,14 +416,17 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			for _, skill := range player.Inventory.LevelSkills {
 				if player.CanUseSkill(skill) {
-					options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), fmt.Sprint(skill.GetLevel())))
+					if !skill.CanUse(&player, &fight, player.Inventory.LevelSkillsUpgrades[skill.GetLevel()]) {
+						continue
+					}
+					options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), fmt.Sprintf("l|%d", skill.GetLevel())))
 				}
 			}
 
 			if player.Meta.Fury != nil {
 				for _, skill := range player.Meta.Fury.GetSkills() {
 					if player.CanUseSkill(skill) {
-						options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), skill.GetUUID().String()))
+						options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), "f|"+skill.GetUUID().String()))
 					}
 				}
 			}
@@ -341,7 +436,493 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			Choices = append(Choices, types.DiscordChoice{
 				Id: selectMenuUuid,
 				Select: func(event *events.ComponentInteractionCreate) {
-					//TODO add it
+					selected := event.StringSelectMenuInteractionData().Values[0]
+
+					switch selected[0] {
+					case 'l':
+						value, err := strconv.Atoi(strings.Split(selected, "|")[1])
+
+						if err != nil {
+							event.CreateMessage(
+								discord.
+									NewMessageCreateBuilder().
+									SetContent("Wystapił nieoczekiwany błąd").
+									SetEphemeral(true).
+									Build(),
+							)
+						}
+
+						skillObj, skillExists := player.Inventory.LevelSkills[value]
+
+						if !skillExists {
+							event.CreateMessage(
+								discord.
+									NewMessageCreateBuilder().
+									SetContent("Wystapił nieoczekiwany błąd").
+									SetEphemeral(true).
+									Build(),
+							)
+						}
+
+						skillTrigger := skillObj.GetUpgradableTrigger(player.Inventory.LevelSkillsUpgrades[value])
+
+						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
+							fight.PlayerActions <- battle.Action{
+								Event:  battle.ACTION_SKILL,
+								Source: player.GetUUID(),
+								Target: player.GetUUID(),
+								Meta: battle.ActionSkillMeta{
+									IsForLevel: true,
+									Lvl:        skillObj.GetLevel(),
+								},
+							}
+
+							event.UpdateMessage(messageUpdateClearComponents)
+
+							return
+						}
+
+						if skillTrigger.Target.Target == types.TARGET_ENEMY {
+							playerEnemies := fight.GetEnemiesFor(player.GetUUID())
+
+							if len(playerEnemies) == 0 {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Brak przeciwników").
+										SetEphemeral(true).
+										Build(),
+								)
+							}
+
+							selectMenuUuidDeep := uuid.New().String()
+
+							options := make([]discord.StringSelectMenuOption, 0)
+
+							for _, enemy := range playerEnemies {
+								options = append(options, discord.NewStringSelectMenuOption(enemy.GetName(), enemy.GetUUID().String()))
+							}
+
+							Choices = append(Choices, types.DiscordChoice{
+								Id: selectMenuUuidDeep,
+								Select: func(event *events.ComponentInteractionCreate) {
+
+									selected := event.StringSelectMenuInteractionData().Values
+
+									parsedUuids := make([]uuid.UUID, len(selected))
+
+									for idx, rawUuid := range selected {
+										parsedUuids[idx] = uuid.MustParse(rawUuid)
+									}
+
+									fight.PlayerActions <- battle.Action{
+										Event:  battle.ACTION_SKILL,
+										Source: player.GetUUID(),
+										Target: player.GetUUID(),
+										Meta: battle.ActionSkillMeta{
+											IsForLevel: true,
+											Lvl:        skillObj.GetLevel(),
+											Targets:    parsedUuids,
+										},
+									}
+
+									event.UpdateMessage(messageUpdateClearComponents)
+								},
+							})
+
+							selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuidDeep, "Wybierz wrogów").AddOptions(options...)
+
+							if skillTrigger.Target.MaxTargets >= 0 {
+								selectMenu = selectMenu.WithMaxValues(skillTrigger.Target.MaxTargets)
+							} else {
+								selectMenu = selectMenu.WithMaxValues(len(options))
+							}
+
+							event.UpdateMessage(
+								discord.
+									NewMessageUpdateBuilder().
+									ClearContainerComponents().
+									AddActionRow(selectMenu).
+									Build(),
+							)
+
+							return
+						}
+
+						if skillTrigger.Target.Target == types.TARGET_ALLY {
+							playerAllies := fight.GetEnemiesFor(player.GetUUID())
+
+							if len(playerAllies) == 0 {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Brak sojuszników").
+										SetEphemeral(true).
+										Build(),
+								)
+							}
+
+							selectMenuUuidDeep := uuid.New().String()
+
+							options := make([]discord.StringSelectMenuOption, 0)
+
+							for _, ally := range playerAllies {
+								options = append(options, discord.NewStringSelectMenuOption(ally.GetName(), ally.GetUUID().String()))
+							}
+
+							Choices = append(Choices, types.DiscordChoice{
+								Id: selectMenuUuidDeep,
+								Select: func(event *events.ComponentInteractionCreate) {
+									selected := event.StringSelectMenuInteractionData().Values
+
+									parsedUuids := make([]uuid.UUID, len(selected))
+
+									for idx, rawUuid := range selected {
+										parsedUuids[idx] = uuid.MustParse(rawUuid)
+									}
+
+									fight.PlayerActions <- battle.Action{
+										Event:  battle.ACTION_SKILL,
+										Source: player.GetUUID(),
+										Target: player.GetUUID(),
+										Meta: battle.ActionSkillMeta{
+											IsForLevel: true,
+											Lvl:        skillObj.GetLevel(),
+											Targets:    parsedUuids,
+										},
+									}
+
+									event.UpdateMessage(messageUpdateClearComponents)
+								},
+							})
+
+							selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuidDeep, "Wybierz sojuszników").AddOptions(options...)
+
+							if skillTrigger.Target.MaxTargets >= 0 {
+								selectMenu = selectMenu.WithMaxValues(skillTrigger.Target.MaxTargets)
+							} else {
+								selectMenu = selectMenu.WithMaxValues(len(options))
+							}
+
+							event.UpdateMessage(
+								discord.
+									NewMessageUpdateBuilder().
+									ClearContainerComponents().
+									AddActionRow(selectMenu).
+									Build(),
+							)
+
+							return
+						}
+
+						skillTargets := make([]battle.Entity, 0)
+
+						if skillTrigger.Target.Target&types.TARGET_SELF != 0 {
+							skillTargets = append(skillTargets, player)
+						}
+
+						if skillTrigger.Target.Target&types.TARGET_ENEMY != 0 {
+							skillTargets = append(skillTargets, fight.GetEnemiesFor(player.GetUUID())...)
+						}
+
+						if skillTrigger.Target.Target&types.TARGET_ALLY != 0 {
+							skillTargets = append(skillTargets, fight.GetAlliesFor(player.GetUUID())...)
+						}
+
+						selectMenuUuidDeep := uuid.New().String()
+
+						options := make([]discord.StringSelectMenuOption, 0)
+
+						for _, target := range skillTargets {
+							options = append(options, discord.NewStringSelectMenuOption(target.GetName(), target.GetUUID().String()))
+						}
+
+						Choices = append(Choices, types.DiscordChoice{
+							Id: selectMenuUuidDeep,
+							Select: func(event *events.ComponentInteractionCreate) {
+
+								selected := event.StringSelectMenuInteractionData().Values
+
+								parsedUuids := make([]uuid.UUID, len(selected))
+
+								for idx, rawUuid := range selected {
+									parsedUuids[idx] = uuid.MustParse(rawUuid)
+								}
+
+								fight.PlayerActions <- battle.Action{
+									Event:  battle.ACTION_SKILL,
+									Source: player.GetUUID(),
+									Target: player.GetUUID(),
+									Meta: battle.ActionSkillMeta{
+										IsForLevel: true,
+										Lvl:        skillObj.GetLevel(),
+										Targets:    parsedUuids,
+									},
+								}
+
+								event.UpdateMessage(messageUpdateClearComponents)
+							},
+						})
+
+						selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuidDeep, "Wybierz cele").AddOptions(options...)
+
+						if skillTrigger.Target.MaxTargets >= 0 {
+							selectMenu = selectMenu.WithMaxValues(skillTrigger.Target.MaxTargets)
+						} else {
+							selectMenu = selectMenu.WithMaxValues(len(options))
+						}
+
+						event.UpdateMessage(
+							discord.
+								NewMessageUpdateBuilder().
+								ClearContainerComponents().
+								AddActionRow(selectMenu).
+								Build(),
+						)
+
+						return
+
+					case 'f':
+						value := uuid.MustParse(strings.Split(selected, "|")[1])
+
+						if player.Meta.Fury != nil {
+							event.CreateMessage(
+								discord.
+									NewMessageCreateBuilder().
+									SetContent("Wystapił nieoczekiwany błąd").
+									SetEphemeral(true).
+									Build(),
+							)
+						}
+
+						var skillObj types.PlayerSkill
+
+						for _, skill := range player.Meta.Fury.GetSkills() {
+							if skill.GetUUID() == value {
+								skillObj = skill
+							}
+						}
+
+						skillTrigger := skillObj.GetTrigger()
+
+						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
+							fight.PlayerActions <- battle.Action{
+								Event:  battle.ACTION_SKILL,
+								Source: player.GetUUID(),
+								Target: player.GetUUID(),
+								Meta: battle.ActionSkillMeta{
+									IsForLevel: false,
+									SkillUuid:  skillObj.GetUUID(),
+								},
+							}
+
+							event.UpdateMessage(messageUpdateClearComponents)
+
+							return
+						}
+
+						if skillTrigger.Target.Target == types.TARGET_ENEMY {
+							playerEnemies := fight.GetEnemiesFor(player.GetUUID())
+
+							if len(playerEnemies) == 0 {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Brak przeciwników").
+										SetEphemeral(true).
+										Build(),
+								)
+							}
+
+							selectMenuUuidDeep := uuid.New().String()
+
+							options := make([]discord.StringSelectMenuOption, 0)
+
+							for _, enemy := range playerEnemies {
+								options = append(options, discord.NewStringSelectMenuOption(enemy.GetName(), enemy.GetUUID().String()))
+							}
+
+							Choices = append(Choices, types.DiscordChoice{
+								Id: selectMenuUuidDeep,
+								Select: func(event *events.ComponentInteractionCreate) {
+
+									selected := event.StringSelectMenuInteractionData().Values
+
+									parsedUuids := make([]uuid.UUID, len(selected))
+
+									for idx, rawUuid := range selected {
+										parsedUuids[idx] = uuid.MustParse(rawUuid)
+									}
+
+									fight.PlayerActions <- battle.Action{
+										Event:  battle.ACTION_SKILL,
+										Source: player.GetUUID(),
+										Target: player.GetUUID(),
+										Meta: battle.ActionSkillMeta{
+											IsForLevel: false,
+											SkillUuid:  skillObj.GetUUID(),
+											Targets:    parsedUuids,
+										},
+									}
+
+									event.UpdateMessage(messageUpdateClearComponents)
+								},
+							})
+
+							selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuidDeep, "Wybierz wrogów").AddOptions(options...)
+
+							if skillTrigger.Target.MaxTargets >= 0 {
+								selectMenu = selectMenu.WithMaxValues(skillTrigger.Target.MaxTargets)
+							} else {
+								selectMenu = selectMenu.WithMaxValues(len(options))
+							}
+
+							event.UpdateMessage(
+								discord.
+									NewMessageUpdateBuilder().
+									ClearContainerComponents().
+									AddActionRow(selectMenu).
+									Build(),
+							)
+
+							return
+						}
+
+						if skillTrigger.Target.Target == types.TARGET_ALLY {
+							playerAllies := fight.GetEnemiesFor(player.GetUUID())
+
+							if len(playerAllies) == 0 {
+								event.CreateMessage(
+									discord.
+										NewMessageCreateBuilder().
+										SetContent("Brak sojuszników").
+										SetEphemeral(true).
+										Build(),
+								)
+							}
+
+							selectMenuUuidDeep := uuid.New().String()
+
+							options := make([]discord.StringSelectMenuOption, 0)
+
+							for _, ally := range playerAllies {
+								options = append(options, discord.NewStringSelectMenuOption(ally.GetName(), ally.GetUUID().String()))
+							}
+
+							Choices = append(Choices, types.DiscordChoice{
+								Id: selectMenuUuidDeep,
+								Select: func(event *events.ComponentInteractionCreate) {
+
+									selected := event.StringSelectMenuInteractionData().Values
+
+									parsedUuids := make([]uuid.UUID, len(selected))
+
+									for idx, rawUuid := range selected {
+										parsedUuids[idx] = uuid.MustParse(rawUuid)
+									}
+
+									fight.PlayerActions <- battle.Action{
+										Event:  battle.ACTION_SKILL,
+										Source: player.GetUUID(),
+										Target: player.GetUUID(),
+										Meta: battle.ActionSkillMeta{
+											IsForLevel: false,
+											SkillUuid:  skillObj.GetUUID(),
+											Targets:    parsedUuids,
+										},
+									}
+
+									event.UpdateMessage(messageUpdateClearComponents)
+								},
+							})
+
+							selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuidDeep, "Wybierz sojuszników").AddOptions(options...)
+
+							if skillTrigger.Target.MaxTargets >= 0 {
+								selectMenu = selectMenu.WithMaxValues(skillTrigger.Target.MaxTargets)
+							} else {
+								selectMenu = selectMenu.WithMaxValues(len(options))
+							}
+
+							event.UpdateMessage(
+								discord.
+									NewMessageUpdateBuilder().
+									ClearContainerComponents().
+									AddActionRow(selectMenu).
+									Build(),
+							)
+
+							return
+						}
+
+						skillTargets := make([]battle.Entity, 0)
+
+						if skillTrigger.Target.Target&types.TARGET_SELF != 0 {
+							skillTargets = append(skillTargets, player)
+						}
+
+						if skillTrigger.Target.Target&types.TARGET_ENEMY != 0 {
+							skillTargets = append(skillTargets, fight.GetEnemiesFor(player.GetUUID())...)
+						}
+
+						if skillTrigger.Target.Target&types.TARGET_ALLY != 0 {
+							skillTargets = append(skillTargets, fight.GetAlliesFor(player.GetUUID())...)
+						}
+
+						selectMenuUuidDeep := uuid.New().String()
+
+						options := make([]discord.StringSelectMenuOption, 0)
+
+						for _, target := range skillTargets {
+							options = append(options, discord.NewStringSelectMenuOption(target.GetName(), target.GetUUID().String()))
+						}
+
+						Choices = append(Choices, types.DiscordChoice{
+							Id: selectMenuUuidDeep,
+							Select: func(event *events.ComponentInteractionCreate) {
+
+								selected := event.StringSelectMenuInteractionData().Values
+
+								parsedUuids := make([]uuid.UUID, len(selected))
+
+								for idx, rawUuid := range selected {
+									parsedUuids[idx] = uuid.MustParse(rawUuid)
+								}
+
+								fight.PlayerActions <- battle.Action{
+									Event:  battle.ACTION_SKILL,
+									Source: player.GetUUID(),
+									Target: player.GetUUID(),
+									Meta: battle.ActionSkillMeta{
+										IsForLevel: false,
+										SkillUuid:  skillObj.GetUUID(),
+										Targets:    parsedUuids,
+									},
+								}
+
+								event.UpdateMessage(messageUpdateClearComponents)
+							},
+						})
+
+						selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuidDeep, "Wybierz cele").AddOptions(options...)
+
+						if skillTrigger.Target.MaxTargets >= 0 {
+							selectMenu = selectMenu.WithMaxValues(skillTrigger.Target.MaxTargets)
+						} else {
+							selectMenu = selectMenu.WithMaxValues(len(options))
+						}
+
+						event.UpdateMessage(
+							discord.
+								NewMessageUpdateBuilder().
+								ClearContainerComponents().
+								AddActionRow(selectMenu).
+								Build(),
+						)
+
+						return
+
+					}
 				},
 			})
 
@@ -357,123 +938,6 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 					).
 					Build(),
 			)
-		case "skill/usage":
-			rawSkillUuid := event.ComponentInteraction.StringSelectMenuInteractionData().Values[0]
-
-			if player.Meta.Fury != nil {
-				for _, skill := range player.Meta.Fury.GetSkills() {
-					if skill.GetUUID().String() == rawSkillUuid {
-						event.UpdateMessage(
-							discord.
-								NewMessageUpdateBuilder().
-								ClearContainerComponents().
-								Build(),
-						)
-
-						return
-					}
-				}
-			}
-
-			for _, skill := range player.Inventory.LevelSkills {
-				if fmt.Sprint(skill.GetLevel()) == rawSkillUuid {
-					event.UpdateMessage(
-						discord.
-							NewMessageUpdateBuilder().
-							ClearContainerComponents().
-							Build(),
-					)
-
-					//TODO fix
-					// if skill.GetTrigger().Event.TargetCount == -1 {
-					// 	fight.PlayerActions <- battle.Action{
-					// 		Event:  battle.ACTION_SKILL,
-					// 		Source: player.GetUUID(),
-					// 		Target: uuid.Nil,
-					// 		Meta: battle.ActionSkillMeta{
-					// 			IsForLevel: true,
-					// 			Lvl:        skill.GetLevel(),
-					// 			SkillUuid:  uuid.Nil,
-					// 			Targets: utils.Map(
-					// 				fight.GetEnemiesFor(player.GetUUID()),
-					// 				func(entity battle.Entity) uuid.UUID { return entity.GetUUID() },
-					// 			),
-					// 		},
-					// 	}
-
-					// 	event.CreateMessage(
-					// 		discord.
-					// 			NewMessageCreateBuilder().
-					// 			SetContent("Użyto umiejętności!").
-					// 			SetEphemeral(true).
-					// 			Build(),
-					// 	)
-					// } else {
-					options := utils.Map(
-						fight.GetEnemiesFor(player.GetUUID()),
-						func(entity battle.Entity) discord.StringSelectMenuOption {
-							return discord.NewStringSelectMenuOption(entity.GetName(), entity.GetUUID().String())
-						},
-					)
-
-					event.UpdateMessage(
-						discord.
-							NewMessageUpdateBuilder().
-							ClearContainerComponents().
-							AddActionRow(
-								discord.
-									NewStringSelectMenu(
-										"f/skill/usage/target+"+rawSkillUuid,
-										"Wybierz cel umiejętności",
-										options...,
-									).
-									//TODO fix target
-									WithMaxValues(1),
-							).
-							Build(),
-					)
-				}
-
-				return
-			}
-		case "skill/usage/target":
-			rawSkillUuid := meta
-
-			for _, skill := range player.Inventory.LevelSkills {
-				if fmt.Sprint(skill.GetLevel()) == rawSkillUuid {
-					event.UpdateMessage(
-						discord.
-							NewMessageUpdateBuilder().
-							ClearContainerComponents().
-							Build(),
-					)
-
-					fight.PlayerActions <- battle.Action{
-						Event:  battle.ACTION_SKILL,
-						Source: player.GetUUID(),
-						Target: uuid.Nil,
-						Meta: battle.ActionSkillMeta{
-							IsForLevel: true,
-							Lvl:        skill.GetLevel(),
-							SkillUuid:  uuid.Nil,
-							Targets: utils.Map(
-								event.ComponentInteraction.StringSelectMenuInteractionData().Values,
-								func(s string) uuid.UUID { return uuid.MustParse(s) },
-							),
-						},
-					}
-
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Użyto umiejętności!").
-							SetEphemeral(true).
-							Build(),
-					)
-
-					return
-				}
-			}
 		case "item":
 			options := make([]discord.StringSelectMenuOption, 0)
 

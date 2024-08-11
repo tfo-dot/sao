@@ -230,6 +230,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			derivedStatsText += fmt.Sprintf("- +%d%s %% jako %s\n", stat.Percent, types.StatToString[stat.Base], types.StatToString[stat.Derived])
 		}
 
+		if derivedStatsText == "" {
+			derivedStatsText = "Brak"
+		}
+
 		event.CreateMessage(
 			discord.NewMessageCreateBuilder().
 				AddEmbeds(
@@ -287,38 +291,11 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				)
 			}
 
-			if len(embed.Fields) >= 20 {
-				//TODO add paging
-				fmt.Println("Too many fields!")
-			}
-
 			event.CreateMessage(MessageEmbed(embed.Build()))
 
 			return
 		case "odblokuj":
 			lvl := interactionData.Int("lvl")
-
-			skillList := make([]inventory.PlayerSkillLevel, 0)
-
-			for _, skillTree := range inventory.AVAILABLE_SKILLS {
-				skill, exists := skillTree[lvl]
-
-				//TODO handle skill selection
-				if exists && len(skill) == 1 {
-					skillList = append(skillList, skill[0])
-				}
-			}
-
-			if len(skillList) == 0 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie znaleziono umiejętności dla tego poziomu").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
 
 			if _, exists := playerChar.Inventory.LevelSkills[lvl]; exists {
 				event.CreateMessage(
@@ -335,30 +312,79 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			buttons := make([]discord.InteractiveComponent, 0)
 
-			for _, skill := range skillList {
-				upgradeMsg := ""
+			for _, skillTree := range inventory.AVAILABLE_SKILLS {
+				skills, exists := skillTree[lvl]
 
-				for _, upgrade := range skill.GetUpgrades() {
-					upgradeMsg += fmt.Sprintf("\n- %s", upgrade.Description)
+				if !exists {
+					continue
 				}
 
-				embed.AddField(
-					skill.GetName(),
-					fmt.Sprintf("%s\nUlepszenia:%s", skill.GetDescription(), upgradeMsg),
-					false,
-				)
+				for idx, skill := range skills {
+					upgradeMsg := ""
 
-				buttons = append(buttons, discord.NewPrimaryButton(
-					skill.GetName(),
-					fmt.Sprintf("su|%d|%d", skill.GetPath(), skill.GetLevel()),
-				))
+					for _, upgrade := range skill.GetUpgrades() {
+						upgradeMsg += fmt.Sprintf("\n- %s", upgrade.Description)
+					}
+
+					embed.AddField(
+						skill.GetName(),
+						fmt.Sprintf("%s\nUlepszenia:%s", skill.GetDescription(), upgradeMsg),
+						false,
+					)
+
+					buttons = append(buttons, discord.NewPrimaryButton(
+						skill.GetName(),
+						fmt.Sprintf("su|%d|%d|%d", skill.GetPath(), skill.GetLevel(), idx),
+					))
+				}
+			}
+
+			if len(buttons) == 0 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie znaleziono umiejętności dla tego poziomu").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			containers := make([]discord.ContainerComponent, 0)
+			containers = append(containers, discord.NewActionRow())
+
+			tempButtons := make([]discord.InteractiveComponent, len(buttons))
+			copy(tempButtons, buttons)
+
+			for len(tempButtons) > 0 {
+				if len(containers[len(containers)-1].(discord.ActionRowComponent).Components()) == 5 {
+					containers = append(containers, discord.NewActionRow())
+				}
+
+				containers[len(containers)-1] = containers[len(containers)-1].(discord.ActionRowComponent).AddComponents(tempButtons[0])
+				tempButtons = tempButtons[1:]
+			}
+
+			if len(containers[len(containers)-1].Components()) == 0 {
+				containers = containers[:len(containers)-1]
+			}
+
+			if len(containers) > 5 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Za dużo umiejętności na tym poziomie.").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
 			}
 
 			event.CreateMessage(
 				discord.
 					NewMessageCreateBuilder().
 					AddEmbeds(embed.Build()).
-					AddActionRow(buttons...).
+					AddContainerComponents(containers...).
 					Build(),
 			)
 

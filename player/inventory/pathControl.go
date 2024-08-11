@@ -27,6 +27,10 @@ func (skill ControlSkill) IsLevelSkill() bool {
 	return true
 }
 
+func (skill ControlSkill) CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool {
+	return true
+}
+
 type CON_LVL_1 struct {
 	ControlSkill
 	DefaultCost
@@ -39,8 +43,8 @@ func (skill CON_LVL_1) GetName() string {
 	return "Poziom 1 - Kontrola"
 }
 
-func (skill CON_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill CON_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Cooldown",
 			Description: "Zmniejsza czas odnowienia o 1 turę",
@@ -132,6 +136,20 @@ func (skill CON_LVL_1) GetDescription() string {
 	return "Ogłusza przeciwnika na jedną turę"
 }
 
+func (skill CON_LVL_1) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{"", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment[0] = " Zmniejsza czas odnowienia o 1 turę"
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegment[1] = "\nPo zakończeniu ogłuszenia spowalnia cel o 10 na turę"
+	}
+
+	return "Ogłusza przeciwnika na jedną turę." + upgradeSegment[0] + upgradeSegment[1]
+}
+
 func (skill CON_LVL_1) GetLevel() int {
 	return 1
 }
@@ -150,6 +168,30 @@ func (skill CON_LVL_2) GetName() string {
 	return "Poziom 2 - Kontrola"
 }
 
+func (skill CON_LVL_2) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{"5 SPD i AGL.", "", "", ""}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegment[0] = "10 SPD i AGL."
+	}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment[1] = "\nPo trafieniu przeciwnika spowolnia go o 10."
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegment[2] = "\nPo trafieniu przeciwnika zmniejsza jego AGL o 10."
+	}
+
+	if HasUpgrade(upgrades, 1) && HasUpgrade(upgrades, 3) {
+		upgradeSegment[1] = ""
+		upgradeSegment[2] = ""
+		upgradeSegment[3] = "\nPo trafieniu przeciwnika zmniejsza jego SPD i AGL o 10."
+	}
+
+	return "Dostajesz " + upgradeSegment[0] + upgradeSegment[1] + upgradeSegment[2] + upgradeSegment[3]
+}
+
 func (skill CON_LVL_2) GetDescription() string {
 	return "Dostajesz 5 SPD i AGL"
 }
@@ -158,8 +200,8 @@ func (skill CON_LVL_2) GetLevel() int {
 	return 2
 }
 
-func (skill CON_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill CON_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "OnHit",
 			Description: "Po trafieniu spowalnia przeciwnika o 10 SPD",
@@ -284,8 +326,18 @@ func (skill CON_LVL_3) GetUpgradableCost(upgrades int) int {
 	return base
 }
 
-func (skill CON_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill CON_LVL_3) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := ""
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment = " Można użyć na sojuszniku"
+	}
+
+	return "Usuwa wszystkie negatywne efekty." + upgradeSegment
+}
+
+func (skill CON_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Ally",
 			Description: "Może być użyte na sojuszniku",
@@ -301,12 +353,24 @@ func (skill CON_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
-// TODO add ally target
 func (skill CON_LVL_3) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_TYPE_NONE}
+}
+
+func (skill CON_LVL_3) GetUpgradableTrigger(upgrades int) types.Trigger {
+	baseTarget := types.TARGET_SELF
+
+	if HasUpgrade(upgrades, 1) {
+		baseTarget |= types.TARGET_ALLY
+	}
+
 	return types.Trigger{
-		Type: types.TRIGGER_ACTIVE,
-		//Can use while stunned
-		Flags: 1 << 1,
+		Type:  types.TRIGGER_ACTIVE,
+		Flags: types.FLAG_IGNORE_CC,
+		Target: &types.TargetTrigger{
+			Target:     baseTarget,
+			MaxTargets: 1,
+		},
 	}
 }
 
@@ -390,6 +454,20 @@ func (skill CON_LVL_4) UpgradableExecute(owner, target, fightInstance, meta inte
 	return nil
 }
 
+func (skill CON_LVL_4) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{" trafionym", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment[1] = "Dodatkowo losowy przeciwnik dostanie obrażenia w wysokości 20% ataku"
+	}
+
+	if !HasUpgrade(upgrades, 2) {
+		upgradeSegment[0] = ""
+	}
+
+	return "Po " + upgradeSegment[0] + "ataku zmniejsza CD wszystkich umiejętności o 1." + upgradeSegment[1]
+}
+
 func (skill CON_LVL_4) GetCD() int {
 	return BaseCooldowns[skill.GetLevel()]
 }
@@ -406,8 +484,8 @@ func (skill CON_LVL_4) GetLevel() int {
 	return 4
 }
 
-func (skill CON_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill CON_LVL_4) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Ripple",
 			Description: "Zadaje 20% obrażeń losowemu przeciwnikowi",
@@ -427,6 +505,8 @@ type CON_LVL_5 struct {
 	NoStats
 }
 
+var CON_LVL_5_ENTITY_TYPE = uuid.MustParse("00000000-ffff-ffff-0000-000000000002")
+
 func (skill CON_LVL_5) GetName() string {
 	return "Poziom 5 - Kontrola"
 }
@@ -436,12 +516,84 @@ func (skill CON_LVL_5) GetDescription() string {
 	return "Tworzy klona który ma 25% statystyk użytkownika, może tylko atakować i bronić"
 }
 
+func (skill CON_LVL_5) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{" 25% ", "", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment[1] = " Jest 20% szans że użyje umiejętności zamiast ataku."
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegment[0] = " 50% "
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegment[2] = "Możesz mieć 2 klony, a po przyzwaniu klon prowokuje wszystkich przeciwników"
+	} else {
+		upgradeSegment[2] = "Możesz mieć 1 klona."
+	}
+
+	return "Tworzy klona który ma" + upgradeSegment[0] + "statystyk użytkownika." + upgradeSegment[0] + upgradeSegment[1] + upgradeSegment[2]
+}
+
 func (skill CON_LVL_5) GetLevel() int {
 	return 5
 }
 
+func (skill CON_LVL_5) CanUseSkill(owner interface{}, fightInstance interface{}, upgrades int) bool {
+	maxNumber := 1
+
+	if HasUpgrade(upgrades, 3) {
+		maxNumber = 2
+	}
+
+	return fightInstance.(*battle.Fight).CanSummon(CON_LVL_5_ENTITY_TYPE, maxNumber)
+}
+
 func (skill CON_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	//TODO Upgrades
+	percentValue := 25
+
+	if HasUpgrade(upgrades, 2) {
+		percentValue = 50
+	}
+
+	var customAction func(self *mobs.SummonEntity, f *battle.Fight) []battle.Action = nil
+
+	if HasUpgrade(upgrades, 1) {
+		customAction = func(self *mobs.SummonEntity, f *battle.Fight) []battle.Action {
+			actions := make([]battle.Action, 0)
+
+			if utils.RandomNumber(1, 100) <= 20 {
+				self.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+					Value:      utils.RandomElement(owner.(battle.PlayerEntity).GetSkills()),
+					Expire:     1,
+					AfterUsage: true,
+					Either:     true,
+				})
+			}
+
+			return actions
+		}
+	}
+
+	var onSummon func(f *battle.Fight, summonEntity *mobs.SummonEntity) = nil
+
+	if HasUpgrade(upgrades, 3) {
+		onSummon = func(f *battle.Fight, summonEntity *mobs.SummonEntity) {
+			f.HandleAction(battle.Action{
+				Event:  battle.ACTION_EFFECT,
+				Source: summonEntity.GetUUID(),
+				Target: summonEntity.GetUUID(),
+				Meta: battle.ActionEffect{
+					Effect:   battle.EFFECT_TAUNT,
+					Value:    1,
+					Duration: 1,
+					Caster:   summonEntity.GetUUID(),
+				},
+			})
+		}
+	}
+
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_SUMMON,
 		Target: owner.(battle.Entity).GetUUID(),
@@ -449,17 +601,23 @@ func (skill CON_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 		Meta: battle.ActionSummon{
 			Flags:       battle.SUMMON_FLAG_EXPIRE,
 			ExpireTimer: 5,
-			Entity: &mobs.MobEntity{
-				Id:        "Klon",
-				MaxHP:     90,
-				HP:        90,
-				SPD:       40,
-				ATK:       25,
-				Effects:   make(mobs.EffectList, 0),
+			EntityType:  CON_LVL_5_ENTITY_TYPE,
+			Entity: &mobs.SummonEntity{
+				Owner:     owner.(battle.PlayerEntity).GetUUID(),
 				UUID:      uuid.New(),
-				Props:     make(map[string]interface{}, 0),
-				Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
-				TempSkill: make([]types.WithExpire[types.PlayerSkill], 0),
+				Name:      "Klon " + owner.(battle.PlayerEntity).GetName(),
+				CurrentHP: utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_HP), percentValue),
+				Stats: map[types.Stat]int{
+					types.STAT_DEF: utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_DEF), percentValue),
+					types.STAT_MR:  utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_MR), percentValue),
+					types.STAT_SPD: utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_SPD), percentValue) + 40,
+					types.STAT_AD:  utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), percentValue),
+					types.STAT_AP:  utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), percentValue),
+				},
+				TempSkill:    make([]*types.WithExpire[types.PlayerSkill], 0),
+				Effects:      make(mobs.EffectList, 0),
+				CustomAction: customAction,
+				OnSummon:     onSummon,
 			},
 		},
 	})
@@ -472,11 +630,12 @@ func (skill CON_LVL_5) GetCD() int {
 }
 
 func (skill CON_LVL_5) GetCooldown(upgrades int) int {
-	return skill.GetCD()
+	// return skill.GetCD()
+	return 0
 }
 
-func (skill CON_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill CON_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Actions",
 			Description: "20% szans że użyje umiejętności",

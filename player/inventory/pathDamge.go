@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"fmt"
 	"sao/battle"
 	"sao/types"
 	"sao/utils"
@@ -23,6 +24,10 @@ func (skill DamageSkill) GetUUID() uuid.UUID {
 }
 
 func (skill DamageSkill) IsLevelSkill() bool {
+	return true
+}
+
+func (skill DamageSkill) CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool {
 	return true
 }
 
@@ -49,6 +54,20 @@ func (skill DMG_LVL_1_Effect) GetName() string {
 
 func (skill DMG_LVL_1_Effect) GetDescription() string {
 	return "Zwiększa obrażenia o 10 na turę"
+}
+
+func (skill DMG_LVL_1) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{"10", "turę"}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegment[0] = "20 + 1%ATK + 1%AP"
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegment[1] = "2 tury"
+	}
+
+	return fmt.Sprintf("Zwiększa obrażenia o %s na %s.", upgradeSegment[0], upgradeSegment[1])
 }
 
 func (skill DMG_LVL_1_Effect) GetUUID() uuid.UUID {
@@ -131,8 +150,8 @@ func (skill DMG_LVL_1) GetLevel() int {
 	return 1
 }
 
-func (skill DMG_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill DMG_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Cooldown",
 			Description: "Zmniejsza czas odnowienia o 1 turę",
@@ -176,13 +195,32 @@ func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{
 	}
 }
 
-func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill DMG_LVL_2) GetUpgradableDescription(upgrades int) string {
+
+	upgradeSegments := []string{""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegments[0] = "\nOtrzymujesz 1% AP jako przebicie magiczne."
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegments[1] = "\nOtrzymujesz 10% ATK jako AP"
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegments[2] = "\nOtrzymujesz 1% ATK jako przebicie pancerza"
+	}
+
+	return "Zwiększa otrzymywany atak co poziom o 20." + upgradeSegments[0] + upgradeSegments[1] + upgradeSegments[2]
+}
+
+func (skill DMG_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id: "APPen",
-			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner interface{}){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_AP,
 						Derived: types.STAT_AP,
 						Percent: 1,
@@ -193,9 +231,9 @@ func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 		},
 		{
 			Id: "APStat",
-			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner interface{}){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_AD,
 						Derived: types.STAT_AP,
 						Percent: 10,
@@ -206,9 +244,9 @@ func (skill DMG_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 		},
 		{
 			Id: "ADPen",
-			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner interface{}){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_AD,
 						Derived: types.STAT_LETHAL,
 						Percent: 1,
@@ -349,8 +387,8 @@ func (skill DMG_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 	return nil
 }
 
-func (skill DMG_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill DMG_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Damage",
 			Description: "Zwiększa obrażenia do 30 + 2%ATK + 2%AP",
@@ -366,6 +404,24 @@ func (skill DMG_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 	}
 }
 
+func (skill DMG_LVL_3) GetUpgradableDescription(upgrades int) string {
+	upgradeSegments := []string{"25", "", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegments[0] = "30 + 2%ATK + 2%AP"
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegments[1] = "Okoliczni wrogowie dostają 25 obrażeń"
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegments[2] = " Jeśli cel jest wyizolowany zadaje dodatkowe 125% obrażeń"
+	}
+
+	return fmt.Sprintf("Zadaje dodatkowe %s obrażeń.%s %s", upgradeSegments[0], upgradeSegments[2], upgradeSegments[1])
+}
+
 type DMG_LVL_4 struct {
 	DamageSkill
 	DefaultCost
@@ -378,8 +434,8 @@ func (skill DMG_LVL_4) GetLevel() int {
 	return 4
 }
 
-func (skill DMG_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill DMG_LVL_4) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Increase",
 			Description: "Zwiększa zasoby o 10% po zabiciu przeciwnika",
@@ -470,6 +526,24 @@ func (skill DMG_LVL_4) UpgradableExecute(owner, target, fightInstance, meta inte
 	return nil
 }
 
+func (skill DMG_LVL_4) GetUpgradableDescription(upgrades int) string {
+	upgradeSegments := []string{"10%", "", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegments[0] = "20%"
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegments[1] = "Efekt działa na całą drużynę"
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegments[2] = "Przywróci punkt many"
+	}
+
+	return fmt.Sprintf("Zwiększa zasoby o %s po zabiciu przeciwnika.%s %s", upgradeSegments[0], upgradeSegments[2], upgradeSegments[1])
+}
+
 type DMG_LVL_5 struct {
 	DamageSkill
 	DefaultCost
@@ -498,8 +572,8 @@ func (skill DMG_LVL_5) GetCooldown(upgrades int) int {
 	return skill.GetCD()
 }
 
-func (skill DMG_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill DMG_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "DamageRat",
 			Description: "Zwiększa skalowanie do 50% ATK + 40% AP",
@@ -567,4 +641,22 @@ func (skill DMG_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 	}
 
 	return nil
+}
+
+func (skill DMG_LVL_5) GetUpgradableDescription(upgrades int) string {
+	upgradeSegments := []string{"100 + 40% ATK + 30% AP", "", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegments[0] = "150 + 50% ATK + 40% AP"
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegments[1] = "Zwiększa ilość celów do 6"
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		upgradeSegments[2] = "Obrażenia zwiększone o 125% jeśli cel ma więcej niż 70% HP"
+	}
+
+	return fmt.Sprintf("Zadaje 3 wrogom %s.%s %s", upgradeSegments[0], upgradeSegments[2], upgradeSegments[1])
 }

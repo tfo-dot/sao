@@ -2,9 +2,9 @@ package inventory
 
 import (
 	"errors"
-	"sao/battle"
 	"sao/data"
 	"sao/types"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -16,7 +16,8 @@ type PlayerInventory struct {
 	ItemSkillCD         map[uuid.UUID]int
 	Ingredients         map[uuid.UUID]*types.Ingredient
 	LevelSkillsCDS      map[int]int
-	LevelSkills         map[int]PlayerSkillLevel
+	LevelSkills         map[int]types.PlayerSkillUpgradable
+	LevelChoices        map[int]int
 	LevelSkillsUpgrades map[int]int
 	FurySkillsCD        map[uuid.UUID]int
 }
@@ -26,39 +27,122 @@ func (inv *PlayerInventory) AddTempSkill(skill types.WithExpire[types.PlayerSkil
 }
 
 func (inv *PlayerInventory) Serialize() map[string]interface{} {
-	//TODO finish this
-	lvlSkills := make([]int, 0)
+	items := make([]map[string]interface{}, 0)
+
+	for _, item := range inv.Items {
+		items = append(items, map[string]interface{}{
+			"uuid":  item.UUID.String(),
+			"count": item.Count,
+		})
+	}
+
+	itemsCD := make(map[string]interface{})
+
+	for key, value := range inv.ItemSkillCD {
+		itemsCD[key.String()] = value
+	}
+
+	ingredients := make([]map[string]interface{}, 0)
+
+	for _, ingredient := range inv.Ingredients {
+		ingredients = append(ingredients, map[string]interface{}{
+			"uuid":  ingredient.UUID.String(),
+			"count": ingredient.Count,
+		})
+	}
+
+	lvlSkills := make(map[int]interface{})
 
 	for key := range inv.LevelSkills {
-		lvlSkills = append(lvlSkills, key)
+
+		choice, notDefaultChoice := inv.LevelChoices[key]
+
+		if !notDefaultChoice {
+			choice = 0
+		}
+
+		lvlSkills[key] = map[string]interface{}{
+			"path":     inv.LevelSkills[key].GetPath(),
+			"choice":   choice,
+			"upgrades": inv.LevelSkillsUpgrades[key],
+		}
+	}
+
+	furySkillsCD := make(map[string]interface{})
+
+	for key, value := range inv.FurySkillsCD {
+		furySkillsCD[key.String()] = value
 	}
 
 	return map[string]interface{}{
-		"gold":        inv.Gold,
-		"items":       []*types.PlayerItem{},
-		"ingredients": inv.Ingredients,
-		"skills": map[string]interface{}{
-			"skills":   lvlSkills,
-			"upgrades": inv.LevelSkillsUpgrades,
-			"cds":      inv.LevelSkillsCDS,
-		},
+		"gold":           inv.Gold,
+		"items":          items,
+		"itemSkillCD":    itemsCD,
+		"ingredients":    ingredients,
+		"levelSkillsCDS": inv.LevelSkillsCDS,
+		"levelSkills":    lvlSkills,
+		"furySkillsCD":   furySkillsCD,
 	}
 }
 
 func DeserializeInventory(rawData map[string]interface{}) PlayerInventory {
-	inv := PlayerInventory{
-		Gold:                int(rawData["gold"].(float64)),
-		TempSkills:          []*types.WithExpire[types.PlayerSkill]{},
-		Items:               []*types.PlayerItem{},
-		ItemSkillCD:         map[uuid.UUID]int{},
-		Ingredients:         map[uuid.UUID]*types.Ingredient{},
-		LevelSkillsCDS:      map[int]int{},
-		LevelSkills:         map[int]PlayerSkillLevel{},
-		LevelSkillsUpgrades: map[int]int{},
-		FurySkillsCD:        map[uuid.UUID]int{},
+	inv := GetDefaultInventory()
+
+	inv.Gold = int(rawData["gold"].(float64))
+
+	if rawItemData, okay := rawData["items"].([]map[string]interface{}); okay {
+		for _, item := range rawItemData {
+			uuid, _ := uuid.Parse(item["uuid"].(string))
+			copy := data.Items[uuid]
+
+			copy.Count = item["count"].(int)
+
+			inv.Items = append(inv.Items, &copy)
+		}
 	}
 
-	//TODO finish this
+	if rawItemCD, okay := rawData["itemSkillCD"].(map[string]interface{}); okay {
+		for key, value := range rawItemCD {
+			uuid, _ := uuid.Parse(key)
+			inv.ItemSkillCD[uuid] = value.(int)
+		}
+	}
+
+	if rawIngredientData, okay := rawData["ingredients"].([]map[string]interface{}); okay {
+		for _, ingredient := range rawIngredientData {
+			uuid, _ := uuid.Parse(ingredient["uuid"].(string))
+			copy := data.Ingredients[uuid]
+
+			copy.Count = ingredient["count"].(int)
+
+			inv.Ingredients[uuid] = &copy
+		}
+	}
+
+	if levelCDData, okay := rawData["levelSkillsCDS"].(map[string]interface{}); okay {
+		for key, value := range levelCDData {
+			parsed, _ := strconv.Atoi(key)
+			inv.LevelSkillsCDS[parsed] = int(value.(float64))
+		}
+	}
+
+	if _, okay := rawData["levelSkills"].(map[string]interface{}); okay {
+		for key, lvlData := range rawData["levelSkills"].(map[string]interface{}) {
+			parsed, _ := strconv.Atoi(key)
+			data := lvlData.(map[string]interface{})
+
+			inv.LevelSkills[parsed] = AVAILABLE_SKILLS[types.SkillPath(data["path"].(float64))][parsed][int(data["choice"].(float64))]
+
+			inv.LevelSkillsUpgrades[parsed] = int(data["upgrades"].(float64))
+		}
+	}
+
+	if _, okay := rawData["furySkillsCD"].(map[string]interface{}); okay {
+		for key, value := range rawData["furySkillsCD"].(map[string]interface{}) {
+			uuid, _ := uuid.Parse(key)
+			inv.FurySkillsCD[uuid] = value.(int)
+		}
+	}
 
 	return inv
 }
@@ -182,36 +266,6 @@ func (inv *PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, targe
 	}
 }
 
-func (inv *PlayerInventory) UnlockSkill(path types.SkillPath, lvl int, playerLvl int, player *battle.PlayerEntity) error {
-	if lvl > playerLvl {
-		return errors.New("PLAYER_LVL_TOO_LOW")
-	}
-
-	if _, exists := inv.LevelSkills[lvl]; exists {
-		return errors.New("SKILL_ALREADY_UNLOCKED")
-	}
-
-	skill, skillExists := AVAILABLE_SKILLS[path][lvl]
-
-	if !skillExists {
-		return errors.New("SKILL_NOT_FOUND")
-	}
-
-	if len(skill) == 1 {
-		inv.LevelSkills[lvl] = skill[0]
-	} else {
-		return errors.New("MULTIPLE_OPTIONS")
-	}
-
-	skillEvents := inv.LevelSkills[lvl].GetEvents()
-
-	if effect, effectExists := skillEvents[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
-		effect(&player)
-	}
-
-	return nil
-}
-
 func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeID string) error {
 	if _, exists := inv.LevelSkills[lvl]; !exists {
 		return errors.New("SKILL_NOT_UNLOCKED")
@@ -244,10 +298,14 @@ func (inv *PlayerInventory) UpgradeSkill(lvl int, upgradeID string) error {
 func GetDefaultInventory() PlayerInventory {
 	return PlayerInventory{
 		Gold:                0,
-		Ingredients:         map[uuid.UUID]*types.Ingredient{},
-		Items:               []*types.PlayerItem{},
-		LevelSkills:         map[int]PlayerSkillLevel{},
-		LevelSkillsCDS:      map[int]int{},
-		LevelSkillsUpgrades: map[int]int{},
+		TempSkills:          make([]*types.WithExpire[types.PlayerSkill], 0),
+		ItemSkillCD:         make(map[uuid.UUID]int),
+		Ingredients:         make(map[uuid.UUID]*types.Ingredient),
+		Items:               make([]*types.PlayerItem, 0),
+		LevelSkills:         make(map[int]types.PlayerSkillUpgradable),
+		LevelSkillsCDS:      make(map[int]int),
+		LevelSkillsUpgrades: make(map[int]int),
+		LevelChoices:        make(map[int]int),
+		FurySkillsCD:        make(map[uuid.UUID]int),
 	}
 }

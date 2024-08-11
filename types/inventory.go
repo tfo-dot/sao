@@ -28,6 +28,28 @@ type PlayerSkillLevel interface {
 	GetPath() SkillPath
 }
 
+type PlayerSkillUpgradable interface {
+	PlayerSkill
+
+	GetUpgradableDescription(upgrades int) string
+
+	CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool
+	GetLevel() int
+	GetPath() SkillPath
+	GetUpgrades() []PlayerSkillUpgrade
+	GetCooldown(upgrades int) int
+	UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{}
+	GetUpgradableTrigger(upgrades int) Trigger
+	GetStats(upgrades int) map[Stat]int
+	GetUpgradableCost(upgrades int) int
+}
+
+type PlayerSkillUpgrade struct {
+	Description string
+	Id          string
+	Events      *map[CustomTrigger]func(owner interface{})
+}
+
 type SkillTriggerType int
 
 const (
@@ -40,7 +62,13 @@ type Trigger struct {
 	Type     SkillTriggerType
 	Event    SkillTrigger
 	Cooldown *CooldownMeta
-	Flags    int
+	Flags    SkillFlag
+	Target   *TargetTrigger
+}
+
+type TargetTrigger struct {
+	Target     TargetTag
+	MaxTargets int
 }
 
 type CooldownMeta struct {
@@ -94,9 +122,15 @@ type EffectTriggerMeta struct {
 type TargetTag int
 
 const (
-	TARGET_SELF TargetTag = iota
+	TARGET_SELF TargetTag = iota << 1
 	TARGET_ENEMY
 	TARGET_ALLY
+)
+
+type SkillFlag int
+
+const (
+	FLAG_IGNORE_CC SkillFlag = 1 << iota
 )
 
 type CustomTrigger int
@@ -214,6 +248,12 @@ type DelayedAction struct {
 type DiscordChoice struct {
 	Id     string
 	Select func(*events.ComponentInteractionCreate)
+}
+
+type EventData struct {
+	Source interface{}
+	Target interface{}
+	Fight  interface{}
 }
 
 type BaseAttackIncreaseSkill struct {

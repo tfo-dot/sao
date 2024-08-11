@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"fmt"
 	"sao/battle"
 	"sao/types"
 	"sao/utils"
@@ -23,6 +24,10 @@ func (skill EnduranceSkill) GetUUID() uuid.UUID {
 }
 
 func (skill EnduranceSkill) IsLevelSkill() bool {
+	return true
+}
+
+func (skill EnduranceSkill) CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool {
 	return true
 }
 
@@ -89,8 +94,8 @@ func (skill END_LVL_1) GetLevel() int {
 	return 1
 }
 
-func (skill END_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill END_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Cooldown",
 			Description: "Zmniejsza czas odnowienia o 1 turę",
@@ -104,6 +109,21 @@ func (skill END_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa czas trwania o 1 turę",
 		},
 	}
+}
+
+func (skill END_LVL_1) GetUpgradableDescription(upgrades int) string {
+	baseIncrease := "10"
+	baseDuration := "1"
+
+	if HasUpgrade(upgrades, 1) {
+		baseIncrease = "20 + 3%HP + 2%ATK"
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		baseDuration = "2"
+	}
+
+	return fmt.Sprintf("Daje tarczę o wartości %s na %s tur", baseIncrease, baseDuration)
 }
 
 type END_LVL_2 struct {
@@ -121,22 +141,22 @@ func (skill END_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{
 	}
 }
 
-func (skill END_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill END_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id: "Increase",
-			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-					owner.SetLevelStat(types.STAT_HP, 20)
+			Events: &map[types.CustomTrigger]func(owner interface{}){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+					owner.(battle.PlayerEntity).SetLevelStat(types.STAT_HP, 20)
 				},
 			},
 			Description: "Zwiększa wartość do 20",
 		},
 		{
 			Id: "DEFIncrease",
-			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner interface{}){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_HP_PLUS,
 						Derived: types.STAT_DEF,
 						Percent: 1,
@@ -147,9 +167,9 @@ func (skill END_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 		},
 		{
 			Id: "RESIncrease",
-			Events: &map[types.CustomTrigger]func(owner battle.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner battle.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner interface{}){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
+					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_HP_PLUS,
 						Derived: types.STAT_MR,
 						Percent: 1,
@@ -171,6 +191,28 @@ func (skill END_LVL_2) GetLevel() int {
 
 func (skill END_LVL_2) GetName() string {
 	return "Poziom 2 - wytrzymałość"
+}
+
+func (skill END_LVL_2) GetUpgradableDescription(upgrades int) string {
+	baseIncrease := "15"
+
+	if HasUpgrade(upgrades, 1) {
+		baseIncrease = "20"
+	}
+
+	defUpgrade := ""
+
+	if HasUpgrade(upgrades, 2) {
+		defUpgrade = "\nOtrzymujesz pancerz równy 1% dodatkowego HP."
+	}
+
+	mrUpgrade := ""
+
+	if HasUpgrade(upgrades, 3) {
+		mrUpgrade = "\nOtrzymujesz odporność na magię równą 1% dodatkowego HP."
+	}
+
+	return fmt.Sprintf("Zwiększa zdrowie zyskiwane co poziom do %s.%s%s", baseIncrease, defUpgrade, mrUpgrade)
 }
 
 type END_LVL_3 struct {
@@ -272,8 +314,8 @@ func (skill END_LVL_3) GetDescription() string {
 	return "Oznacza cel na turę, atak rozbije oznaczenie i wyleczy"
 }
 
-func (skill END_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill END_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Ally",
 			Description: "Sojusznik może rozbić",
@@ -287,6 +329,22 @@ func (skill END_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa leczenie o X",
 		},
 	}
+}
+
+func (skill END_LVL_3) GetUpgradableDescription(upgrades int) string {
+	baseHeal := "5"
+
+	if HasUpgrade(upgrades, 3) {
+		baseHeal = "10"
+	}
+
+	allyUpgrade := ""
+
+	if HasUpgrade(upgrades, 1) {
+		allyUpgrade = " (także sojusznika)"
+	}
+
+	return fmt.Sprintf("Oznacza cel na turę, kolejny atak%s rozbije oznaczenie i wyleczy o %s%%HP", allyUpgrade, baseHeal)
 }
 
 type END_LVL_4 struct {
@@ -387,8 +445,8 @@ func (skill END_LVL_4) GetLevel() int {
 	return 4
 }
 
-func (skill END_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill END_LVL_4) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Reduce",
 			Description: "Zwiększa redukcję do 25%",
@@ -402,6 +460,31 @@ func (skill END_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Działa na obrażenia",
 		},
 	}
+}
+
+func (skill END_LVL_4) GetUpgradableDescription(upgrades int) string {
+	baseReduce := "20%"
+
+	if HasUpgrade(upgrades, 1) {
+		baseReduce = "25%"
+	}
+
+	baseDuration := "kolejny"
+
+	if HasUpgrade(upgrades, 2) {
+		baseDuration = "wszystkie"
+	}
+
+	baseEvent := "otrzymany atak"
+
+	if HasUpgrade(upgrades, 3) {
+		if HasUpgrade(upgrades, 2) {
+			baseDuration = "kolejne"
+		}
+		baseEvent = "otrzymane obrażenia"
+	}
+
+	return fmt.Sprintf("Przez jedną turę zmniejsza %s %s o %s", baseDuration, baseEvent, baseReduce)
 }
 
 type END_LVL_5 struct {
@@ -432,8 +515,8 @@ func (skill END_LVL_5) GetCooldown(upgrades int) int {
 	return skill.GetCD()
 }
 
-func (skill END_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill END_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Duration",
 			Description: "Działa turę dłużej",
@@ -510,4 +593,26 @@ func (skill END_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 	})
 
 	return nil
+}
+
+func (skill END_LVL_5) GetUpgradableDescription(upgrades int) string {
+	baseShield := "25"
+
+	if HasUpgrade(upgrades, 2) {
+		baseShield = "25 + 10% AP"
+	}
+
+	duration := "1"
+
+	if HasUpgrade(upgrades, 1) {
+		duration = "2"
+	}
+
+	heal := ""
+
+	if HasUpgrade(upgrades, 3) {
+		heal = "\nPo zakończeniu leczy o 50% pozostałej tarczy"
+	}
+
+	return fmt.Sprintf("Dostaje %s tarczy za każdego przeciwnika prowokując ich wszystkich na %s tur.%s", baseShield, duration, heal)
 }

@@ -1454,19 +1454,27 @@ func (scs SirensCallSkill) GetUUID() uuid.UUID {
 }
 
 func (scs SirensCallSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	healValue := utils.PercentOf(meta.(battle.ActionEffectHeal).Value, 10)
-	healTarget := target.(battle.Entity)
+	validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
 
-	if target.(battle.Entity).GetUUID() == owner.(battle.Entity).GetUUID() {
-		validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
-
-		if len(validTargets) == 0 {
-			return nil
-		}
-
-		//TODO add sorting
-		// healTarget = sortInit.Entities[0]
+	if len(validTargets) <= 1 {
+		return nil
 	}
+
+	idx := -1
+
+	for index, entity := range validTargets {
+		if entity.GetUUID() == target.(battle.Entity).GetUUID() {
+			idx = index
+			break
+		}
+	}
+
+	if idx > -1 {
+		validTargets = append(validTargets[:idx], validTargets[idx+1:]...)
+	}
+
+	healValue := utils.PercentOf(meta.(battle.ActionEffectHeal).Value, 10)
+	healTarget := utils.RandomElement(validTargets)
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
@@ -1533,22 +1541,35 @@ func (wes WindsEmpowermentSkill) GetUUID() uuid.UUID {
 }
 
 func (wes WindsEmpowermentSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	// healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 10)
-
 	validTargets := fightInstance.(*battle.Fight).GetAlliesFor(owner.(battle.Entity).GetUUID())
 
 	if len(validTargets) == 0 {
 		return nil
 	}
 
-	//TODO sort
+	var healTarget battle.Entity
 
-	// fightInstance.(*battle.Fight).HandleAction(battle.Action{
-	// 	Event:  battle.ACTION_EFFECT,
-	// 	Source: owner.(battle.Entity).GetUUID(),
-	// 	Target: healTarget.GetUUID(),
-	// 	Meta:   battle.ActionEffectHeal{Value: healValue},
-	// })
+	for _, entity := range validTargets {
+		if healTarget == nil {
+			healTarget = entity
+		}
+
+		healTargetPercent := float32(healTarget.GetCurrentHP()) / float32(healTarget.GetStat(types.STAT_HP))
+		entityPercent := float32(entity.GetCurrentHP()) / float32(entity.GetStat(types.STAT_HP))
+
+		if entityPercent < healTargetPercent {
+			healTarget = entity
+		}
+	}
+
+	healValue := utils.PercentOf(owner.(battle.Entity).GetStat(types.STAT_AD), 10)
+
+	fightInstance.(*battle.Fight).HandleAction(battle.Action{
+		Event:  battle.ACTION_EFFECT,
+		Source: owner.(battle.Entity).GetUUID(),
+		Target: healTarget.GetUUID(),
+		Meta:   battle.ActionEffectHeal{Value: healValue},
+	})
 
 	return nil
 }

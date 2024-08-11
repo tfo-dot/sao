@@ -1,63 +1,39 @@
 package inventory
 
 import (
-	"sao/battle"
 	"sao/types"
 
 	"github.com/google/uuid"
 )
 
-type PlayerSkillUpgradable interface {
-	types.PlayerSkill
-
-	GetUpgrades() []PlayerSkillUpgrade
-	GetCooldown(upgrades int) int
-	UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{}
-	GetStats(upgrades int) map[types.Stat]int
-	GetUpgradableCost(upgrades int) int
-}
-
-type PlayerSkillUpgrade struct {
-	Description string
-	Id          string
-	Events      *map[types.CustomTrigger]func(owner battle.PlayerEntity)
-}
-
-type PlayerSkillLevel interface {
-	PlayerSkillUpgradable
-
-	GetLevel() int
-	GetPath() types.SkillPath
-}
-
-var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]PlayerSkillLevel{
+var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable{
 	types.PathDamage: {
-		1: []PlayerSkillLevel{DMG_LVL_1{}},
-		2: []PlayerSkillLevel{DMG_LVL_2{}},
-		3: []PlayerSkillLevel{DMG_LVL_3{}},
-		4: []PlayerSkillLevel{DMG_LVL_4{}},
-		5: []PlayerSkillLevel{DMG_LVL_5{}},
+		1: []types.PlayerSkillUpgradable{DMG_LVL_1{}},
+		2: []types.PlayerSkillUpgradable{DMG_LVL_2{}},
+		3: []types.PlayerSkillUpgradable{DMG_LVL_3{}},
+		4: []types.PlayerSkillUpgradable{DMG_LVL_4{}},
+		5: []types.PlayerSkillUpgradable{DMG_LVL_5{}},
 	},
 	types.PathEndurance: {
-		1: []PlayerSkillLevel{END_LVL_1{}},
-		2: []PlayerSkillLevel{END_LVL_2{}},
-		3: []PlayerSkillLevel{END_LVL_3{}},
-		4: []PlayerSkillLevel{END_LVL_4{}},
-		5: []PlayerSkillLevel{END_LVL_5{}},
+		1: []types.PlayerSkillUpgradable{END_LVL_1{}},
+		2: []types.PlayerSkillUpgradable{END_LVL_2{}},
+		3: []types.PlayerSkillUpgradable{END_LVL_3{}},
+		4: []types.PlayerSkillUpgradable{END_LVL_4{}},
+		5: []types.PlayerSkillUpgradable{END_LVL_5{}},
 	},
 	types.PathControl: {
-		1: []PlayerSkillLevel{CON_LVL_1{}},
-		2: []PlayerSkillLevel{CON_LVL_2{}},
-		3: []PlayerSkillLevel{CON_LVL_3{}},
-		4: []PlayerSkillLevel{CON_LVL_4{}},
-		5: []PlayerSkillLevel{CON_LVL_5{}},
+		1: []types.PlayerSkillUpgradable{CON_LVL_1{}},
+		2: []types.PlayerSkillUpgradable{CON_LVL_2{}},
+		3: []types.PlayerSkillUpgradable{CON_LVL_3{}},
+		4: []types.PlayerSkillUpgradable{CON_LVL_4{}},
+		5: []types.PlayerSkillUpgradable{CON_LVL_5{}},
 	},
 	types.PathSpecial: {
-		1: []PlayerSkillLevel{SPC_LVL_1{}},
-		2: []PlayerSkillLevel{SPC_LVL_2{}},
-		3: []PlayerSkillLevel{SPC_LVL_3{}},
-		4: []PlayerSkillLevel{SPC_LVL_4{}},
-		5: []PlayerSkillLevel{SPC_LVL_5{}},
+		1: []types.PlayerSkillUpgradable{SPC_LVL_1{}},
+		2: []types.PlayerSkillUpgradable{SPC_LVL_2{}},
+		3: []types.PlayerSkillUpgradable{SPC_LVL_3{}},
+		4: []types.PlayerSkillUpgradable{SPC_LVL_4{}},
+		5: []types.PlayerSkillUpgradable{SPC_LVL_5{}},
 	},
 }
 
@@ -101,9 +77,17 @@ func (d DefaultActiveTrigger) GetTrigger() types.Trigger {
 	return types.Trigger{Type: types.TRIGGER_ACTIVE}
 }
 
+func (d DefaultActiveTrigger) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE}
+}
+
 type NoTrigger struct{}
 
 func (n NoTrigger) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_TYPE_NONE}
+}
+
+func (n NoTrigger) GetUpgradableTrigger(upgrades int) types.Trigger {
 	return types.Trigger{Type: types.TRIGGER_TYPE_NONE}
 }
 

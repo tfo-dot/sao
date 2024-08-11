@@ -12,8 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type SummonEntityMeta struct {
+	Owner uuid.UUID
+	Type  uuid.UUID
+}
+
 type Fight struct {
 	Entities        EntityMap
+	ExpireMap       map[uuid.UUID]int
+	SummonMap       map[uuid.UUID]SummonEntityMeta
 	SpeedMap        map[uuid.UUID]int
 	StartTime       *calendar.Calendar
 	ExternalChannel chan FightEvent
@@ -175,8 +182,21 @@ func (f *Fight) HandleAction(act Action) {
 
 		meta := tempMeta.(ActionDamage)
 
-		//TODO Update when TriggerEvent is updated
-		sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_BEFORE, meta)
+		increaseValue := sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_BEFORE, types.EventData{
+			Source: sourceEntity,
+			Target: f.Entities[act.Target].Entity,
+			Fight:  &f,
+		}, meta)
+
+		for _, val := range increaseValue {
+			for _, dmg := range val.(types.AttackTriggerMeta).Effects {
+				meta.Damage = append(meta.Damage, Damage{
+					Value:     dmg.Value,
+					Type:      dmg.Type,
+					IsPercent: dmg.Percent,
+				})
+			}
+		}
 
 		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
 			if left.IsPercent && !right.IsPercent {
@@ -213,8 +233,16 @@ func (f *Fight) HandleAction(act Action) {
 		tempEmbed := discord.NewEmbedBuilder().SetTitle("Atak")
 
 		if !dodged {
-			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_HIT, meta)
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, nil)
+			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_HIT, types.EventData{
+				Source: sourceEntity,
+				Target: f.Entities[act.Target].Entity,
+				Fight:  &f,
+			}, meta)
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, types.EventData{
+				Target: sourceEntity,
+				Source: f.Entities[act.Target].Entity,
+				Fight:  &f,
+			}, nil)
 
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
@@ -254,13 +282,21 @@ func (f *Fight) HandleAction(act Action) {
 
 				sourceEntity.Heal(value)
 
-				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, types.EventData{
+					Source: sourceEntity,
+					Target: sourceEntity,
+					Fight:  &f,
+				}, ActionEffectHeal{Value: value})
 
 				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
 			}
 
 		} else {
-			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, nil)
+			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, types.EventData{
+				Source: sourceEntity,
+				Target: f.Entities[act.Target].Entity,
+				Fight:  &f,
+			}, nil)
 
 			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
@@ -376,50 +412,82 @@ func (f *Fight) HandleAction(act Action) {
 	case ACTION_SKILL:
 		sourceEntity := f.Entities[act.Source]
 
-		if sourceEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
-			skillUsageMeta := act.Meta.(ActionSkillMeta)
+		sourceEntityFlags := sourceEntity.Entity.GetFlags()
 
-			if skillUsageMeta.IsForLevel {
-				skill := sourceEntity.Entity.(PlayerEntity).GetLvlSkill(skillUsageMeta.Lvl)
+		isPlayer := sourceEntityFlags&types.ENTITY_AUTO == 0
+		isSummon := sourceEntityFlags&types.ENTITY_SUMMON != 0 || sourceEntityFlags&types.ENTITY_AUTO == 0
 
-				if skill.GetTrigger().Type != types.TRIGGER_ACTIVE {
-					return
-				}
+		if !isPlayer || !isSummon {
+			return
+		}
 
-				if skillUsageMeta.Lvl%10 == 0 {
-					sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_ULT, nil)
-				}
+		skillUsageMeta := act.Meta.(ActionSkillMeta)
 
-				var tempFight interface{} = f
+		skillUpgrades := 0
 
-				if act.Target == uuid.Nil {
-					for _, target := range skillUsageMeta.Targets {
-						skill.Execute(sourceEntity.Entity, f.Entities[target].Entity, &tempFight, nil)
-					}
+		if isPlayer {
+			skillUpgrades = sourceEntity.Entity.(PlayerEntity).GetUpgrades(skillUsageMeta.Lvl)
+		} else {
+			ownerUuid := f.SummonMap[act.Source].Owner
+
+			skillUpgrades = f.Entities[ownerUuid].Entity.(PlayerEntity).GetUpgrades(skillUsageMeta.Lvl)
+		}
+
+		skill := sourceEntity.Entity.(PlayerEntity).GetLvlSkill(skillUsageMeta.Lvl)
+
+		trigger := skill.GetTrigger()
+
+		if skill.IsLevelSkill() {
+			trigger = skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(skillUpgrades)
+		}
+
+		if trigger.Type != types.TRIGGER_ACTIVE {
+			return
+		}
+
+		if skillUsageMeta.Lvl%10 == 0 {
+			sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_ULT, types.EventData{
+				Source: sourceEntity.Entity,
+				Target: f.Entities[act.Target].Entity,
+				Fight:  &f,
+			}, nil)
+		}
+
+		if act.Target == uuid.Nil {
+			for _, target := range skillUsageMeta.Targets {
+				if skill.IsLevelSkill() {
+					skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.Entity, f.Entities[target].Entity, f, nil, skillUpgrades)
 				} else {
-					skill.Execute(sourceEntity.Entity, f.Entities[act.Target].Entity, &tempFight, nil)
-				}
-
-				f.DiscordChannel <- types.DiscordMessageStruct{
-					ChannelID: channelId,
-					MessageContent: discord.
-						NewMessageCreateBuilder().
-						AddEmbeds(
-							discord.NewEmbedBuilder().
-								SetTitle("Skill!").
-								SetDescriptionf(
-									"%s użył %s!\n",
-									sourceEntity.Entity.GetName(),
-									skill.GetName(),
-								).
-								Build(),
-						).
-						Build(),
+					skill.Execute(sourceEntity.Entity, f.Entities[target].Entity, f, nil)
 				}
 			}
+		} else {
+			if skill.IsLevelSkill() {
+				skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.Entity, f.Entities[act.Target].Entity, f, nil, skillUpgrades)
+			} else {
+				skill.Execute(sourceEntity.Entity, f.Entities[act.Target].Entity, f, nil)
+			}
 		}
+
+		f.DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID: channelId,
+			MessageContent: discord.
+				NewMessageCreateBuilder().
+				AddEmbeds(
+					discord.NewEmbedBuilder().
+						SetTitle("Skill!").
+						SetDescriptionf(
+							"%s użył `%s`!\n",
+							sourceEntity.Entity.GetName(),
+							skill.GetName(),
+						).
+						Build(),
+				).
+				Build(),
+		}
+
+		return
 	case ACTION_DMG:
-		//TODO this whole event is a mess
 		targetEntity := f.Entities[act.Target]
 		meta := act.Meta.(ActionDamage)
 
@@ -427,20 +495,163 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
-		f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE_BEFORE, nil)
+		overallDmg := []Damage{
+			{Value: 0, Type: types.DMG_PHYSICAL},
+			{Value: 0, Type: types.DMG_MAGICAL},
+			{Value: 0, Type: types.DMG_TRUE},
+		}
 
-		if meta.CanDodge && targetEntity.Entity.CanDodge() {
-			targetEntity.Entity.(DodgeEntity).TakeDMGOrDodge(meta)
+		increaseValue := f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE_BEFORE,
+			types.EventData{
+				Source: f.Entities[act.Source].Entity,
+				Target: f.Entities[act.Target].Entity,
+				Fight:  &f,
+			}, nil)
+
+		for _, val := range increaseValue {
+			for _, dmg := range val.(types.DamageTriggerMeta).Effects {
+				meta.Damage = append(meta.Damage, Damage{
+					Value:     dmg.Value,
+					Type:      dmg.Type,
+					IsPercent: dmg.Percent,
+				})
+			}
+		}
+
+		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
+			if left.IsPercent && !right.IsPercent {
+				return -1
+			}
+
+			if !left.IsPercent && right.IsPercent {
+				return 1
+			}
+
+			return 0
+		})
+
+		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
+
+		dodged := false
+		var dmgDealt []Damage
+
+		if canDodge {
+			for _, dmg := range meta.Damage {
+				if dmg.IsPercent {
+					continue
+				}
+				overallDmg[dmg.Type].Value += dmg.Value
+			}
+
+			dmgDealt, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(
+				ActionDamage{overallDmg, canDodge},
+			)
 		} else {
-			targetEntity.Entity.TakeDMG(meta)
+			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
+		}
 
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE, nil)
+		tempEmbed := discord.NewEmbedBuilder().SetTitle("Obrażenia!")
+
+		sourceEntity := f.Entities[act.Source].Entity
+
+		if !dodged {
+			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, types.EventData{
+				Target: sourceEntity,
+				Source: f.Entities[act.Target].Entity,
+				Fight:  &f,
+			}, nil)
+
+			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
+
+			tempEmbed.
+				SetFooterTextf("%s zadał obrażenia %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName()).
+				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum)
+
+			dmgText := ""
+
+			for _, dmg := range meta.Damage {
+				if dmg.Value == 0 {
+					continue
+				}
+
+				dmgType := "fizycznych"
+
+				switch dmg.Type {
+				case types.DMG_MAGICAL:
+					dmgType = "magicznych"
+				case types.DMG_TRUE:
+					dmgType = "prawdziwych"
+				}
+
+				if dmg.IsPercent {
+					dmgText += fmt.Sprintf("- %d%% obrażeń %s\n", dmg.Value, dmgType)
+				} else {
+					dmgText += fmt.Sprintf("- %d obrażeń %s\n", dmg.Value, dmgType)
+				}
+			}
+
+			tempEmbed.AddField("Obrażenia", dmgText, false)
+
+			vampValue := sourceEntity.GetStat(types.STAT_OMNI_VAMP)
+
+			if vampValue > 0 {
+				value := utils.PercentOf(dmgSum, vampValue)
+
+				sourceEntity.Heal(value)
+
+				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, types.EventData{
+					Source: sourceEntity,
+					Target: sourceEntity,
+					Fight:  &f,
+				}, ActionEffectHeal{Value: value})
+
+				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
+			}
+
+		} else {
+			tempEmbed.SetDescriptionf("%s chciał zadać obrażenia %s, ale nie trafił", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
 
 		if targetEntity.Entity.GetCurrentHP() <= 0 {
-			f.Entities[act.Source].Entity.TriggerEvent(types.TRIGGER_EXECUTE, nil)
+			f.Entities[act.Source].Entity.TriggerEvent(types.TRIGGER_EXECUTE,
+				types.EventData{
+					Source: f.Entities[act.Source].Entity,
+					Target: f.Entities[act.Target].Entity,
+					Fight:  &f,
+				}, nil)
 		}
 
+		if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 && targetEntity.Entity.GetCurrentHP() > 0 {
+			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
+				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
+					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
+
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_DEF), 15)
+					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_MR), 15)
+
+					f.HandleAction(Action{
+						Event:  ACTION_COUNTER,
+						Source: act.Target,
+						Target: act.Source,
+						Meta: ActionDamage{
+							Damage: []Damage{
+								{
+									Value:    counterDmg,
+									Type:     types.DMG_PHYSICAL,
+									CanDodge: true,
+								},
+							},
+							CanDodge: true,
+						},
+					})
+				}
+			}
+		}
+
+		f.DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID:      channelId,
+			MessageContent: discord.NewMessageCreateBuilder().AddEmbeds(tempEmbed.Build()).Build(),
+		}
 	case ACTION_COUNTER:
 		sourceEntityEntry := f.Entities[act.Source]
 		sourceEntity := sourceEntityEntry.Entity
@@ -526,13 +737,23 @@ func (f *Fight) HandleAction(act Action) {
 
 				sourceEntity.Heal(value)
 
-				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, ActionEffectHeal{Value: value})
+				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF,
+					types.EventData{
+						Source: sourceEntity,
+						Target: f.Entities[act.Target].Entity,
+						Fight:  &f,
+					}, ActionEffectHeal{Value: value})
 
 				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
 			}
 
 		} else {
-			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, nil)
+			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS,
+				types.EventData{
+					Source: sourceEntity,
+					Target: f.Entities[act.Target].Entity,
+					Fight:  &f,
+				}, nil)
 
 			tempEmbed.SetDescriptionf("%s chciał skontrować ale nie trafił!", sourceEntity.GetName())
 		}
@@ -661,20 +882,60 @@ func (f *Fight) HandleAction(act Action) {
 		}
 
 		if count == 0 {
-			f.ExternalChannel <- FightEndMsg{}
+			f.ExternalChannel <- FightEndMsg{RunAway: true}
 		}
 	case ACTION_SUMMON:
 		sourceEntity := f.Entities[act.Source]
 
 		expires := act.Meta.(ActionSummon).Flags&SUMMON_FLAG_EXPIRE != 0
 
+		newEntity := act.Meta.(ActionSummon).Entity
+
+		f.DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID: channelId,
+			MessageContent: discord.
+				NewMessageCreateBuilder().
+				AddEmbeds(
+					discord.
+						NewEmbedBuilder().
+						SetTitle("Przywołanie!").
+						SetDescriptionf("%s przywołał %s", sourceEntity.Entity.GetName(), newEntity.GetName()).
+						SetColor(0x00ff00).
+						Build(),
+				).
+				Build(),
+		}
+
 		if expires {
-			f.Entities[act.Meta.(ActionSummon).Entity.GetUUID()] = EntityEntry{
-				Entity: act.Meta.(ActionSummon).Entity,
-				Side:   sourceEntity.Side,
-			}
+			f.ExpireMap[newEntity.GetUUID()] = act.Meta.(ActionSummon).ExpireTimer
+		}
+
+		f.SummonMap[newEntity.GetUUID()] = SummonEntityMeta{
+			Owner: sourceEntity.Entity.GetUUID(),
+			Type:  act.Meta.(ActionSummon).EntityType,
+		}
+
+		f.Entities[act.Meta.(ActionSummon).Entity.GetUUID()] = EntityEntry{
+			Entity: newEntity,
+			Side:   sourceEntity.Side,
 		}
 	}
+}
+
+func (f *Fight) CanSummon(entityType uuid.UUID, maxCount int) bool {
+	if maxCount <= 0 || entityType == uuid.Nil {
+		return true
+	}
+
+	count := 0
+
+	for _, entity := range f.SummonMap {
+		if entity.Type == entityType {
+			count++
+		}
+	}
+
+	return count < maxCount
 }
 
 func (f *Fight) Init() {
@@ -686,6 +947,8 @@ func (f *Fight) Init() {
 
 	f.ExternalChannel = make(chan FightEvent, 10)
 	f.PlayerActions = make(chan Action, 10)
+	f.ExpireMap = make(map[uuid.UUID]int)
+	f.SummonMap = make(map[uuid.UUID]SummonEntityMeta)
 }
 
 func (f *Fight) Run() {
@@ -698,6 +961,17 @@ func (f *Fight) Run() {
 	}
 
 	for len(f.Entities.SidesLeft()) > 1 {
+
+		for entity, exp := range f.ExpireMap {
+			f.ExpireMap[entity] = exp - 1
+
+			if exp <= 0 {
+				delete(f.ExpireMap, entity)
+
+				f.ExternalChannel <- SummonExpired{Entity: entity}
+			}
+		}
+
 		turnList := make([]uuid.UUID, 0)
 
 		for uuid, speed := range f.SpeedMap {
@@ -725,7 +999,11 @@ func (f *Fight) Run() {
 				continue
 			}
 
-			entity.TriggerEvent(types.TRIGGER_TURN, nil)
+			entity.TriggerEvent(types.TRIGGER_TURN, types.EventData{
+				Source: entity,
+				Target: entity,
+				Fight:  &f,
+			}, nil)
 
 			if entity.GetFlags()&types.ENTITY_AUTO == 0 {
 				entity.(PlayerEntity).SetDefendingState(false)

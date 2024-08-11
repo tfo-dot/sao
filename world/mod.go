@@ -325,6 +325,25 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 		switch eventData.GetEvent() {
 		case battle.MSG_FIGHT_END:
+
+			if eventData.GetData().(bool) {
+				w.DChannel <- types.DiscordMessageStruct{
+					ChannelID: channelId,
+					MessageContent: discord.
+						NewMessageCreateBuilder().
+						AddEmbeds(
+							discord.
+								NewEmbedBuilder().
+								SetTitle("Koniec walki!").
+								SetDescriptionf("Wszyscy gracze uciekli z walki!").
+								Build(),
+						).
+						Build(),
+				}
+
+				return
+			}
+
 			wonSideIDX := fight.Entities.SidesLeft()[0]
 			wonEntities := fight.Entities.FromSide(wonSideIDX)
 
@@ -539,23 +558,62 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 
 			player := w.Players[entityUuid]
 
+			canUseActionWhileCC := false
+
+			for _, item := range player.Inventory.Items {
+				for _, effect := range item.Effects {
+					effectTrigger := effect.GetTrigger()
+
+					if effectTrigger.Flags&types.FLAG_IGNORE_CC != 0 {
+						canUseActionWhileCC = true
+						break
+					}
+				}
+			}
+
+			if !canUseActionWhileCC {
+				for _, skill := range player.Inventory.LevelSkills {
+					effectTrigger := skill.GetUpgradableTrigger(player.Inventory.LevelSkillsUpgrades[skill.GetLevel()])
+
+					if effectTrigger.Flags&types.FLAG_IGNORE_CC != 0 {
+						canUseActionWhileCC = true
+						break
+					}
+				}
+			}
+
+			if !canUseActionWhileCC {
+				if player.Meta.Fury != nil {
+					for _, skill := range player.Meta.Fury.GetSkills() {
+						effectTrigger := skill.GetTrigger()
+
+						if effectTrigger.Flags&types.FLAG_IGNORE_CC != 0 {
+							canUseActionWhileCC = true
+							break
+						}
+					}
+				}
+			}
+
 			if player.GetEffectByType(battle.EFFECT_TAUNTED) != nil {
-				effect := player.GetEffectByType(battle.EFFECT_TAUNTED)
+				if !canUseActionWhileCC {
+					effect := player.GetEffectByType(battle.EFFECT_TAUNTED)
 
-				fight.PlayerActions <- battle.Action{
-					Event:  battle.ACTION_ATTACK,
-					Source: player.GetUUID(),
-					Target: effect.Meta.(uuid.UUID),
+					fight.PlayerActions <- battle.Action{
+						Event:  battle.ACTION_ATTACK,
+						Source: player.GetUUID(),
+						Target: effect.Meta.(uuid.UUID),
+					}
+
+					w.DChannel <- types.DiscordMessageStruct{
+						ChannelID: channelId,
+						MessageContent: discord.NewMessageCreateBuilder().
+							SetContentf("<@%v> jest zmuszony do ataku! Pomijamy turę!", player.Meta.UserID).
+							Build(),
+					}
+
+					continue
 				}
-
-				w.DChannel <- types.DiscordMessageStruct{
-					ChannelID: channelId,
-					MessageContent: discord.NewMessageCreateBuilder().
-						SetContentf("<@%v> jest zmuszony do ataku! Pomijamy turę!", player.Meta.UserID).
-						Build(),
-				}
-
-				continue
 			}
 
 			attackButton := discord.NewPrimaryButton("Atak", "f/attack")
@@ -581,7 +639,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			}
 
 			for _, skill := range player.Inventory.LevelSkills {
-				if player.CanUseSkill(skill) {
+				if player.CanUseSkill(skill) && skill.CanUse(&player, &fight, player.Inventory.LevelSkillsUpgrades[skill.GetLevel()]) {
 					filteredSkillsCount++
 				}
 			}
@@ -621,6 +679,26 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 						skillButton,
 						itemButton,
 						escapeButton,
+					).
+					Build(),
+			}
+		case battle.MSG_SUMMON_EXPIRED:
+			entityUuid := eventData.GetData().(uuid.UUID)
+
+			temp := fight.Entities[entityUuid].Entity
+
+			delete(fight.Entities, entityUuid)
+
+			w.DChannel <- types.DiscordMessageStruct{
+				ChannelID: channelId,
+				MessageContent: discord.
+					NewMessageCreateBuilder().
+					AddEmbeds(
+						discord.
+							NewEmbedBuilder().
+							SetTitle("Przyzwany stwór uciekł!").
+							SetDescriptionf("%s uciekł z pola walki!", temp.GetName()).
+							Build(),
 					).
 					Build(),
 			}

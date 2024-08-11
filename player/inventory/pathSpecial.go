@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"fmt"
 	"sao/battle"
 	"sao/types"
 	"sao/utils"
@@ -23,6 +24,10 @@ func (skill SpecialSkill) GetUUID() uuid.UUID {
 }
 
 func (skill SpecialSkill) IsLevelSkill() bool {
+	return true
+}
+
+func (skill SpecialSkill) CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool {
 	return true
 }
 
@@ -96,8 +101,8 @@ func (skill SPC_LVL_1) GetLevel() int {
 	return 1
 }
 
-func (skill SPC_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill SPC_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Cooldown",
 			Description: "Zmniejsza czas odnowienia o 1 turę",
@@ -111,6 +116,22 @@ func (skill SPC_LVL_1) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa czas trwania o 1 turę",
 		},
 	}
+}
+
+func (skill SPC_LVL_1) GetUpgradableDescription(upgrades int) string {
+	percent := "10"
+
+	if HasUpgrade(upgrades, 2) {
+		percent = "12"
+	}
+
+	duration := "1"
+
+	if HasUpgrade(upgrades, 3) {
+		duration = "2"
+	}
+
+	return fmt.Sprintf("Zwiększa losowy atrybut o %s%% na %s turę", percent, duration)
 }
 
 type SPC_LVL_2 struct {
@@ -157,8 +178,8 @@ func (skill SPC_LVL_2) GetStats(upgrades int) map[types.Stat]int {
 	return stats
 }
 
-func (skill SPC_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill SPC_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Skill",
 			Description: "Kradzież życia działa na umiejętności",
@@ -172,6 +193,27 @@ func (skill SPC_LVL_2) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Moc leczenia i tarcz (na sobie) zwiększona o 20%",
 		},
 	}
+}
+
+func (skill SPC_LVL_2) GetUpgradableDescription(upgrades int) string {
+	vampValue := "5"
+	vampType := "kradzieży życia"
+
+	if HasUpgrade(upgrades, 1) {
+		vampType = "wampiryzmu"
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		vampValue = "10"
+	}
+
+	additionalEffect := ""
+
+	if HasUpgrade(upgrades, 3) {
+		additionalEffect = "\nLeczenie i tarcze (na sobie) zwiększone o 20%."
+	}
+
+	return fmt.Sprintf("Dostajesz %s %s.%s", vampValue, vampType, additionalEffect)
 }
 
 type SPC_LVL_3 struct {
@@ -251,8 +293,8 @@ func (skill SPC_LVL_3) GetLevel() int {
 	return 3
 }
 
-func (skill SPC_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill SPC_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Cooldown",
 			Description: "Zmniejsza czas odnowienia o 1 turę",
@@ -266,6 +308,21 @@ func (skill SPC_LVL_3) GetUpgrades() []PlayerSkillUpgrade {
 			Description: "Zwiększa leczenie do 25%",
 		},
 	}
+}
+
+func (skill SPC_LVL_3) GetUpgradableDescription(upgrades int) string {
+	dmgValue := "25"
+	healValue := "20"
+
+	if HasUpgrade(upgrades, 2) {
+		dmgValue += " 2%AP + 2%ATK"
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		healValue = "25"
+	}
+
+	return fmt.Sprintf("Zadaje %s obrażeń i leczy o %s%% tej wartości", dmgValue, healValue)
 }
 
 type SPC_LVL_4 struct {
@@ -313,8 +370,8 @@ func (skill SPC_LVL_4) GetLevel() int {
 	return 4
 }
 
-func (skill SPC_LVL_4) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill SPC_LVL_4) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Cooldown",
 			Description: "Zmniejsza czas odnowienia o 1 turę",
@@ -342,6 +399,16 @@ func (skill SPC_LVL_4) GetCost() int {
 	return 2
 }
 
+func (skill SPC_LVL_4) GetUpgradableDescription(upgrades int) string {
+	duration := "na jedną turę"
+
+	if HasUpgrade(upgrades, 3) {
+		duration = "do końca walki"
+	}
+
+	return fmt.Sprintf("Pożycza umiejętność sojusznika %s.", duration)
+}
+
 type SPC_LVL_5 struct {
 	SpecialSkill
 	DefaultCost
@@ -362,8 +429,8 @@ func (skill SPC_LVL_5) GetLevel() int {
 	return 5
 }
 
-func (skill SPC_LVL_5) GetUpgrades() []PlayerSkillUpgrade {
-	return []PlayerSkillUpgrade{
+func (skill SPC_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Skill",
 			Description: "Działa na kolejną umiejętność",
@@ -462,4 +529,20 @@ func (skill SPC_LVL_5) GetCD() int {
 
 func (skill SPC_LVL_5) GetCooldown(upgrades int) int {
 	return skill.GetCD()
+}
+
+func (skill SPC_LVL_5) GetUpgradableDescription(upgrades int) string {
+	trigger := "kolejny atak"
+
+	if HasUpgrade(upgrades, 1) {
+		trigger += " lub umiejętność"
+	}
+
+	resist := ""
+
+	if HasUpgrade(upgrades, 3) {
+		resist = "\nZmniejsza obrażenia o 10% podczas trwania."
+	}
+
+	return fmt.Sprintf("Zmniejsza SPD do podstawowej wartości na jedną turę, zwiększa %s o zabraną wartość.%s", trigger, resist)
 }

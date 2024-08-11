@@ -86,6 +86,22 @@ func GetFloors(test bool) map[string]Floor {
 						Unlocked: true,
 						Flags:    []string{"arena"},
 					},
+					{
+						Name:     "Boss",
+						CID:      "1265406962263396463",
+						CityPart: false,
+						Enemies: []EnemyMeta{
+							{
+								MinNum: 1,
+								MaxNum: 1,
+								Enemy:  "LV0_Boss",
+							},
+						},
+						Effects:  []LocationEffect{},
+						TP:       false,
+						Unlocked: true,
+						Flags:    []string{"boss"},
+					},
 				},
 				Effects: []LocationEffect{},
 			},

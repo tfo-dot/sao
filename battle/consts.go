@@ -13,6 +13,7 @@ const (
 	MSG_FIGHT_START
 	MSG_FIGHT_END
 	MSG_ENTITY_RESCUE
+	MSG_SUMMON_EXPIRED
 	MSG_ENTITY_DIED
 )
 
@@ -77,7 +78,9 @@ type Action struct {
 type ActionSummon struct {
 	Flags       SummonFlags
 	ExpireTimer int
-	Entity      Entity
+	//For max count
+	EntityType uuid.UUID
+	Entity     Entity
 }
 
 type SummonFlags int
@@ -167,12 +170,15 @@ type Entity interface {
 	ApplyEffect(ActionEffect)
 	GetEffectByType(Effect) *ActionEffect
 	GetEffectByUUID(uuid.UUID) *ActionEffect
+	GetSkill(uuid.UUID) types.PlayerSkill
 	GetAllEffects() []ActionEffect
 	RemoveEffect(uuid.UUID)
 	TriggerAllEffects() []ActionEffect
 
 	AppendTempSkill(types.WithExpire[types.PlayerSkill])
-	TriggerEvent(types.SkillTrigger, interface{}) []interface{}
+	GetTempSkills() []*types.WithExpire[types.PlayerSkill]
+	RemoveTempByUUID(uuid.UUID)
+	TriggerEvent(types.SkillTrigger, types.EventData, interface{}) []interface{}
 }
 
 type DodgeEntity interface {
@@ -196,6 +202,9 @@ type PlayerEntity interface {
 	GetAllItems() []*types.PlayerItem
 	AddItem(*types.PlayerItem)
 	RemoveItem(int)
+
+	GetLvl() int
+	GetSkills() []types.PlayerSkill
 
 	AppendDerivedStat(types.DerivedStat)
 	SetLevelStat(types.Stat, int)
