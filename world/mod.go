@@ -71,7 +71,7 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 		return errors.New("floor not found or locked")
 	}
 
-	if locationData := w.Floors[floorName].FindLocation(locationName); locationData == nil || (!locationData.Unlocked && player.Meta.Location.LocationName != locationName) {
+	if locationData := w.Floors[floorName].FindLocation(locationName); locationData == nil || !locationData.Unlocked {
 		return errors.New("location not found or locked")
 	}
 

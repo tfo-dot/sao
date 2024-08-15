@@ -46,7 +46,7 @@ type LocationEffect struct {
 func GetFloors(test bool) map[string]Floor {
 	if test {
 		return map[string]Floor{
-			"Beta-Miasto": {
+			"beta-miasto": {
 				Name:     "beta-miasto",
 				CID:      "1272232915308249119",
 				Default:  "Rynek",
@@ -63,6 +63,7 @@ func GetFloors(test bool) map[string]Floor {
 						Name:     "Tawerna",
 						CID:      "1272233328925343895",
 						CityPart: true,
+						TP:       true,
 						Unlocked: true,
 					},
 					{
@@ -77,22 +78,25 @@ func GetFloors(test bool) map[string]Floor {
 						CID:      "1272233404900839586",
 						CityPart: true,
 						Unlocked: true,
+						TP:       true,
 					},
 					{
 						Name:     "Kuźnia",
 						CID:      "1272233428649250928",
 						CityPart: true,
 						Unlocked: true,
+						TP:       true,
 					},
 					{
 						Name:     "Trybuny areny",
 						CID:      "1272233365935886347",
 						CityPart: true,
 						Unlocked: true,
+						TP:       true,
 					},
 				},
 			},
-			"Beta-Poza-Miastem": {
+			"beta-poza-miastem": {
 				Name:     "beta-poza-miastem",
 				CID:      "1272232994010169426",
 				Default:  "Las",
@@ -103,6 +107,8 @@ func GetFloors(test bool) map[string]Floor {
 						CID:      "1272233789200007269",
 						TP:       true,
 						CityPart: false,
+						Unlocked: true,
+
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
@@ -116,6 +122,8 @@ func GetFloors(test bool) map[string]Floor {
 						CID:      "1272233801837183036",
 						TP:       true,
 						CityPart: false,
+						Unlocked: true,
+
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
@@ -129,6 +137,8 @@ func GetFloors(test bool) map[string]Floor {
 						CID:      "1272233986617376829",
 						TP:       true,
 						CityPart: false,
+						Unlocked: true,
+
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
@@ -142,7 +152,9 @@ func GetFloors(test bool) map[string]Floor {
 						CID:      "1272234002174050394",
 						TP:       true,
 						CityPart: false,
-						Flags:    []string{"boss"},
+						Unlocked: true,
+
+						Flags: []string{"boss"},
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,

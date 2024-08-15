@@ -189,6 +189,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		if err == nil {
 			event.CreateMessage(MessageContent("Teleportowałeś się na"+floorName, false))
+		} else {
+			event.CreateMessage(MessageContent("Nie możesz się teleportować"+err.Error(), true))
 		}
 
 		return
