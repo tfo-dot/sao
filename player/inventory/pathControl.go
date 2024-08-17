@@ -34,9 +34,16 @@ func (skill ControlSkill) CanUse(owner interface{}, fightInstance interface{}, u
 type CON_LVL_1 struct {
 	ControlSkill
 	DefaultCost
-	DefaultActiveTrigger
 	NoEvents
 	NoStats
+}
+
+func (skill CON_LVL_1) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Target: &types.TargetTrigger{Target: types.TARGET_ENEMY, MaxTargets: 1}}
+}
+
+func (skill CON_LVL_1) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return skill.GetTrigger()
 }
 
 func (skill CON_LVL_1) GetName() string {

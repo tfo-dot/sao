@@ -356,6 +356,8 @@ func (f *Fight) HandleAction(act Action) {
 
 		if meta.Effect == EFFECT_SHIELD {
 			meta.Value = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
+
+			return
 		}
 
 		if meta.Effect == EFFECT_TAUNT {
@@ -370,9 +372,11 @@ func (f *Fight) HandleAction(act Action) {
 
 				entity.ApplyEffect(newEffect)
 			}
-		} else {
-			f.Entities[act.Target].Entity.ApplyEffect(meta)
+
+			return
 		}
+
+		f.Entities[act.Target].Entity.ApplyEffect(meta)
 	case ACTION_DEFEND:
 		entity := f.Entities[act.Source]
 
@@ -453,7 +457,7 @@ func (f *Fight) HandleAction(act Action) {
 			}, nil)
 		}
 
-		if act.Target == uuid.Nil {
+		if len(skillUsageMeta.Targets) > 0 {
 			for _, target := range skillUsageMeta.Targets {
 				if skill.IsLevelSkill() {
 					skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.Entity, f.Entities[target].Entity, f, nil, skillUpgrades)

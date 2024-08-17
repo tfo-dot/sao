@@ -110,6 +110,8 @@ func (m *MobEntity) GetName() string {
 		return "Rycerz"
 	case "LV0_Boss":
 		return "Boss"
+	case "LV0_Wilk":
+		return "Wilk"
 	}
 
 	return "Nieznana istota"

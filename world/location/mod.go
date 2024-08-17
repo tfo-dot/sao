@@ -112,7 +112,7 @@ func GetFloors(test bool) map[string]Floor {
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
-								MaxNum: 3,
+								MaxNum: 2,
 								Enemy:  "LV0_Wilk",
 							},
 						},
@@ -127,7 +127,7 @@ func GetFloors(test bool) map[string]Floor {
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
-								MaxNum: 3,
+								MaxNum: 2,
 								Enemy:  "LV0_Wilk",
 							},
 						},
@@ -142,7 +142,7 @@ func GetFloors(test bool) map[string]Floor {
 						Enemies: []EnemyMeta{
 							{
 								MinNum: 1,
-								MaxNum: 3,
+								MaxNum: 2,
 								Enemy:  "LV0_Rycerz",
 							},
 						},

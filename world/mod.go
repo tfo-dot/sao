@@ -351,7 +351,8 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			allAuto := true
 
 			for _, entity := range wonEntities {
-				if entity.GetFlags()&types.ENTITY_AUTO != 0 {
+				fmt.Println(entity.GetName())
+				if entity.GetFlags()&types.ENTITY_AUTO != types.ENTITY_AUTO {
 					allAuto = false
 					break
 				}
@@ -365,7 +366,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				for _, entity := range wonEntities {
 					wonSideText += fmt.Sprintf("%v", entity.GetName())
 
-					if entity.GetFlags()&types.ENTITY_AUTO != 0 {
+					if entity.GetFlags()&types.ENTITY_AUTO == 0 {
 						wonSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
 					}
 

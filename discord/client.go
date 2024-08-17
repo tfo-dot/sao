@@ -477,6 +477,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
+		//TODO TP if possible instead
 		if playerChar.Meta.Location.FloorName != dFloor.Name {
 			event.CreateMessage(
 				discord.
