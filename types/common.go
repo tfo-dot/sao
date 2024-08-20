@@ -49,7 +49,7 @@ var StatToString = map[Stat]string{
 	STAT_LETHAL_PERCENT:    "Przebicie procentowe pancerza",
 	STAT_MAGIC_PEN:         "Przebicie odporności na magię",
 	STAT_MAGIC_PEN_PERCENT: "Przebicie procentowe odporności na magię",
-	STAT_ADAPTIVE:          "SIła adaptacyjna",
+	STAT_ADAPTIVE:          "Siła adaptacyjna",
 }
 
 type AdaptiveAttackType int
@@ -96,3 +96,8 @@ const (
 	DMG_MAGICAL
 	DMG_TRUE
 )
+
+type EntityLocation struct {
+	Floor    string
+	Location string
+}

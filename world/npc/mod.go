@@ -9,7 +9,7 @@ import (
 
 type NPC struct {
 	Name     string
-	Location types.PlayerLocation
+	Location types.EntityLocation
 	Store    *NPCStore
 }
 

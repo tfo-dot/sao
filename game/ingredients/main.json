@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "Krwiste ostrze",
+    "Stats": {
+      "ATK_VAMP": 20,
+      "ATK": 10
+    },
+    "UUID": "00000000-0000-0000-0000-000000000000"
+  },
+  {
+    "Name": "Niebiański pierwiastek",
+    "Stats": null,
+    "UUID": "00000000-0000-0000-0000-000000000001"
+  }
+]

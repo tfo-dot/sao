@@ -1,47 +1,15 @@
 package main
 
 import (
-	"embed"
-	"fmt"
 	"os"
+	"os/signal"
 	"sao/discord"
 	"sao/world"
+	"syscall"
 )
 
-//go:embed botkey.txt
-var botkey embed.FS
-
 func main() {
-	botkeyRaw, err := botkey.Open("botkey.txt")
-
-	if err != nil {
-		fmt.Println("Cannot read config file")
-		return
-	}
-
-	botKeyFileStats, err := botkeyRaw.Stat()
-
-	if err != nil {
-		fmt.Println("Cannot read config file")
-		return
-	}
-
-	botKey := make([]byte, botKeyFileStats.Size())
-
-	_, err = botkeyRaw.Read(botKey)
-
-	if err != nil {
-		fmt.Println("Cannot read config file")
-		return
-	}
-
-	isTest := false
-
-	if len(os.Args) > 1 && os.Args[1] == "test" {
-		isTest = true
-	}
-
-	world := world.CreateWorld(string(botKey), isTest)
+	world := world.CreateWorld()
 
 	world.LoadBackup()
 
@@ -49,9 +17,9 @@ func main() {
 
 	discord.World = &world
 
-	go discord.StartClient(string(botKey))
+	go discord.StartClient()
 
-	for {
-		continue
-	}
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	<-s
 }

@@ -1,0 +1,67 @@
+{
+  "Name": "beta-poza-miastem",
+  "CID": "1272232994010169426",
+  "Default": "Las",
+  "Unlocked": true,
+  "Locations": [
+    {
+      "Name": "Las",
+      "CID": "1272233789200007269",
+      "TP": true,
+      "CityPart": false,
+      "Unlocked": true,
+      "Enemies": [
+        {
+          "MinNum": 1,
+          "MaxNum": 2,
+          "Enemy": "LV0_Wilk"
+        }
+      ]
+    },
+    {
+      "Name": "Polana",
+      "CID": "1272233801837183036",
+      "TP": true,
+      "CityPart": false,
+      "Unlocked": true,
+      "Enemies": [
+        {
+          "MinNum": 1,
+          "MaxNum": 2,
+          "Enemy": "LV0_Wilk"
+        }
+      ]
+    },
+    {
+      "Name": "Podnóże wulkanu",
+      "CID": "1272233986617376829",
+      "TP": true,
+      "CityPart": false,
+      "Unlocked": true,
+      "Enemies": [
+        {
+          "MinNum": 1,
+          "MaxNum": 2,
+          "Enemy": "LV0_Rycerz"
+        }
+      ]
+    },
+    {
+      "Name": "Wulkan",
+      "CID": "1272234002174050394",
+      "TP": true,
+      "CityPart": false,
+      "Unlocked": true,
+      "Flags": [
+        "boss"
+      ],
+      "Enemies": [
+        {
+          "MinNum": 1,
+          "MaxNum": 1,
+          "Enemy": "LV0_Boss"
+        }
+      ]
+    }
+  ]
+}

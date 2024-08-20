@@ -8,6 +8,7 @@ import (
 	"os"
 	"sao/battle"
 	"sao/battle/mobs"
+	"sao/config"
 	"sao/data"
 	"sao/player"
 	"sao/types"
@@ -41,25 +42,21 @@ type World struct {
 	Entities     map[uuid.UUID]*battle.Entity
 	Time         *calendar.Calendar
 	Parties      map[uuid.UUID]*party.Party
-	TestMode     bool
-	DiscordToken string
 	DChannel     chan types.DiscordMessageStruct
 }
 
-func CreateWorld(discordToken string, testMode bool) World {
+func CreateWorld() World {
 	return World{
 		make(map[uuid.UUID]*player.Player),
 		make(map[uuid.UUID]*transaction.Transaction),
 		make(map[uuid.UUID]*npc.NPC),
 		make(map[uuid.UUID]*npc.NPCStore),
-		location.GetFloors(testMode),
+		location.GetFloors(),
 		make(map[uuid.UUID]*tournament.Tournament),
 		make(map[uuid.UUID]battle.Fight),
 		make(map[uuid.UUID]*battle.Entity),
 		calendar.StartCalendar(),
 		make(map[uuid.UUID]*party.Party),
-		testMode,
-		discordToken,
 		make(chan types.DiscordMessageStruct, 10),
 	}
 }
@@ -67,7 +64,7 @@ func CreateWorld(discordToken string, testMode bool) World {
 func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason string) error {
 	player := w.Players[pUuid]
 
-	if floorData, exists := w.Floors[floorName]; !exists || (!floorData.Unlocked && player.Meta.Location.FloorName != floorName) {
+	if floorData, exists := w.Floors[floorName]; !exists || (!floorData.Unlocked && player.Meta.Location.Floor != floorName) {
 		return errors.New("floor not found or locked")
 	}
 
@@ -79,8 +76,8 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 		return errors.New("player is in fight")
 	}
 
-	player.Meta.Location.FloorName = floorName
-	player.Meta.Location.LocationName = locationName
+	player.Meta.Location.Floor = floorName
+	player.Meta.Location.Location = locationName
 
 	return nil
 }
@@ -88,12 +85,12 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 func (w *World) PlayerSearch(uuid uuid.UUID) {
 	player := w.Players[uuid]
 
-	floor := w.Floors[player.Meta.Location.FloorName]
+	floor := w.Floors[player.Meta.Location.Floor]
 
 	var location location.Location
 
 	for _, loc := range floor.Locations {
-		if loc.Name == player.Meta.Location.LocationName {
+		if loc.Name == player.Meta.Location.Location {
 			location = loc
 		}
 	}
@@ -272,8 +269,8 @@ func (w *World) StartClock() {
 				{
 					player := w.Players[pUuid]
 
-					floor := w.Floors[player.Meta.Location.FloorName]
-					location := floor.FindLocation(player.Meta.Location.LocationName)
+					floor := w.Floors[player.Meta.Location.Floor]
+					location := floor.FindLocation(player.Meta.Location.Location)
 
 					if location.CityPart {
 						healRatio = 25
@@ -818,7 +815,7 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 		}
 	}
 
-	client, err := disgo.New(w.DiscordToken)
+	client, err := disgo.New(config.Config.Token)
 
 	if err != nil {
 		panic(err)
@@ -1239,7 +1236,6 @@ func (w *World) Serialize() map[string]interface{} {
 		"parties":     partyData,
 		"stores":      storeData,
 		"time":        w.Time.Serialize(),
-		"test":        w.TestMode,
 		"tournaments": tournamentData,
 	}
 }
@@ -1255,19 +1251,13 @@ func (w *World) DumpBackup() []byte {
 }
 
 func (w *World) CreateBackup() {
-	backupPath := "backup"
-
-	if w.TestMode {
-		backupPath = "test" + backupPath
-	}
-
-	_, err := os.Stat(backupPath)
+	_, err := os.Stat(config.Config.BackupLocation)
 
 	if os.IsNotExist(err) {
-		os.Mkdir(backupPath, os.ModePerm)
+		os.Mkdir(config.Config.BackupLocation, os.ModePerm)
 	}
 
-	newBackupPath := fmt.Sprintf("%s/%v.json", backupPath, time.Now().Format("2006-01-02_15-04-05"))
+	newBackupPath := fmt.Sprintf("%s/%v.json", config.Config.BackupLocation, time.Now().Format("2006-01-02_15-04-05"))
 
 	backupFile, err := os.Create(newBackupPath)
 
@@ -1294,13 +1284,7 @@ func (w *World) CreateBackup() {
 }
 
 func (w *World) LoadBackup() {
-	backupPath := "backup"
-
-	if w.TestMode {
-		backupPath = "test" + backupPath
-	}
-
-	_, err := os.Stat(backupPath)
+	_, err := os.Stat(config.Config.BackupLocation)
 
 	if os.IsNotExist(err) {
 		return
@@ -1308,7 +1292,7 @@ func (w *World) LoadBackup() {
 
 	backupData := make(map[string]interface{})
 
-	allBackups, err := os.ReadDir(backupPath)
+	allBackups, err := os.ReadDir(config.Config.BackupLocation)
 
 	if err != nil {
 		panic(err)
@@ -1348,7 +1332,7 @@ func (w *World) LoadBackup() {
 		return
 	}
 
-	backupContent, err := os.ReadFile("./" + backupPath + "/" + filteredBackups[0].Name())
+	backupContent, err := os.ReadFile("./" + config.Config.BackupLocation + "/" + filteredBackups[0].Name())
 
 	if err != nil {
 		panic(err)

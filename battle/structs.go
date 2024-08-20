@@ -441,13 +441,33 @@ func (f *Fight) HandleAction(act Action) {
 
 		trigger := skill.GetTrigger()
 
+		skillCost := skill.GetCost()
+
 		if skill.IsLevelSkill() {
 			trigger = skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(skillUpgrades)
+
+			skillCost = skill.(types.PlayerSkillUpgradable).GetUpgradableCost(skillUpgrades)
+		}
+
+		if sourceEntity.Entity.GetCurrentMana() < skillCost {
+			f.DiscordChannel <- types.DiscordMessageStruct{
+				ChannelID:      channelId,
+				MessageContent: discord.NewMessageCreateBuilder().SetContent("Nie masz many na użycie tej umiejętności").Build(),
+			}
+
+			return
 		}
 
 		if trigger.Type != types.TRIGGER_ACTIVE {
+			f.DiscordChannel <- types.DiscordMessageStruct{
+				ChannelID:      channelId,
+				MessageContent: discord.NewMessageCreateBuilder().SetContent("Nie można użyć tej umiejętności").Build(),
+			}
+
 			return
 		}
+
+		sourceEntity.Entity.RestoreMana(-skillCost)
 
 		if skillUsageMeta.Lvl%10 == 0 {
 			sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_ULT, types.EventData{

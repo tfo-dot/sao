@@ -1,0 +1,52 @@
+{
+  "Name": "beta-miasto",
+  "CID": "1272232915308249119",
+  "Default": "Rynek",
+  "Unlocked": true,
+  "Locations": [
+    {
+      "Name": "Rynek",
+      "CID": "1272233088608637050",
+      "CityPart": true,
+      "TP": true,
+      "Unlocked": true
+    },
+    {
+      "Name": "Tawerna",
+      "CID": "1272233328925343895",
+      "CityPart": true,
+      "TP": true,
+      "Unlocked": true
+    },
+    {
+      "Name": "Arena",
+      "CID": "1272233289159278622",
+      "CityPart": true,
+      "Unlocked": true,
+      "Flags": [
+        "arena"
+      ]
+    },
+    {
+      "Name": "Brama główna",
+      "CID": "1272233404900839586",
+      "CityPart": true,
+      "Unlocked": true,
+      "TP": true
+    },
+    {
+      "Name": "Kuźnia",
+      "CID": "1272233428649250928",
+      "CityPart": true,
+      "Unlocked": true,
+      "TP": true
+    },
+    {
+      "Name": "Trybuny areny",
+      "CID": "1272233365935886347",
+      "CityPart": true,
+      "Unlocked": true,
+      "TP": true
+    }
+  ]
+}

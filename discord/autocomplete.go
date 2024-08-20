@@ -20,7 +20,7 @@ func AutocompleteHandler(event *events.AutocompleteInteractionCreate) {
 
 		for _, pl := range World.Players {
 			if pl.Meta.UserID == userSnowflake.String() {
-				floorName = pl.Meta.Location.FloorName
+				floorName = pl.Meta.Location.Floor
 			}
 		}
 
@@ -50,7 +50,7 @@ func AutocompleteHandler(event *events.AutocompleteInteractionCreate) {
 
 		for _, pl := range World.Players {
 			if pl.Meta.UserID == userSnowflake {
-				floorName = pl.Meta.Location.FloorName
+				floorName = pl.Meta.Location.Floor
 			}
 		}
 

@@ -1,0 +1,17 @@
+  {
+    "Location": {
+      "Floor": "beta-miasto",
+      "Location": "Rynek"
+    },
+    "LevelStats": {
+      "HP": 15,
+      "ATK": 15
+    },
+    "Stats": {
+      "HP": 100,
+      "ATK": 40,
+      "SPD": 40,
+      "AGL": 50,
+      "MANA": 10
+    }
+  }

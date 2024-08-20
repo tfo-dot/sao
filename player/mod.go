@@ -1,6 +1,7 @@
 package player
 
 import (
+	"encoding/json"
 	"errors"
 	"sao/battle"
 	"sao/battle/mobs"
@@ -27,7 +28,7 @@ type PlayerXP struct {
 }
 
 type PlayerMeta struct {
-	Location      types.PlayerLocation
+	Location      types.EntityLocation
 	OwnUUID       uuid.UUID
 	UserID        string
 	FightInstance *uuid.UUID
@@ -51,7 +52,7 @@ func (pM *PlayerMeta) Serialize() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"location": []string{pM.Location.FloorName, pM.Location.LocationName},
+		"location": []string{pM.Location.Floor, pM.Location.Location},
 		"uuid":     pM.OwnUUID.String(),
 		"uid":      pM.UserID,
 		"fury":     pM.SerializeFuries(),
@@ -172,6 +173,12 @@ func DeserializeEffects(data []interface{}) mobs.EffectList {
 }
 
 func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
+
+	pLocation := types.EntityLocation{
+		Floor:    data["location"].([]string)[0],
+		Location: data["location"].([]string)[1],
+	}
+
 	var furyData *fury.Fury
 	if data["fury"] != nil {
 		furyData = fury.Deserialize(data["fury"].(map[string]interface{}))
@@ -186,7 +193,7 @@ func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
 	}
 
 	return &PlayerMeta{
-		types.DefaultPlayerLocation(),
+		pLocation,
 		uuid.MustParse(data["uuid"].(string)),
 		data["uid"].(string),
 		nil,
@@ -928,7 +935,7 @@ func NewPlayer(name string, uid string) Player {
 		name,
 		PlayerXP{Level: 1, Exp: 0},
 		PlayerStats{100, make(mobs.EffectList, 0), false, 10},
-		PlayerMeta{types.DefaultPlayerLocation(), uuid.New(), uid, nil, nil, nil, nil},
+		PlayerMeta{Default.Location, uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 		make([]types.DerivedStat, 0),
 		map[types.Stat]int{
@@ -943,4 +950,43 @@ func NewPlayer(name string, uid string) Player {
 			types.STAT_MANA: 10,
 		},
 	}
+}
+
+var Default PlayerDefaults = GetPlayerDefaults()
+
+type PlayerDefaults struct {
+	StartingStats map[types.Stat]int
+	LevelStats    map[types.Stat]int
+	Location      types.EntityLocation
+}
+
+func GetPlayerDefaults() PlayerDefaults {
+
+	//TODO Read config
+
+	var rawData string
+	var parsedData map[string]interface{}
+
+	pDefaults := PlayerDefaults{
+		Location: types.EntityLocation{
+			Floor:    parsedData["Location"].(map[string]interface{})["Floor"].(string),
+			Location: parsedData["Location"].(map[string]interface{})["Location"].(string),
+		},
+	}
+
+	json.Unmarshal([]byte(rawData), &parsedData)
+
+	pDefaults.StartingStats = make(map[types.Stat]int, 0)
+
+	for key, value := range parsedData["Stats"].(map[string]interface{}) {
+		pDefaults.StartingStats[utils.StringToStat[key]] = int(value.(float64))
+	}
+
+	pDefaults.LevelStats = make(map[types.Stat]int, 0)
+
+	for key, value := range parsedData["LevelStats"].(map[string]interface{}) {
+		pDefaults.LevelStats[utils.StringToStat[key]] = int(value.(float64))
+	}
+
+	return pDefaults
 }

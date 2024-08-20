@@ -1,0 +1,8 @@
+{
+  "Token": "<Discord bot token>",
+  "Owner": "<Owner discord ID>",
+  "BackupLocation": "<Location for backups>",
+  "GameDataLocation": "<Location of game metadata, mobs, floors, npc etc>",
+  "GuildID": "<Guild ID>",
+  "RoleID": "<ID of role to grant after player creation>"
+}

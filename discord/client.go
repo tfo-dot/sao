@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sao/config"
 	"sao/data"
 	"sao/player"
 	"sao/player/inventory"
@@ -28,20 +29,19 @@ var World *world.World
 var Client *bot.Client
 var Choices = make([]types.DiscordChoice, 0)
 
-func StartClient(token string) {
-	client, err := disgo.New(token,
-		// bot.WithDefaultGateway(),
+func StartClient() {
+	client, err := disgo.New(config.Config.Token,
 		bot.WithEventListenerFunc(func(e *events.Ready) {
 			println("Discord connection is here!")
 			e.Client().SetPresence(context.Background(), gateway.WithWatchingActivity("SAO"))
 		}),
 		bot.WithEventListenerFunc(func(e *events.MessageCreate) {
-			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == "344048874656366592" {
+			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == config.Config.Owner {
 				data := World.DumpBackup()
 
 				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, "02Calc:1159034005493129228")
 
-				chanel, err := e.Client().Rest().CreateDMChannel(snowflake.MustParse("344048874656366592"))
+				chanel, err := e.Client().Rest().CreateDMChannel(snowflake.MustParse(config.Config.Owner))
 
 				if err != nil {
 					return
@@ -74,7 +74,7 @@ func StartClient(token string) {
 
 	Client = &client
 
-	if _, err = (*Client).Rest().SetGuildCommands((*Client).ApplicationID(), snowflake.MustParse("1151589368373444690"), DISCORD_COMMANDS); err != nil {
+	if _, err = (*Client).Rest().SetGuildCommands((*Client).ApplicationID(), snowflake.MustParse(config.Config.GuildID), DISCORD_COMMANDS); err != nil {
 		fmt.Println("error while registering commands")
 	}
 
@@ -158,13 +158,13 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		} else {
 			gid := event.GuildID()
 
-			(*Client).Rest().AddMemberRole(*gid, charUser.ID, snowflake.MustParse("1271178631758090331"))
+			(*Client).Rest().AddMemberRole(*gid, charUser.ID, snowflake.MustParse(config.Config.RoleID))
 		}
 		return
 	case "ruch":
 		locationName := interactionData.String("nazwa")
 
-		err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.FloorName, locationName, "")
+		err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.Floor, locationName, "")
 
 		if err == nil {
 			event.CreateMessage(MessageContent("Przeszedłeś do "+locationName, false))
@@ -176,7 +176,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 	case "tp":
 		floorName := interactionData.String("nazwa")
 
-		currentLocation := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+		currentLocation := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
 
 		if !currentLocation.TP {
 			event.CreateMessage(
@@ -209,6 +209,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						SetEphemeral(true).
 						Build(),
 				)
+
 				return
 			}
 		}
@@ -245,7 +246,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			derivedStatsText = "Brak"
 		}
 
-		rawLocation := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+		rawLocation := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
 
 		event.CreateMessage(
 			discord.NewMessageCreateBuilder().
@@ -478,7 +479,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		}
 
 		//TODO TP if possible instead
-		if playerChar.Meta.Location.FloorName != dFloor.Name {
+		if playerChar.Meta.Location.Floor != dFloor.Name {
 			event.CreateMessage(
 				discord.
 					NewMessageCreateBuilder().
@@ -502,9 +503,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		if playerChar.Meta.Location.LocationName == newLocation.Name {
+		if playerChar.Meta.Location.Location == newLocation.Name {
 
-			loc := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+			loc := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
 
 			if loc.CityPart {
 				event.CreateMessage(
@@ -527,7 +528,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 					Build(),
 			)
 		} else {
-			err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.FloorName, newLocation.Name, "")
+			err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.Floor, newLocation.Name, "")
 
 			if err != nil {
 				event.CreateMessage(
@@ -541,7 +542,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			loc := World.Floors[playerChar.Meta.Location.FloorName].FindLocation(playerChar.Meta.Location.LocationName)
+			loc := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
 
 			if loc.CityPart {
 				event.CreateMessage(

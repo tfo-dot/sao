@@ -1,6 +1,8 @@
 module sao
 
-go 1.21.1
+go 1.22
+
+toolchain go1.22.2
 
 require (
 	github.com/disgoorg/disgo v0.18.8
@@ -9,6 +11,7 @@ require (
 )
 
 require (
+	github.com/Shopify/go-lua v0.0.0-20240527182111-9ab1540f3f5f // indirect
 	github.com/disgoorg/json v1.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/sasha-s/go-csync v0.0.0-20240107134140-fcbab37b09ad // indirect

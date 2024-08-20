@@ -14,5 +14,10 @@
     "Shiki",
     "Textf"
   ],
-  "cSpell.language": "pl,en"
+  "cSpell.language": "pl,en",
+  "Lua.diagnostics.globals": [
+    "Effects",
+    "ReservedUIDs",
+    "utils"
+  ]
 }
