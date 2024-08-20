@@ -88,19 +88,20 @@ func GetItems() map[uuid.UUID]types.PlayerItem {
 
 		state.Pop(1)
 
-		state.Global("Effects")
+		//TODO Implement effects when items are actually used
+		// state.Global("Effects")
 
-		state.RawGetInt(-1, 0)
+		// state.RawGetInt(-1, 0)
 
-		state.PushNil()
+		// state.PushNil()
 
-		for state.Next(-2) {
-			key, _ := state.ToString(-2)
+		// for state.Next(-2) {
+		// 	key, _ := state.ToString(-2)
 
-			println(key)
+		// 	println(key)
 
-			state.Pop(1)
-		}
+		// 	state.Pop(1)
+		// }
 
 		items[item.UUID] = item
 	}

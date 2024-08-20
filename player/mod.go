@@ -3,8 +3,10 @@ package player
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"sao/battle"
 	"sao/battle/mobs"
+	"sao/config"
 	"sao/data"
 	"sao/player/inventory"
 	"sao/types"
@@ -175,8 +177,8 @@ func DeserializeEffects(data []interface{}) mobs.EffectList {
 func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
 
 	pLocation := types.EntityLocation{
-		Floor:    data["location"].([]string)[0],
-		Location: data["location"].([]string)[1],
+		Floor:    data["location"].([]interface{})[0].(string),
+		Location: data["location"].([]interface{})[1].(string),
 	}
 
 	var furyData *fury.Fury
@@ -961,11 +963,15 @@ type PlayerDefaults struct {
 }
 
 func GetPlayerDefaults() PlayerDefaults {
+	rawData, err := os.ReadFile(config.Config.GameDataLocation + "/players/default.json")
 
-	//TODO Read config
+	if err != nil {
+		panic(err)
+	}
 
-	var rawData string
 	var parsedData map[string]interface{}
+
+	json.Unmarshal([]byte(rawData), &parsedData)
 
 	pDefaults := PlayerDefaults{
 		Location: types.EntityLocation{
@@ -973,8 +979,6 @@ func GetPlayerDefaults() PlayerDefaults {
 			Location: parsedData["Location"].(map[string]interface{})["Location"].(string),
 		},
 	}
-
-	json.Unmarshal([]byte(rawData), &parsedData)
 
 	pDefaults.StartingStats = make(map[types.Stat]int, 0)
 
