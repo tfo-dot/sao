@@ -478,18 +478,6 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		//TODO TP if possible instead
-		if playerChar.Meta.Location.Floor != dFloor.Name {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Jesteś nie na tym piętrze...").
-					SetEphemeral(true).
-					Build(),
-			)
-			return
-		}
-
 		newLocation := dFloor.FindLocation(event.Channel().ID().String())
 
 		if newLocation == nil {
@@ -503,7 +491,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		if playerChar.Meta.Location.Location == newLocation.Name {
+		if playerChar.Meta.Location.Location == newLocation.Name && playerChar.Meta.Location.Floor == dFloor.Name {
 
 			loc := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
 
@@ -528,7 +516,13 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 					Build(),
 			)
 		} else {
-			err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.Floor, newLocation.Name, "")
+			pFloor := playerChar.Meta.Location.Floor
+
+			if playerChar.Meta.Location.Floor != dFloor.Name {
+				pFloor = dFloor.Name
+			}
+
+			err := World.MovePlayer(playerChar.GetUUID(), pFloor, newLocation.Name, "")
 
 			if err != nil {
 				event.CreateMessage(
