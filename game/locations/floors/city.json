@@ -3,50 +3,70 @@
   "CID": "1272232915308249119",
   "Default": "Rynek",
   "Unlocked": true,
+  "CountsAsUnlocked": false,
+  "Effects": [],
   "Locations": [
     {
       "Name": "Rynek",
       "CID": "1272233088608637050",
       "CityPart": true,
       "TP": true,
-      "Unlocked": true
+      "Unlocked": true,
+      "Effects": [],
+      "Flags": [],
+      "Enemies": []
     },
     {
       "Name": "Tawerna",
       "CID": "1272233328925343895",
       "CityPart": true,
       "TP": true,
-      "Unlocked": true
+      "Unlocked": true,
+      "Effects": [],
+      "Flags": [],
+      "Enemies": []
     },
     {
       "Name": "Arena",
       "CID": "1272233289159278622",
       "CityPart": true,
       "Unlocked": true,
+      "TP": true,
+      "Effects": [],
       "Flags": [
         "arena"
-      ]
+      ],
+      "Enemies": []
     },
     {
       "Name": "Brama główna",
       "CID": "1272233404900839586",
       "CityPart": true,
       "Unlocked": true,
-      "TP": true
+      "TP": true,
+      "Effects": [],
+      "Flags": [],
+      "Enemies": []
     },
     {
       "Name": "Kuźnia",
       "CID": "1272233428649250928",
       "CityPart": true,
       "Unlocked": true,
-      "TP": true
+      "TP": true,
+      "Effects": [],
+      "Flags": [],
+      "Enemies": []
     },
     {
       "Name": "Trybuny areny",
       "CID": "1272233365935886347",
       "CityPart": true,
       "Unlocked": true,
-      "TP": true
+      "TP": true,
+      "Effects": [],
+      "Flags": [],
+      "Enemies": []
     }
   ]
 }
