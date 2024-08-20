@@ -719,7 +719,6 @@ func (p *Player) SetLvlCD(lvl int, value int) {
 		delete(p.Inventory.LevelSkillsCDS, lvl)
 	} else {
 		p.Inventory.LevelSkillsCDS[lvl] = value
-
 	}
 }
 
@@ -936,21 +935,17 @@ func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
 		PlayerXP{Level: 1, Exp: 0},
-		PlayerStats{100, make(mobs.EffectList, 0), false, 10},
+		PlayerStats{
+			Default.StartingStats[types.STAT_HP],
+			make(mobs.EffectList, 0),
+			false,
+			Default.StartingStats[types.STAT_MANA],
+		},
 		PlayerMeta{Default.Location, uuid.New(), uid, nil, nil, nil, nil},
 		inventory.GetDefaultInventory(),
 		make([]types.DerivedStat, 0),
-		map[types.Stat]int{
-			types.STAT_HP: 15,
-			types.STAT_AD: 15,
-		},
-		map[types.Stat]int{
-			types.STAT_HP:   100,
-			types.STAT_AD:   40,
-			types.STAT_SPD:  40,
-			types.STAT_AGL:  50,
-			types.STAT_MANA: 10,
-		},
+		Default.LevelStats,
+		Default.StartingStats,
 	}
 }
 

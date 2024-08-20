@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"sao/battle"
 	"sao/battle/mobs"
@@ -873,7 +872,8 @@ func (w *World) StartTournament(tUuid uuid.UUID) error {
 
 		//Hackery shuffle
 		for i := range participants {
-			j := rand.Intn(i + 1)
+			j := utils.RandomNumber(0, len(participants)-1)
+
 			participants[i], participants[j] = participants[j], participants[i]
 		}
 

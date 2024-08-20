@@ -1,19 +1,32 @@
 package utils
 
 import (
+	"crypto/rand"
 	"math"
-	"math/rand"
+	"math/big"
 	"sao/types"
 
 	"github.com/google/uuid"
 )
 
 func RandomElement[v any](slice []v) v {
-	return slice[rand.Intn(len(slice))]
+	number, err := rand.Int(rand.Reader, big.NewInt(int64(len(slice))))
+
+	if err != nil {
+		panic(err)
+	}
+
+	return slice[int(number.Int64())]
 }
 
 func RandomNumber(min, max int) int {
-	return rand.Intn(max+1-min) + min
+	number, err := rand.Int(rand.Reader, big.NewInt(int64(max+1-min)))
+
+	if err != nil {
+		panic(err)
+	}
+
+	return int(number.Int64()) + min
 }
 
 func CalcReducedDamage(atk, reductionValue int) int {

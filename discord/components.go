@@ -110,9 +110,9 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		case "0":
 			path = types.PathControl
 		case "1":
-			path = types.PathDamage
-		case "2":
 			path = types.PathEndurance
+		case "2":
+			path = types.PathDamage
 		case "3":
 			path = types.PathSpecial
 		}
