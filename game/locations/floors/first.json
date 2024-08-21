@@ -23,6 +23,22 @@
       "Flags": []
     },
     {
+      "Name": "dev",
+      "CID": "1275915287677632512",
+      "TP": true,
+      "CityPart": false,
+      "Unlocked": true,
+      "Enemies": [
+        {
+          "MinNum": 1,
+          "MaxNum": 1,
+          "Enemy": "LV0_Wilk"
+        }
+      ],
+      "Effects": [],
+      "Flags": []
+    },
+    {
       "Name": "Polana",
       "CID": "1272233801837183036",
       "TP": true,

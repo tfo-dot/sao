@@ -900,6 +900,26 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, data types.EventData, me
 		}
 	}
 
+	for _, effect := range p.Inventory.TempSkills {
+		trigger := effect.Value.GetTrigger()
+
+		if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
+			if cost := effect.Value.GetCost(); cost != 0 {
+				if cost > p.GetCurrentMana() {
+					continue
+				} else {
+					p.Stats.CurrentMana -= cost
+				}
+			}
+
+			temp := effect.Value.Execute(p, data.Target, data.Fight, meta)
+
+			if temp != nil {
+				returnMeta = append(returnMeta, temp)
+			}
+		}
+	}
+
 	return returnMeta
 }
 
@@ -931,6 +951,10 @@ func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
 	}
 
 	return nil
+}
+
+func (p *Player) ClearFight() {
+	p.Meta.FightInstance = nil
 }
 
 func NewPlayer(name string, uid string) Player {

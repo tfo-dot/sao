@@ -39,7 +39,7 @@ type DMG_LVL_1 struct {
 }
 
 func (skill DMG_LVL_1) GetTrigger() types.Trigger {
-	return types.Trigger{Type: types.TRIGGER_ACTIVE}
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
 func (skill DMG_LVL_1) GetUpgradableTrigger(upgrades int) types.Trigger {

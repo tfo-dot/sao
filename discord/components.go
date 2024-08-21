@@ -467,7 +467,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						skillTrigger := skillObj.GetUpgradableTrigger(player.Inventory.LevelSkillsUpgrades[value])
 
 						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
-							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 							fight.PlayerActions <- battle.Action{
 								Event:       battle.ACTION_SKILL,
@@ -518,7 +518,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
-									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 									fight.PlayerActions <- battle.Action{
 										Event:       battle.ACTION_SKILL,
@@ -587,7 +587,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
-									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 									fight.PlayerActions <- battle.Action{
 										Event:       battle.ACTION_SKILL,
@@ -658,7 +658,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 									parsedUuids[idx] = uuid.MustParse(rawUuid)
 								}
 
-								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 								fight.PlayerActions <- battle.Action{
 									Event:       battle.ACTION_SKILL,
@@ -718,7 +718,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						skillTrigger := skillObj.GetTrigger()
 
 						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
-							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 							fight.PlayerActions <- battle.Action{
 								Event:       battle.ACTION_SKILL,
@@ -769,7 +769,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
-									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 									fight.PlayerActions <- battle.Action{
 										Event:       battle.ACTION_SKILL,
@@ -839,7 +839,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
-									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 									fight.PlayerActions <- battle.Action{
 										Event:       battle.ACTION_SKILL,
@@ -910,7 +910,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 									parsedUuids[idx] = uuid.MustParse(rawUuid)
 								}
 
-								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
 								fight.PlayerActions <- battle.Action{
 									Event:       battle.ACTION_SKILL,

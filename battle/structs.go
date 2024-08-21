@@ -880,6 +880,8 @@ func (f *Fight) HandleAction(act Action) {
 			return
 		}
 
+		f.Entities[act.Source].Entity.(PlayerEntity).ClearFight()
+
 		delete(f.Entities, act.Source)
 
 		entities := f.Entities.FromSide(side)

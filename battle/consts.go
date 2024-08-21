@@ -191,6 +191,8 @@ type DodgeEntity interface {
 type PlayerEntity interface {
 	DodgeEntity
 
+	ClearFight()
+
 	GetUpgrades(int) int
 	GetLvlSkill(int) types.PlayerSkill
 
