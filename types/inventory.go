@@ -131,6 +131,7 @@ type SkillFlag int
 
 const (
 	FLAG_IGNORE_CC SkillFlag = 1 << iota
+	FLAG_INSTANT_SKILL
 )
 
 type CustomTrigger int

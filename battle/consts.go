@@ -69,10 +69,11 @@ const (
 )
 
 type Action struct {
-	Event  ActionEnum
-	Target uuid.UUID
-	Source uuid.UUID
-	Meta   any
+	Event       ActionEnum
+	Target      uuid.UUID
+	Source      uuid.UUID
+	ConsumeTurn *bool
+	Meta        any
 }
 
 type ActionSummon struct {

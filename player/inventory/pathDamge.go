@@ -34,9 +34,16 @@ func (skill DamageSkill) CanUse(owner interface{}, fightInstance interface{}, up
 type DMG_LVL_1 struct {
 	DamageSkill
 	DefaultCost
-	DefaultActiveTrigger
 	NoEvents
 	NoStats
+}
+
+func (skill DMG_LVL_1) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE}
+}
+
+func (skill DMG_LVL_1) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
 func (skill DMG_LVL_1) GetName() string {

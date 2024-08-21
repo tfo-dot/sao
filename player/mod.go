@@ -320,7 +320,9 @@ func (p *Player) AddEXP(maxFloor, value int) {
 		return
 	}
 
-	p.Meta.Fury.AddXP(utils.PercentOf(value, 20))
+	if p.Meta.Fury != nil {
+		p.Meta.Fury.AddXP(utils.PercentOf(value, 20))
+	}
 
 	for p.XP.Exp >= ((p.XP.Level * 100) + 100) {
 		if p.XP.Level >= maxFloor*5 {

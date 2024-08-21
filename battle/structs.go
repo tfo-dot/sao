@@ -1035,7 +1035,14 @@ func (f *Fight) Run() {
 				entity.(PlayerEntity).ReduceCooldowns(types.TRIGGER_TURN)
 
 				f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
-				f.HandleAction(<-f.PlayerActions)
+
+				tempAction := <-f.PlayerActions
+
+				for tempAction.ConsumeTurn != nil && !*tempAction.ConsumeTurn {
+					f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
+
+					f.HandleAction(<-f.PlayerActions)
+				}
 			} else {
 				if entity.GetEffectByType(EFFECT_STUN) == nil {
 					for _, action := range entity.Action(f) {

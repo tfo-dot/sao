@@ -467,10 +467,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						skillTrigger := skillObj.GetUpgradableTrigger(player.Inventory.LevelSkillsUpgrades[value])
 
 						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
+							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 							fight.PlayerActions <- battle.Action{
-								Event:  battle.ACTION_SKILL,
-								Source: player.GetUUID(),
-								Target: player.GetUUID(),
+								Event:       battle.ACTION_SKILL,
+								Source:      player.GetUUID(),
+								Target:      player.GetUUID(),
+								ConsumeTurn: &skipTurn,
 								Meta: battle.ActionSkillMeta{
 									IsForLevel: true,
 									Lvl:        skillObj.GetLevel(),
@@ -515,10 +518,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 									fight.PlayerActions <- battle.Action{
-										Event:  battle.ACTION_SKILL,
-										Source: player.GetUUID(),
-										Target: player.GetUUID(),
+										Event:       battle.ACTION_SKILL,
+										Source:      player.GetUUID(),
+										Target:      player.GetUUID(),
+										ConsumeTurn: &skipTurn,
 										Meta: battle.ActionSkillMeta{
 											IsForLevel: true,
 											Lvl:        skillObj.GetLevel(),
@@ -581,10 +587,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 									fight.PlayerActions <- battle.Action{
-										Event:  battle.ACTION_SKILL,
-										Source: player.GetUUID(),
-										Target: player.GetUUID(),
+										Event:       battle.ACTION_SKILL,
+										Source:      player.GetUUID(),
+										Target:      player.GetUUID(),
+										ConsumeTurn: &skipTurn,
 										Meta: battle.ActionSkillMeta{
 											IsForLevel: true,
 											Lvl:        skillObj.GetLevel(),
@@ -649,10 +658,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 									parsedUuids[idx] = uuid.MustParse(rawUuid)
 								}
 
+								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 								fight.PlayerActions <- battle.Action{
-									Event:  battle.ACTION_SKILL,
-									Source: player.GetUUID(),
-									Target: player.GetUUID(),
+									Event:       battle.ACTION_SKILL,
+									Source:      player.GetUUID(),
+									Target:      player.GetUUID(),
+									ConsumeTurn: &skipTurn,
 									Meta: battle.ActionSkillMeta{
 										IsForLevel: true,
 										Lvl:        skillObj.GetLevel(),
@@ -706,10 +718,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						skillTrigger := skillObj.GetTrigger()
 
 						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
+							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 							fight.PlayerActions <- battle.Action{
-								Event:  battle.ACTION_SKILL,
-								Source: player.GetUUID(),
-								Target: player.GetUUID(),
+								Event:       battle.ACTION_SKILL,
+								Source:      player.GetUUID(),
+								Target:      player.GetUUID(),
+								ConsumeTurn: &skipTurn,
 								Meta: battle.ActionSkillMeta{
 									IsForLevel: false,
 									SkillUuid:  skillObj.GetUUID(),
@@ -754,10 +769,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 									fight.PlayerActions <- battle.Action{
-										Event:  battle.ACTION_SKILL,
-										Source: player.GetUUID(),
-										Target: player.GetUUID(),
+										Event:       battle.ACTION_SKILL,
+										Source:      player.GetUUID(),
+										Target:      player.GetUUID(),
+										ConsumeTurn: &skipTurn,
 										Meta: battle.ActionSkillMeta{
 											IsForLevel: false,
 											SkillUuid:  skillObj.GetUUID(),
@@ -821,10 +839,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 										parsedUuids[idx] = uuid.MustParse(rawUuid)
 									}
 
+									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 									fight.PlayerActions <- battle.Action{
-										Event:  battle.ACTION_SKILL,
-										Source: player.GetUUID(),
-										Target: player.GetUUID(),
+										Event:       battle.ACTION_SKILL,
+										Source:      player.GetUUID(),
+										Target:      player.GetUUID(),
+										ConsumeTurn: &skipTurn,
 										Meta: battle.ActionSkillMeta{
 											IsForLevel: false,
 											SkillUuid:  skillObj.GetUUID(),
@@ -889,10 +910,13 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 									parsedUuids[idx] = uuid.MustParse(rawUuid)
 								}
 
+								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL != 0
+
 								fight.PlayerActions <- battle.Action{
-									Event:  battle.ACTION_SKILL,
-									Source: player.GetUUID(),
-									Target: player.GetUUID(),
+									Event:       battle.ACTION_SKILL,
+									Source:      player.GetUUID(),
+									Target:      player.GetUUID(),
+									ConsumeTurn: &skipTurn,
 									Meta: battle.ActionSkillMeta{
 										IsForLevel: false,
 										SkillUuid:  skillObj.GetUUID(),

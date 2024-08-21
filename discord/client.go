@@ -37,7 +37,7 @@ func StartClient() {
 		}),
 		bot.WithEventListenerFunc(func(e *events.MessageCreate) {
 			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == config.Config.Owner {
-				data := World.DumpBackup()
+				data := World.CreateBackup()
 
 				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, "02Calc:1159034005493129228")
 
@@ -188,7 +188,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		err := World.MovePlayer(playerChar.GetUUID(), floorName, World.Floors[floorName].Default, "")
 
 		if err == nil {
-			event.CreateMessage(MessageContent("Teleportowałeś się na"+floorName, false))
+			event.CreateMessage(MessageContent("Teleportowałeś się na "+floorName, false))
 		} else {
 			event.CreateMessage(MessageContent("Nie możesz się teleportować"+err.Error(), true))
 		}

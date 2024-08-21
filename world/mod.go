@@ -252,7 +252,22 @@ func (w *World) StartClock() {
 			}
 
 			//Dead
-			if player.GetCurrentHP() == 0 {
+			//TODO only resurrect if not in hardcore mode
+			if player.GetCurrentHP() <= 0 {
+				location := w.Floors[player.Meta.Location.Floor].FindLocation(player.Meta.Location.Location)
+
+				player.Stats.HP = player.GetStat(types.STAT_HP)
+
+				w.DChannel <- types.DiscordMessageStruct{
+					ChannelID: location.CID,
+					MessageContent: discord.
+						NewMessageCreateBuilder().
+						AddEmbeds(
+							discord.NewEmbedBuilder().SetTitle("Wskrzeszenie!").SetDescriptionf("%s zostaje wskrzeszony...", player.GetName()).Build(),
+						).
+						Build(),
+				}
+
 				continue
 			}
 
@@ -338,6 +353,8 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 						Build(),
 				}
 
+				w.DeregisterFight(fightUuid)
+
 				return
 			}
 
@@ -347,7 +364,6 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			allAuto := true
 
 			for _, entity := range wonEntities {
-				fmt.Println(entity.GetName())
 				if entity.GetFlags()&types.ENTITY_AUTO != types.ENTITY_AUTO {
 					allAuto = false
 					break
@@ -1250,7 +1266,7 @@ func (w *World) DumpBackup() []byte {
 	return jsonFile
 }
 
-func (w *World) CreateBackup() {
+func (w *World) CreateBackup() []byte {
 	_, err := os.Stat(config.Config.BackupLocation)
 
 	if os.IsNotExist(err) {
@@ -1267,13 +1283,9 @@ func (w *World) CreateBackup() {
 
 	defer backupFile.Close()
 
-	jsonFile, err := json.Marshal(w.Serialize())
+	rawData := w.DumpBackup()
 
-	if err != nil {
-		panic(err)
-	}
-
-	backupFile.Write(jsonFile)
+	backupFile.Write(rawData)
 
 	w.DChannel <- types.DiscordMessageStruct{
 		ChannelID: "1151922672595390588",
@@ -1281,6 +1293,8 @@ func (w *World) CreateBackup() {
 			SetContent("Backup zrobiony!").
 			Build(),
 	}
+
+	return rawData
 }
 
 func (w *World) LoadBackup() {
