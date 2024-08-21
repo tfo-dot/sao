@@ -1038,10 +1038,14 @@ func (f *Fight) Run() {
 
 				tempAction := <-f.PlayerActions
 
+				f.HandleAction(tempAction)
+
 				for tempAction.ConsumeTurn != nil && !*tempAction.ConsumeTurn {
 					f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
 
-					f.HandleAction(<-f.PlayerActions)
+					tempAction = <-f.PlayerActions
+
+					f.HandleAction(tempAction)
 				}
 			} else {
 				if entity.GetEffectByType(EFFECT_STUN) == nil {

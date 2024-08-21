@@ -191,7 +191,7 @@ func (skill DMG_LVL_2) GetLevel() int {
 }
 
 func (skill DMG_LVL_2) GetDescription() string {
-	return "Zwiększa otrzymywany atak co poziom o 20"
+	return "Zwiększa otrzymywany atak co poziom do 20"
 }
 
 func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
