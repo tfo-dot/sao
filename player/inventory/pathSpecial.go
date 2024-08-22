@@ -221,7 +221,14 @@ type SPC_LVL_3 struct {
 	DefaultCost
 	NoEvents
 	NoStats
-	DefaultActiveTrigger
+}
+
+func (skill SPC_LVL_3) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Target: &types.TargetTrigger{Target: types.TARGET_ENEMY, MaxTargets: 1}}
+}
+
+func (skill SPC_LVL_3) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return skill.GetTrigger()
 }
 
 func (skill SPC_LVL_3) GetName() string {

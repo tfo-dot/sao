@@ -331,7 +331,7 @@ func (skill DMG_LVL_3_Effect_2) Execute(owner, target, fightInstance, meta inter
 			Event:  battle.ACTION_DMG,
 			Source: owner.(battle.Entity).GetUUID(),
 			Target: entity.GetUUID(),
-			Meta:   nil,
+			Meta:   battle.ActionDamage{Damage: []battle.Damage{{Value: 25, IsPercent: false, Type: 0}}},
 		})
 	}
 

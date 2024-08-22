@@ -565,7 +565,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		return
 	case "party":
-		if playerChar.Meta.Party == nil {
+		if playerChar.Meta.Party == nil && *interactionData.SubCommandName != "stwórz" {
 			event.CreateMessage(
 				discord.
 					NewMessageCreateBuilder().
@@ -575,8 +575,6 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			)
 			return
 		}
-
-		part := World.Parties[*playerChar.Meta.Party]
 
 		switch *interactionData.SubCommandName {
 		case "pokaż":
@@ -695,6 +693,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "wyrzuć":
+			part := World.Parties[*playerChar.Meta.Party]
+
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
 					discord.
@@ -757,11 +757,13 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "opuść":
-			if playerChar.GetUUID() != part.Leader {
+			part := World.Parties[*playerChar.Meta.Party]
+
+			if playerChar.GetUUID() == part.Leader {
 				event.CreateMessage(
 					discord.
 						NewMessageCreateBuilder().
-						SetContent("Nie jesteś liderem").
+						SetContent("Jesteś liderem...").
 						SetEphemeral(true).
 						Build(),
 				)
@@ -787,6 +789,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "zmień":
+			part := World.Parties[*playerChar.Meta.Party]
+
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
 					discord.
@@ -863,6 +867,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				}
 			}
 		case "rozwiąż":
+			part := World.Parties[*playerChar.Meta.Party]
+
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
 					discord.

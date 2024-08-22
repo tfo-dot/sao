@@ -420,13 +420,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				wonSideText := ""
 
 				for _, entity := range wonEntities {
-					wonSideText += fmt.Sprintf("%v", entity.GetName())
-
-					if entity.GetFlags()&types.ENTITY_AUTO == 0 {
-						wonSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
-					}
-
-					wonSideText += "\n"
+					wonSideText += fmt.Sprintf("%v\n", entity.GetName())
 				}
 
 				wonSideText = wonSideText[:len(wonSideText)-1]
@@ -574,9 +568,11 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			for _, entity := range wonEntities {
 				wonSideText += fmt.Sprintf("%v", entity.GetName())
 
-				if entity.GetFlags()&types.ENTITY_AUTO != 0 {
+				if entity.GetFlags()&types.ENTITY_AUTO == 0 {
 					wonSideText += fmt.Sprintf(" (<@%v>)", entity.(*player.Player).Meta.UserID)
 				}
+
+				wonSideText += fmt.Sprintf(" (%v/%v HP)", entity.GetCurrentHP(), entity.GetStat(types.STAT_HP))
 
 				wonSideText += "\n"
 			}
