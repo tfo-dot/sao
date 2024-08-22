@@ -7,6 +7,22 @@
   "Effects": [],
   "Locations": [
     {
+      "Name": "Jaskinia",
+      "CID": "1276112399799287892",
+      "TP": true,
+      "CityPart": false,
+      "Unlocked": true,
+      "Enemies": [
+        {
+          "MinNum": 1,
+          "MaxNum": 1,
+          "Enemy": "LV0_Skalniak"
+        }
+      ],
+      "Effects": [],
+      "Flags": []
+    },
+    {
       "Name": "Las",
       "CID": "1272233789200007269",
       "TP": true,

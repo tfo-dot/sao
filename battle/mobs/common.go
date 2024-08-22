@@ -116,6 +116,8 @@ func (m *MobEntity) GetName() string {
 		return "Boss"
 	case "LV0_Wilk":
 		return "Wilk"
+	case "LV0_Skalniak":
+		return "Skalniak"
 	}
 
 	return "Nieznana istota"
@@ -455,6 +457,19 @@ func Spawn(id string) *MobEntity {
 			UUID:      uuid.New(),
 			Props:     make(map[string]interface{}, 0),
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
+			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+		}
+	case "LV0_Skalniak":
+		return &MobEntity{
+			Id:        id,
+			MaxHP:     50,
+			HP:        50,
+			SPD:       35,
+			ATK:       20,
+			Effects:   make(EffectList, 0),
+			UUID:      uuid.New(),
+			Props:     make(map[string]interface{}, 0),
+			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 40}, {Type: battle.LOOT_GOLD, Count: 20}},
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
 		}
 	case "LV0_Boss":
