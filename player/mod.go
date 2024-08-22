@@ -934,6 +934,10 @@ func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
 		return errors.New("SKILL_ALREADY_UNLOCKED")
 	}
 
+	if actions := p.GetAvailableSkillActions(); actions < 1 {
+		return errors.New("NO_ACTIONS_AVAILABLE")
+	}
+
 	skill, skillExists := inventory.AVAILABLE_SKILLS[path][lvl]
 
 	if !skillExists {
@@ -951,6 +955,30 @@ func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
 	if effect, effectExists := skillEvents[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
 		effect(p)
 	}
+
+	return nil
+}
+
+func (p *Player) UpgradeSkill(lvl int, upgradeIdx int) error {
+	skill, exists := p.Inventory.LevelSkills[lvl]
+
+	if !exists {
+		return errors.New("SKILL_NOT_FOUND")
+	}
+
+	if upgradeIdx >= len(skill.GetUpgrades()) {
+		return errors.New("INVALID_UPGRADE")
+	}
+
+	if p.Inventory.LevelSkillsUpgrades[lvl]&upgradeIdx != 0 {
+		return errors.New("UPGRADE_ALREADY_UNLOCKED")
+	}
+
+	if actions := p.GetAvailableSkillActions(); actions < 1 {
+		return errors.New("NO_ACTIONS_AVAILABLE")
+	}
+
+	p.Inventory.LevelSkillsUpgrades[lvl] |= upgradeIdx
 
 	return nil
 }
@@ -975,6 +1003,43 @@ func (p *Player) TriggerTempSkills() {
 
 func (p *Player) ClearFight() {
 	p.Meta.FightInstance = nil
+}
+
+func (p *Player) GetAvailableSkillActions() int {
+	overall := 0
+
+	if p.XP.Level < 6 {
+		overall = p.XP.Level
+	}
+
+	{
+		temp := p.XP.Level - 6
+
+		for temp >= 2 {
+			temp -= 2
+			overall++
+		}
+	}
+
+	used := len(p.Inventory.LevelSkills)
+
+	for lvl, upgrades := range p.Inventory.LevelSkillsUpgrades {
+		skill := p.Inventory.LevelSkills[lvl]
+
+		if skill == nil {
+			continue
+		}
+
+		skillUpgrades := skill.GetUpgrades()
+
+		for i := 0; i < len(skillUpgrades); i++ {
+			if upgrades&i != 0 {
+				used++
+			}
+		}
+	}
+
+	return overall - used
 }
 
 func NewPlayer(name string, uid string) Player {

@@ -207,6 +207,8 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 					msgContent = "Umiejętność jest już odblokowana"
 				case "SKILL_NOT_FOUND":
 					msgContent = "Nie znaleziono umiejętności"
+				case "NO_ACTIONS_AVAILABLE":
+					msgContent = "Wszystkie akcje zostały już wykorzystane"
 				}
 
 				if res.Error() == "MULTIPLE_OPTIONS" {
@@ -248,6 +250,8 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 								msgContent = "Nie znaleziono umiejętności"
 							case "INVALID_CHOICE":
 								msgContent = "Nie znaleziono umiejętności"
+							case "NO_ACTIONS_AVAILABLE":
+								msgContent = "Wszystkie akcje zostały już wykorzystane"
 							}
 
 							event.CreateMessage(
@@ -271,6 +275,61 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 							).
 							Build(),
 					)
+				}
+
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent(msgContent).
+						Build(),
+				)
+				return
+			}
+		}
+	}
+
+	if strings.HasPrefix(customId, "sup") {
+		data := strings.Split(customId, "|")
+
+		lvl := 0
+
+		fmt.Sscanf(data[1], "%d", &lvl)
+
+		upgrade := 0
+
+		fmt.Sscanf(data[2], "%d", &upgrade)
+
+		userSnowflake := event.Member().User.ID.String()
+
+		for _, pl := range World.Players {
+			if pl.Meta.UserID == userSnowflake {
+
+				res := pl.UpgradeSkill(lvl, upgrade)
+
+				if res == nil {
+					event.UpdateMessage(
+						discord.
+							NewMessageUpdateBuilder().
+							SetContent("Odblokowano ulepszenie").
+							ClearContainerComponents().
+							ClearEmbeds().
+							Build(),
+					)
+
+					return
+				}
+
+				msgContent := ""
+
+				switch res.Error() {
+				case "INVALID_UPGRADE":
+					msgContent = "Nie prawidłowe ulepszenie"
+				case "SKILL_NOT_FOUND":
+					msgContent = "Nie znaleziono umiejętności"
+				case "UPGRADE_ALREADY_UNLOCKED":
+					msgContent = "Ulepszenie zostało już odblokowane"
+				case "NO_ACTIONS_AVAILABLE":
+					msgContent = "Wszystkie akcje zostały już wykorzystane"
 				}
 
 				event.CreateMessage(

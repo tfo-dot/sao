@@ -94,6 +94,13 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 			discord.ApplicationCommandOptionSubCommand{
 				Name:        "ulepsz",
 				Description: "Ulepsz umiejętność",
+				Options: []discord.ApplicationCommandOption{
+					discord.ApplicationCommandOptionInt{
+						Name:        "lvl",
+						Description: "Umiejętność którą chcesz ulepszyć",
+						Required:    true,
+					},
+				},
 			},
 		},
 	},

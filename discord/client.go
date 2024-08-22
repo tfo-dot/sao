@@ -405,6 +405,82 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			)
 
 			return
+		case "ulepsz":
+			lvl := interactionData.Int("lvl")
+
+			skill, exists := playerChar.Inventory.LevelSkills[lvl]
+
+			if !exists {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie masz takiej umiejętności").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			upgrades := skill.GetUpgrades()
+
+			if len(upgrades) == 0 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Ten skill nie ma ulepszeń").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			unlockedUpgrades := playerChar.Inventory.LevelSkillsUpgrades[lvl]
+
+			availableUpgrades := make([]types.PlayerSkillUpgrade, 0)
+
+			for idx, upgrade := range upgrades {
+				if inventory.HasUpgrade(unlockedUpgrades, idx) {
+					continue
+				}
+
+				availableUpgrades = append(availableUpgrades, upgrade)
+			}
+
+			if len(availableUpgrades) == 0 {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie masz dostępnych ulepszeń").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			buttons := make([]discord.InteractiveComponent, 0)
+			embed := discord.NewEmbedBuilder()
+
+			for idx, upgrade := range availableUpgrades {
+				embed.AddField(
+					fmt.Sprintf("Ulepszenie %v", idx+1),
+					upgrade.Description,
+					false,
+				)
+
+				buttons = append(buttons, discord.NewPrimaryButton(
+					fmt.Sprintf("Ulepsz %v", idx+1),
+					fmt.Sprintf("sup|%d|%d", skill.GetLevel(), idx),
+				))
+			}
+
+			event.CreateMessage(
+				discord.
+					NewMessageCreateBuilder().
+					AddEmbeds(embed.Build()).
+					AddActionRow(buttons...).
+					Build(),
+			)
+
 		}
 	case "plecak":
 		switch *interactionData.SubCommandName {
@@ -579,10 +655,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		switch *interactionData.SubCommandName {
 		case "pokaż":
 			embed := discord.NewEmbedBuilder()
-
-			partyMembersText := ""
-
 			partyObj := World.Parties[*playerChar.Meta.Party]
+			partyMembersText := ""
 
 			for _, member := range partyObj.Players {
 				memberObj := World.Players[member.PlayerUuid]
@@ -609,6 +683,17 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "zapros":
+			if playerChar.Meta.Party == nil {
+				World.Parties[*playerChar.Meta.Party] = &party.Party{
+					Leader: playerChar.GetUUID(),
+					Players: []*party.PartyEntry{
+						{
+							PlayerUuid: playerChar.GetUUID(),
+							Role:       party.None,
+						},
+					},
+				}
+			}
 			if len(World.Parties[*playerChar.Meta.Party].Players) >= 6 {
 				event.CreateMessage(
 					discord.
