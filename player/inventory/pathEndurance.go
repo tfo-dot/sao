@@ -45,7 +45,7 @@ func (skill END_LVL_1) GetName() string {
 
 func (skill END_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
 	baseIncrease := 10
-	baseDuration := 1
+	baseDuration := 2
 
 	if HasUpgrade(upgrades, 1) {
 		baseIncrease = 20
@@ -59,7 +59,7 @@ func (skill END_LVL_1) UpgradableExecute(owner, target, fightInstance, meta inte
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
-		Target: target.(battle.Entity).GetUUID(),
+		Target: owner.(battle.Entity).GetUUID(),
 		Source: owner.(battle.PlayerEntity).GetUUID(),
 		Meta: battle.ActionEffect{
 			Effect:   battle.EFFECT_SHIELD,

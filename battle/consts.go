@@ -179,6 +179,7 @@ type Entity interface {
 	AppendTempSkill(types.WithExpire[types.PlayerSkill])
 	GetTempSkills() []*types.WithExpire[types.PlayerSkill]
 	RemoveTempByUUID(uuid.UUID)
+	TriggerTempSkills()
 	TriggerEvent(types.SkillTrigger, types.EventData, interface{}) []interface{}
 }
 

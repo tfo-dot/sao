@@ -86,6 +86,22 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 func ComponentHandler(event *events.ComponentInteractionCreate) {
 	customId := event.ComponentInteraction.Data.CustomID()
 
+	if customId == "utils|wait" {
+		event.CreateMessage(
+			discord.
+				NewMessageCreateBuilder().
+				SetContent("Wyślę ci prywatną wiadomość gdy twoja postać będzie miała 100% HP").
+				SetEphemeral(true).
+				Build(),
+		)
+
+		player := World.GetPlayer(event.User().ID.String())
+
+		player.Meta.WaitToHeal = true
+
+		return
+	}
+
 	if strings.HasPrefix(customId, "chc/") {
 		customId, _ = strings.CutPrefix(customId, "chc/")
 

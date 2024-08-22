@@ -230,7 +230,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		lvlText := fmt.Sprint(playerChar.XP.Level)
 
-		if playerChar.XP.Level == World.GetUnlockedFloorCount()*5 {
+		if playerChar.XP.Level >= World.GetUnlockedFloorCount()*5 {
 			lvlText += " MAX"
 		} else {
 			lvlText += fmt.Sprintf(" %d/%d", playerChar.XP.Exp, (playerChar.XP.Level*100)+100)
@@ -248,27 +248,30 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		rawLocation := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
 
-		event.CreateMessage(
-			discord.NewMessageCreateBuilder().
-				AddEmbeds(
-					discord.NewEmbedBuilder().
-						AddField("Nazwa", playerChar.GetName(), true).
-						AddField("Gracz", fmt.Sprintf("<@%s>", playerChar.Meta.UserID), true).
-						AddField("Lokacja", fmt.Sprintf("<#%s>", rawLocation.CID), true).
-						AddField("HP", fmt.Sprintf("%d/%d", playerChar.Stats.HP, playerChar.GetStat(types.STAT_HP)), true).
-						AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetStat(types.STAT_MANA)), true).
-						AddField("Atak", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AD)), true).
-						AddField("AP", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AP)), true).
-						AddField("DEF/RES", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_DEF), playerChar.GetStat(types.STAT_MR)), true).
-						AddField("Lvl", lvlText, true).
-						AddField("SPD/AGL", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_SPD), playerChar.GetStat(types.STAT_AGL)), true).
-						AddField("W walce?", inFightText, true).
-						AddField("W party?", inPartyText, true).
-						AddField("Dynamiczne statystyki", derivedStatsText, true).
-						Build(),
-				).
-				Build(),
-		)
+		messageBuilder := discord.NewMessageCreateBuilder().
+			AddEmbeds(
+				discord.NewEmbedBuilder().
+					AddField("Nazwa", playerChar.GetName(), true).
+					AddField("Gracz", fmt.Sprintf("<@%s>", playerChar.Meta.UserID), true).
+					AddField("Lokacja", fmt.Sprintf("<#%s>", rawLocation.CID), true).
+					AddField("HP", fmt.Sprintf("%d/%d", playerChar.Stats.HP, playerChar.GetStat(types.STAT_HP)), true).
+					AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetStat(types.STAT_MANA)), true).
+					AddField("Atak", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AD)), true).
+					AddField("AP", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AP)), true).
+					AddField("DEF/RES", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_DEF), playerChar.GetStat(types.STAT_MR)), true).
+					AddField("Lvl", lvlText, true).
+					AddField("SPD/AGL", fmt.Sprintf("%d/%d", playerChar.GetStat(types.STAT_SPD), playerChar.GetStat(types.STAT_AGL)), true).
+					AddField("W walce?", inFightText, true).
+					AddField("W party?", inPartyText, true).
+					AddField("Dynamiczne statystyki", derivedStatsText, true).
+					Build(),
+			)
+
+		if playerChar.Stats.HP > 0 && playerChar.Stats.HP < playerChar.GetStat(types.STAT_HP) {
+			messageBuilder.AddActionRow(discord.NewPrimaryButton("Czekaj do 100% HP", "utils|wait"))
+		}
+
+		event.CreateMessage(messageBuilder.Build())
 	case "skill":
 		switch *interactionData.SubCommandName {
 		case "pokaż":

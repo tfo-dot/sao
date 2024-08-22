@@ -267,10 +267,17 @@ func (skill DMG_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 
 type DMG_LVL_3 struct {
 	DamageSkill
-	DefaultActiveTrigger
 	DefaultCost
 	NoStats
 	NoEvents
+}
+
+func (skill DMG_LVL_3) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
+}
+
+func (skill DMG_LVL_3) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
 func (skill DMG_LVL_3) GetName() string {
@@ -432,9 +439,16 @@ func (skill DMG_LVL_3) GetUpgradableDescription(upgrades int) string {
 type DMG_LVL_4 struct {
 	DamageSkill
 	DefaultCost
-	DefaultActiveTrigger
 	NoEvents
 	NoStats
+}
+
+func (skill DMG_LVL_4) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
+}
+
+func (skill DMG_LVL_4) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
 func (skill DMG_LVL_4) GetLevel() int {
@@ -511,6 +525,10 @@ func (skill DMG_LVL_4_Effect) Execute(owner, target, fightInstance, meta interfa
 			tempLoot.Count = utils.PercentOf(loot.Count, skill.IncreaseValue)
 
 			fightInstance.(*battle.Fight).AddAdditionalLoot(tempLoot, owner.(battle.Entity).GetUUID(), skill.PartyWide)
+
+			if skill.ManaReturn {
+				owner.(battle.PlayerEntity).RestoreMana(1)
+			}
 		}
 	}
 
@@ -525,7 +543,10 @@ func (skill DMG_LVL_4) UpgradableExecute(owner, target, fightInstance, meta inte
 	}
 
 	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
-		Value:      DMG_LVL_4_Effect{IncreaseValue: increaseValue, PartyWide: HasUpgrade(upgrades, 2), ManaReturn: HasUpgrade(upgrades, 3)},
+		Value: DMG_LVL_4_Effect{IncreaseValue: increaseValue,
+			PartyWide:  HasUpgrade(upgrades, 2),
+			ManaReturn: HasUpgrade(upgrades, 3),
+		},
 		AfterUsage: true,
 		Expire:     1,
 	})

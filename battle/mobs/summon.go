@@ -159,11 +159,29 @@ func (s *SummonEntity) Heal(value int) {
 }
 
 func (s *SummonEntity) Cleanse() {
-	s.Effects.Cleanse()
+	s.Effects = s.Effects.Cleanse()
 }
 
 func (s *SummonEntity) GetTempSkills() []*types.WithExpire[types.PlayerSkill] {
 	return s.TempSkill
+}
+
+func (s *SummonEntity) TriggerTempSkills() {
+	list := make([]*types.WithExpire[types.PlayerSkill], 0)
+
+	for _, skill := range s.TempSkill {
+		if !skill.AfterUsage {
+			skill.Expire--
+
+			if skill.Expire > 0 {
+				list = append(list, skill)
+			} else {
+				continue
+			}
+		}
+	}
+
+	s.TempSkill = list
 }
 
 func (s *SummonEntity) RemoveTempByUUID(uuid uuid.UUID) {

@@ -236,12 +236,12 @@ func (f *Fight) HandleAction(act Action) {
 			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_HIT, types.EventData{
 				Source: sourceEntity,
 				Target: f.Entities[act.Target].Entity,
-				Fight:  &f,
+				Fight:  f,
 			}, meta)
 			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, types.EventData{
 				Target: sourceEntity,
 				Source: f.Entities[act.Target].Entity,
-				Fight:  &f,
+				Fight:  f,
 			}, nil)
 
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
@@ -356,8 +356,6 @@ func (f *Fight) HandleAction(act Action) {
 
 		if meta.Effect == EFFECT_SHIELD {
 			meta.Value = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
-
-			return
 		}
 
 		if meta.Effect == EFFECT_TAUNT {
@@ -1062,7 +1060,7 @@ func (f *Fight) Run() {
 							AddEmbeds(
 								discord.NewEmbedBuilder().
 									SetTitle("Efekt!").
-									SetDescriptionf("%s jest unieruchomiony, pomijamy!", entity.GetName()).
+									SetDescriptionf("%s jest ogłuszony, pomijamy!", entity.GetName()).
 									Build(),
 							).Build(),
 					}
@@ -1070,6 +1068,7 @@ func (f *Fight) Run() {
 			}
 
 			entity.TriggerAllEffects()
+			entity.TriggerTempSkills()
 		}
 
 		for _, entry := range f.Entities {

@@ -37,6 +37,7 @@ type PlayerMeta struct {
 	Party         *uuid.UUID
 	Transaction   *uuid.UUID
 	Fury          *fury.Fury
+	WaitToHeal    bool
 }
 
 func (pM *PlayerMeta) SerializeFuries() map[string]interface{} {
@@ -202,6 +203,7 @@ func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
 		party,
 		nil,
 		furyData,
+		false,
 	}
 }
 
@@ -691,7 +693,7 @@ func (p *Player) GetAdaptiveAttackType() types.AdaptiveAttackType {
 }
 
 func (p *Player) Cleanse() {
-	p.Stats.Effects.Cleanse()
+	p.Stats.Effects = p.Stats.Effects.Cleanse()
 }
 
 func (p *Player) GetUpgrades(lvl int) int {
@@ -953,6 +955,24 @@ func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
 	return nil
 }
 
+func (p *Player) TriggerTempSkills() {
+	list := make([]*types.WithExpire[types.PlayerSkill], 0)
+
+	for _, skill := range p.Inventory.TempSkills {
+		if !skill.AfterUsage {
+			skill.Expire--
+
+			if skill.Expire > 0 {
+				list = append(list, skill)
+			} else {
+				continue
+			}
+		}
+	}
+
+	p.Inventory.TempSkills = list
+}
+
 func (p *Player) ClearFight() {
 	p.Meta.FightInstance = nil
 }
@@ -967,7 +987,7 @@ func NewPlayer(name string, uid string) Player {
 			false,
 			Default.StartingStats[types.STAT_MANA],
 		},
-		PlayerMeta{Default.Location, uuid.New(), uid, nil, nil, nil, nil},
+		PlayerMeta{Default.Location, uuid.New(), uid, nil, nil, nil, nil, false},
 		inventory.GetDefaultInventory(),
 		make([]types.DerivedStat, 0),
 		Default.LevelStats,

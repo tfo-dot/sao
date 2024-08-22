@@ -243,6 +243,16 @@ func (inv PlayerInventory) GetStat(stat types.Stat) int {
 		}
 	}
 
+	for _, skills := range inv.LevelSkills {
+		skillStats := skills.GetStats(inv.LevelSkillsUpgrades[skills.GetLevel()])
+
+		val, exists := skillStats[stat]
+
+		if exists {
+			value += val
+		}
+	}
+
 	return value
 }
 

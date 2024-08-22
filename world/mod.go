@@ -292,6 +292,50 @@ func (w *World) StartClock() {
 				}
 
 				player.Heal(player.GetStat(types.STAT_HP) / healRatio)
+
+				if player.Meta.WaitToHeal && player.GetCurrentHP() == player.GetStat(types.STAT_HP) {
+					player.Meta.WaitToHeal = false
+
+					client, err := disgo.New(config.Config.Token)
+
+					if err != nil {
+						w.DChannel <- types.DiscordMessageStruct{
+							ChannelID: "1151922672595390588",
+							MessageContent: discord.NewMessageCreateBuilder().
+								SetContent("Nie można wysłać wiadomości do gracza (HP Heal)").
+								Build(),
+						}
+					}
+
+					ch, error := client.Rest().CreateDMChannel(snowflake.MustParse(player.Meta.UserID))
+
+					if error != nil {
+						w.DChannel <- types.DiscordMessageStruct{
+							ChannelID: "1151922672595390588",
+							MessageContent: discord.NewMessageCreateBuilder().
+								SetContent("Nie można wysłać wiadomości do gracza (HP Heal)").
+								Build(),
+						}
+					}
+
+					_, error = client.Rest().CreateMessage(ch.ID(), discord.NewMessageCreateBuilder().
+						SetContent("Twoja postać ma już 100% HP, baw się dobrze!").
+						Build(),
+					)
+
+					if error != nil {
+						w.DChannel <- types.DiscordMessageStruct{
+							ChannelID: "1151922672595390588",
+							MessageContent: discord.NewMessageCreateBuilder().
+								SetContent("Nie można wysłać wiadomości do gracza (HP Heal)").
+								Build(),
+						}
+					}
+				}
+
+				if player.Stats.HP >= player.GetStat(types.STAT_HP) && player.Meta.WaitToHeal {
+					player.Meta.WaitToHeal = false
+				}
 			}
 		}
 	}
@@ -431,6 +475,37 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 				partyUuid := wonEntities[0].(*player.Player).Meta.Party
 
 				unlockedFloors := w.GetUnlockedFloorCount()
+
+				for _, loot := range fight.AdditionalLoot {
+					for _, entity := range wonEntities {
+						if entity.GetUUID() == loot.Target {
+							player := w.Players[entity.GetUUID()]
+
+							switch loot.Value.Type {
+							case battle.LOOT_EXP:
+								player.AddEXP(unlockedFloors, loot.Value.Count)
+							case battle.LOOT_GOLD:
+								player.AddEXP(unlockedFloors, loot.Value.Count)
+							case battle.LOOT_ITEM:
+								itemUuid := loot.Value.Meta.Uuid
+
+								if loot.Value.Meta.Type == types.ITEM_OTHER {
+									itemObj := data.Items[itemUuid]
+
+									itemObj.Count = loot.Value.Count
+
+									player.Inventory.Items = append(player.Inventory.Items, &itemObj)
+								} else {
+									ingredient := data.Ingredients[itemUuid]
+
+									ingredient.Count = loot.Value.Count
+
+									player.Inventory.AddIngredient(&ingredient)
+								}
+							}
+						}
+					}
+				}
 
 				if partyUuid != nil {
 					partyData := w.Parties[*partyUuid]
@@ -1416,7 +1491,7 @@ func (w *World) GetUnlockedFloorCount() int {
 	unlockedFloors := 0
 
 	for _, floor := range w.Floors {
-		if floor.Unlocked {
+		if floor.Unlocked && !floor.CountsAsUnlocked {
 			unlockedFloors++
 		}
 	}

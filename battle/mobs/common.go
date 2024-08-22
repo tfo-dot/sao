@@ -87,7 +87,7 @@ func (e EffectList) TriggerAllEffects(en battle.Entity) (EffectList, EffectList)
 	return effects, expiredEffects
 }
 
-func (e EffectList) Cleanse() {
+func (e EffectList) Cleanse() EffectList {
 	tempList := make([]battle.ActionEffect, 0)
 
 	for _, effect := range e {
@@ -96,12 +96,16 @@ func (e EffectList) Cleanse() {
 			continue
 		case battle.EFFECT_STUN:
 			continue
+		case battle.EFFECT_TAUNTED:
+			continue
+		case battle.EFFECT_STAT_DEC:
+			continue
 		}
 
 		tempList = append(tempList, effect)
 	}
 
-	e = tempList
+	return tempList
 }
 
 func (m *MobEntity) GetName() string {
@@ -288,7 +292,7 @@ func (m *MobEntity) Heal(value int) {
 }
 
 func (m *MobEntity) Cleanse() {
-	m.Effects.Cleanse()
+	m.Effects = m.Effects.Cleanse()
 }
 
 func (m *MobEntity) TriggerAllEffects() []battle.ActionEffect {
@@ -307,6 +311,24 @@ func (m *MobEntity) GetSkill(uuid uuid.UUID) types.PlayerSkill {
 	}
 
 	return nil
+}
+
+func (m *MobEntity) TriggerTempSkills() {
+	list := make([]*types.WithExpire[types.PlayerSkill], 0)
+
+	for _, skill := range m.TempSkill {
+		if !skill.AfterUsage {
+			skill.Expire--
+
+			if skill.Expire > 0 {
+				list = append(list, skill)
+			} else {
+				continue
+			}
+		}
+	}
+
+	m.TempSkill = list
 }
 
 func (m *MobEntity) RemoveTempByUUID(uuid uuid.UUID) {
