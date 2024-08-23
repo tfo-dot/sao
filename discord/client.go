@@ -239,7 +239,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		derivedStatsText := ""
 
 		for _, stat := range playerChar.DynamicStats {
-			derivedStatsText += fmt.Sprintf("- +%d%s %% jako %s\n", stat.Percent, types.StatToString[stat.Base], types.StatToString[stat.Derived])
+
+			statValue := utils.PercentOf(playerChar.GetStat(stat.Base), stat.Percent)
+
+			derivedStatsText += fmt.Sprintf("- %d %s (%d%% %s => %s)\n", statValue, types.StatToString[stat.Derived], stat.Percent, types.StatToString[stat.Base], types.StatToString[stat.Derived])
 		}
 
 		if derivedStatsText == "" {

@@ -204,7 +204,7 @@ func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{
 
 func (skill DMG_LVL_2) GetUpgradableDescription(upgrades int) string {
 
-	upgradeSegments := []string{""}
+	upgradeSegments := []string{"", "", ""}
 
 	if HasUpgrade(upgrades, 1) {
 		upgradeSegments[0] = "\nOtrzymujesz 1% AP jako przebicie magiczne."

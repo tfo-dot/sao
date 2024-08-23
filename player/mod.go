@@ -98,10 +98,10 @@ func DeserializeDerivedStats(data []interface{}) []types.DerivedStat {
 		stat := stat.(map[string]interface{})
 
 		temp := types.DerivedStat{
-			Derived: types.Stat(stat["derived"].(float64)),
-			Base:    types.Stat(stat["base"].(float64)),
-			Percent: int(stat["percent"].(float64)),
-			Source:  uuid.MustParse(stat["source"].(string)),
+			Derived: types.Stat(stat["Derived"].(float64)),
+			Base:    types.Stat(stat["Base"].(float64)),
+			Percent: int(stat["Percent"].(float64)),
+			Source:  uuid.MustParse(stat["Source"].(string)),
 		}
 
 		tempArray = append(tempArray, temp)
@@ -966,7 +966,9 @@ func (p *Player) UpgradeSkill(lvl int, upgradeIdx int) error {
 		return errors.New("SKILL_NOT_FOUND")
 	}
 
-	if upgradeIdx >= len(skill.GetUpgrades()) {
+	skillUpgrades := skill.GetUpgrades()
+
+	if upgradeIdx >= len(skillUpgrades) {
 		return errors.New("INVALID_UPGRADE")
 	}
 
@@ -982,7 +984,15 @@ func (p *Player) UpgradeSkill(lvl int, upgradeIdx int) error {
 
 	p.Inventory.LevelSkillsUpgrades[lvl] |= upgradeValue
 
-	println(p.Inventory.LevelSkillsUpgrades[lvl])
+	upgradeEvents := skillUpgrades[upgradeIdx].Events
+
+	if upgradeEvents == nil {
+		return nil
+	}
+
+	if effect, effectExists := (*upgradeEvents)[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
+		effect(p)
+	}
 
 	return nil
 }
