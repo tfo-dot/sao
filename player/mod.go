@@ -432,7 +432,7 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 
 		skillTrigger := skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(p.Inventory.LevelSkillsUpgrades[lvl])
 
-		if skillTrigger.Type == types.TRIGGER_PASSIVE {
+		if skillTrigger.Type == types.TRIGGER_PASSIVE || skillTrigger.Type == types.TRIGGER_TYPE_NONE {
 			return false
 		}
 
@@ -446,7 +446,7 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 	} else {
 		skillTrigger := skill.GetTrigger()
 
-		if skillTrigger.Type == types.TRIGGER_PASSIVE {
+		if skillTrigger.Type == types.TRIGGER_PASSIVE || skillTrigger.Type == types.TRIGGER_TYPE_NONE {
 			return false
 		}
 
