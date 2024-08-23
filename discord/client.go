@@ -300,9 +300,12 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			for _, skill := range playerChar.Inventory.LevelSkills {
+
+				skillDescription := skill.GetUpgradableDescription(playerChar.Inventory.LevelSkillsUpgrades[skill.GetLevel()])
+
 				embed.AddField(
 					fmt.Sprintf("%s (LVL: %d)", skill.GetName(), skill.GetLevel()),
-					fmt.Sprintf("Ścieżka: %s\n\n%s", types.PathToString[skill.GetPath()], skill.GetDescription()),
+					fmt.Sprintf("Ścieżka: %s\n\n%s", types.PathToString[skill.GetPath()], skillDescription),
 					false,
 				)
 			}
@@ -439,7 +442,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			availableUpgrades := make([]types.PlayerSkillUpgrade, 0)
 
 			for idx, upgrade := range upgrades {
-				if inventory.HasUpgrade(unlockedUpgrades, idx) {
+				if inventory.HasUpgrade(unlockedUpgrades, idx+1) {
 					continue
 				}
 

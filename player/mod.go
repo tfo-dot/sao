@@ -970,7 +970,9 @@ func (p *Player) UpgradeSkill(lvl int, upgradeIdx int) error {
 		return errors.New("INVALID_UPGRADE")
 	}
 
-	if p.Inventory.LevelSkillsUpgrades[lvl]&upgradeIdx != 0 {
+	upgradeValue := 1 << upgradeIdx
+
+	if p.Inventory.LevelSkillsUpgrades[lvl]&upgradeValue != 0 {
 		return errors.New("UPGRADE_ALREADY_UNLOCKED")
 	}
 
@@ -978,7 +980,9 @@ func (p *Player) UpgradeSkill(lvl int, upgradeIdx int) error {
 		return errors.New("NO_ACTIONS_AVAILABLE")
 	}
 
-	p.Inventory.LevelSkillsUpgrades[lvl] |= upgradeIdx
+	p.Inventory.LevelSkillsUpgrades[lvl] |= upgradeValue
+
+	println(p.Inventory.LevelSkillsUpgrades[lvl])
 
 	return nil
 }
