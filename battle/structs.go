@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sao/types"
 	"sao/utils"
-	"sao/world/calendar"
 	"sao/world/location"
 	"slices"
 
@@ -22,7 +21,6 @@ type Fight struct {
 	ExpireMap       map[uuid.UUID]int
 	SummonMap       map[uuid.UUID]SummonEntityMeta
 	SpeedMap        map[uuid.UUID]int
-	StartTime       *calendar.Calendar
 	ExternalChannel chan FightEvent
 	DiscordChannel  chan types.DiscordMessageStruct
 	Effects         []ActionEffect
@@ -247,8 +245,9 @@ func (f *Fight) HandleAction(act Action) {
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
 			tempEmbed.
-				SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName()).
-				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum)
+				SetFooterTextf("%s zaatakował %s. %s ma teraz %d HP", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetCurrentHP()).
+				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum).
+				SetColor(0x00ff00)
 
 			dmgText := ""
 
@@ -298,7 +297,7 @@ func (f *Fight) HandleAction(act Action) {
 				Fight:  &f,
 			}, nil)
 
-			tempEmbed.SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
+			tempEmbed.SetColor(0xff0000).SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
 
 		targetEntity := f.Entities[act.Target]
@@ -502,7 +501,7 @@ func (f *Fight) HandleAction(act Action) {
 							"%s użył `%s`!\n",
 							sourceEntity.Entity.GetName(),
 							skill.GetName(),
-						).
+						).SetColor(0x00ff00).
 						Build(),
 				).
 				Build(),
@@ -586,8 +585,8 @@ func (f *Fight) HandleAction(act Action) {
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
 			tempEmbed.
-				SetFooterTextf("%s zadał obrażenia %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName()).
-				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum)
+				SetFooterTextf("%s zadał obrażenia %s. %s ma teraz %d HP", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetCurrentHP()).
+				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum).SetColor(0x00ff00)
 
 			dmgText := ""
 
@@ -631,7 +630,7 @@ func (f *Fight) HandleAction(act Action) {
 			}
 
 		} else {
-			tempEmbed.SetDescriptionf("%s chciał zadać obrażenia %s, ale nie trafił", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
+			tempEmbed.SetColor(0xff0000).SetDescriptionf("%s chciał zadać obrażenia %s, ale nie trafił", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
 		}
 
 		if targetEntity.Entity.GetCurrentHP() <= 0 {
@@ -724,8 +723,8 @@ func (f *Fight) HandleAction(act Action) {
 			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
 
 			tempEmbed.
-				SetFooterTextf("%s zaatakował %s", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName()).
-				SetDescriptionf("Zadano łącznie %d obrażeń", dmgSum)
+				SetFooterTextf("%s zaatakował %s. %s ma teraz %d HP", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetCurrentHP()).
+				SetDescriptionf("Zadano łącznie %d obrażeń", dmgSum).SetColor(0x00ff00)
 
 			dmgText := ""
 
@@ -777,7 +776,7 @@ func (f *Fight) HandleAction(act Action) {
 					Fight:  &f,
 				}, nil)
 
-			tempEmbed.SetDescriptionf("%s chciał skontrować ale nie trafił!", sourceEntity.GetName())
+			tempEmbed.SetDescriptionf("Kontra %s nie udana!", sourceEntity.GetName()).SetColor(0xff0000)
 		}
 
 		f.DiscordChannel <- types.DiscordMessageStruct{

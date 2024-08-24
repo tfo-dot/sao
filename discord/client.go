@@ -15,6 +15,7 @@ import (
 	"sao/world/npc"
 	"sao/world/party"
 	"sao/world/tournament"
+	"slices"
 
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
@@ -302,15 +303,32 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				embed.AddField("Umiejętności za lvl", "Brak", false)
 			}
 
-			for _, skill := range playerChar.Inventory.LevelSkills {
+			tempArray := make([]LevelField, len(playerChar.Inventory.LevelSkills))
 
+			notInLine := false
+
+			for key, skill := range playerChar.Inventory.LevelSkills {
 				skillDescription := skill.GetUpgradableDescription(playerChar.Inventory.LevelSkillsUpgrades[skill.GetLevel()])
 
-				embed.AddField(
-					fmt.Sprintf("%s (LVL: %d)", skill.GetName(), skill.GetLevel()),
-					fmt.Sprintf("Ścieżka: %s\n\n%s", types.PathToString[skill.GetPath()], skillDescription),
-					false,
-				)
+				tempArray = append(tempArray, LevelField{Level: key, Field: discord.EmbedField{
+					Name:   skill.GetName(),
+					Value:  fmt.Sprintf("Ścieżka: %s\n\n%s", types.PathToString[skill.GetPath()], skillDescription),
+					Inline: &notInLine,
+				}})
+			}
+
+			slices.SortFunc(tempArray, func(i, j LevelField) int {
+				if i.Level < j.Level {
+					return -1
+				} else if i.Level > j.Level {
+					return 1
+				}
+
+				return 0
+			})
+
+			for _, field := range tempArray {
+				embed.AddField(field.Field.Name, field.Field.Value, false)
 			}
 
 			event.CreateMessage(MessageEmbed(embed.Build()))
@@ -647,7 +665,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		return
 	case "party":
-		if playerChar.Meta.Party == nil && *interactionData.SubCommandName != "stwórz" {
+		if playerChar.Meta.Party == nil && *interactionData.SubCommandName != "zapros" {
 			event.CreateMessage(
 				discord.
 					NewMessageCreateBuilder().
@@ -690,7 +708,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		case "zapros":
 			if playerChar.Meta.Party == nil {
-				World.Parties[*playerChar.Meta.Party] = &party.Party{
+				World.RegisterParty(party.Party{
 					Leader: playerChar.GetUUID(),
 					Players: []*party.PartyEntry{
 						{
@@ -698,8 +716,9 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 							Role:       party.None,
 						},
 					},
-				}
+				})
 			}
+
 			if len(World.Parties[*playerChar.Meta.Party].Players) >= 6 {
 				event.CreateMessage(
 					discord.
@@ -726,20 +745,20 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			mentionedUser := interactionData.User("gracz")
 
-			for _, pl := range World.Players {
-				if pl.Meta.UserID == mentionedUser.ID.String() {
-					if pl.Meta.Party != nil {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Gracz jest już w party").
-								SetEphemeral(true).
-								Build(),
-						)
-						return
-					}
-				}
-			}
+			// for _, pl := range World.Players {
+			// 	if pl.Meta.UserID == mentionedUser.ID.String() {
+			// 		if pl.Meta.Party != nil {
+			// 			event.CreateMessage(
+			// 				discord.
+			// 					NewMessageCreateBuilder().
+			// 					SetContent("Gracz jest już w party").
+			// 					SetEphemeral(true).
+			// 					Build(),
+			// 			)
+			// 			return
+			// 		}
+			// 	}
+			// }
 
 			ch, error := event.Client().Rest().CreateDMChannel(mentionedUser.ID)
 

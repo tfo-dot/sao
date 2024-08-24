@@ -744,6 +744,14 @@ func (p *Player) SetLevelStat(stat types.Stat, value int) {
 	p.LevelStats[stat] = value
 }
 
+func (p *Player) GetLevelStat(stat types.Stat) int {
+	if value, ok := p.LevelStats[stat]; ok {
+		return value
+	}
+
+	return 0
+}
+
 func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
 	for skill := range p.Inventory.ItemSkillCD {
 		item := data.Items[utils.SkillUUIDToItemUUID(skill)]

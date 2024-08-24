@@ -306,3 +306,8 @@ func MessageContent(content string, ephemeral bool) discord.MessageCreate {
 func MessageEmbed(embeds ...discord.Embed) discord.MessageCreate {
 	return discord.NewMessageCreateBuilder().SetEmbeds(embeds...).Build()
 }
+
+type LevelField struct {
+	Level int
+	Field discord.EmbedField
+}

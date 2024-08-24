@@ -6,6 +6,7 @@ import (
 	"sao/types"
 	"sao/utils"
 
+	"github.com/disgoorg/disgo/discord"
 	"github.com/google/uuid"
 )
 
@@ -36,11 +37,18 @@ type SPC_LVL_1 struct {
 	DefaultCost
 	NoEvents
 	NoStats
-	DefaultActiveTrigger
 }
 
 func (skill SPC_LVL_1) GetName() string {
 	return "Poziom 1 - Specjalista"
+}
+
+func (skill SPC_LVL_1) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
+}
+
+func (skill SPC_LVL_1) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
 func (skill SPC_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
@@ -58,6 +66,20 @@ func (skill SPC_LVL_1) UpgradableExecute(owner, target, fightInstance, meta inte
 	randomStat := utils.RandomElement(
 		[]types.Stat{types.STAT_DEF, types.STAT_MR, types.STAT_SPD, types.STAT_AD, types.STAT_AP},
 	)
+
+	{
+		channelId := fightInstance.(*battle.Fight).Location.CID
+
+		if fightInstance.(*battle.Fight).Tournament != nil {
+			channelId = fightInstance.(*battle.Fight).Tournament.Location
+		}
+
+		fightInstance.(*battle.Fight).DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID:      channelId,
+			MessageContent: discord.NewMessageCreateBuilder().SetContentf("Zwiększono statystykę %s o %d%% na %d tur", types.StatToString[randomStat], baseIncrease, baseDuration).Build(),
+			DM:             false,
+		}
+	}
 
 	fightInstance.(*battle.Fight).HandleAction(battle.Action{
 		Event:  battle.ACTION_EFFECT,
@@ -94,7 +116,7 @@ func (skill SPC_LVL_1) GetCooldown(upgrades int) int {
 }
 
 func (skill SPC_LVL_1) GetDescription() string {
-	return "Zwiększa losowy atrybut o 10% na jedną turę"
+	return "Zwiększa losową statystykę (DEF, RES, SPD, ATK, AP) o 10% na jedną turę"
 }
 
 func (skill SPC_LVL_1) GetLevel() int {
@@ -109,7 +131,7 @@ func (skill SPC_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id:          "Percent",
-			Description: "Zwiększa wartość atrybutu do 12%",
+			Description: "Zwiększa wartość procentową do 12%",
 		},
 		{
 			Id:          "Duration",
@@ -119,19 +141,19 @@ func (skill SPC_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
 }
 
 func (skill SPC_LVL_1) GetUpgradableDescription(upgrades int) string {
-	percent := "10"
+	percent := 10
 
 	if HasUpgrade(upgrades, 2) {
-		percent = "12"
+		percent = 12
 	}
 
-	duration := "1"
+	duration := 1
 
 	if HasUpgrade(upgrades, 3) {
-		duration = "2"
+		duration = 2
 	}
 
-	return fmt.Sprintf("Zwiększa losowy atrybut o %s%% na %s turę", percent, duration)
+	return fmt.Sprintf("Zwiększa losową statystykę (DEF, RES, SPD, ATK, AP) o %d%% na %d tur.", percent, duration)
 }
 
 type SPC_LVL_2 struct {
@@ -146,7 +168,7 @@ func (skill SPC_LVL_2) GetName() string {
 }
 
 func (skill SPC_LVL_2) GetDescription() string {
-	return "Dostajesz 5 kradzieży życia"
+	return "Otrzymujesz 5 kradzieży życia"
 }
 
 func (skill SPC_LVL_2) GetLevel() int {
@@ -186,7 +208,7 @@ func (skill SPC_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id:          "Increase",
-			Description: "Zwiększa wartości dwukrotnie",
+			Description: "Zwiększa otrzymywaną statystykę do 10",
 		},
 		{
 			Id:          "ShieldInc",
@@ -196,7 +218,7 @@ func (skill SPC_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 }
 
 func (skill SPC_LVL_2) GetUpgradableDescription(upgrades int) string {
-	vampValue := "5"
+	vampValue := 5
 	vampType := "kradzieży życia"
 
 	if HasUpgrade(upgrades, 1) {
@@ -204,7 +226,7 @@ func (skill SPC_LVL_2) GetUpgradableDescription(upgrades int) string {
 	}
 
 	if HasUpgrade(upgrades, 2) {
-		vampValue = "10"
+		vampValue += 5
 	}
 
 	additionalEffect := ""
@@ -213,7 +235,7 @@ func (skill SPC_LVL_2) GetUpgradableDescription(upgrades int) string {
 		additionalEffect = "\nLeczenie i tarcze (na sobie) zwiększone o 20%."
 	}
 
-	return fmt.Sprintf("Dostajesz %s %s.%s", vampValue, vampType, additionalEffect)
+	return fmt.Sprintf("Otrzymujesz %d %s.%s", vampValue, vampType, additionalEffect)
 }
 
 type SPC_LVL_3 struct {
@@ -240,7 +262,9 @@ func (skill SPC_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 	baseHeal := 20
 
 	if HasUpgrade(upgrades, 2) {
-		baseDmg = utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 2) + utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 2)
+		baseDmg = 35
+		baseDmg += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 10)
+		baseDmg += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 10)
 	}
 
 	if HasUpgrade(upgrades, 3) {
@@ -293,7 +317,7 @@ func (skill SPC_LVL_3) GetCooldown(upgrades int) int {
 }
 
 func (skill SPC_LVL_3) GetDescription() string {
-	return "Zadaje 25 obrażeń i leczy o 20% tej wartości"
+	return "Zadaje 25 obrażeń nieuchronnych i leczy o 20% zadanych obrażeń"
 }
 
 func (skill SPC_LVL_3) GetLevel() int {
@@ -308,28 +332,28 @@ func (skill SPC_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id:          "Damage",
-			Description: "Zwiększa obrażenia o 2%AP + 2%AD",
+			Description: "Obrażenia zwiększone o 30 + 10%AP + 10%ATK",
 		},
 		{
 			Id:          "Heal",
-			Description: "Zwiększa leczenie do 25%",
+			Description: "Przelicznik leczenie zwiększony do 25%",
 		},
 	}
 }
 
 func (skill SPC_LVL_3) GetUpgradableDescription(upgrades int) string {
 	dmgValue := "25"
-	healValue := "20"
+	healValue := 20
 
 	if HasUpgrade(upgrades, 2) {
-		dmgValue += " 2%AP + 2%ATK"
+		dmgValue = "55 + 10%AP + 10%ATK"
 	}
 
 	if HasUpgrade(upgrades, 3) {
-		healValue = "25"
+		healValue = 25
 	}
 
-	return fmt.Sprintf("Zadaje %s obrażeń i leczy o %s%% tej wartości", dmgValue, healValue)
+	return fmt.Sprintf("Zadaje %s obrażeń nieuchronnych i leczy o %d%% zadanych obrażeń", dmgValue, healValue)
 }
 
 type SPC_LVL_4 struct {
@@ -421,7 +445,14 @@ type SPC_LVL_5 struct {
 	DefaultCost
 	NoEvents
 	NoStats
-	DefaultActiveTrigger
+}
+
+func (skill SPC_LVL_5) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
+}
+
+func (skill SPC_LVL_5) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
 func (skill SPC_LVL_5) GetName() string {
@@ -429,7 +460,7 @@ func (skill SPC_LVL_5) GetName() string {
 }
 
 func (skill SPC_LVL_5) GetDescription() string {
-	return "Zmniejsza SPD do podstawowej wartości, zwiększa kolejny atak SPD-40%"
+	return "Zmniejsza SPD do początkowej wartości, zwiększa kolejny atak o procent zabranej statystyki"
 }
 
 func (skill SPC_LVL_5) GetLevel() int {
@@ -440,15 +471,15 @@ func (skill SPC_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Skill",
-			Description: "Działa na kolejną umiejętność",
+			Description: "Zwiększa także obrażenia umiejętności",
 		},
 		{
 			Id:          "Duration",
-			Description: "Działa przez całą turę",
+			Description: "Efekt utrzymuje się przez całą turę",
 		},
 		{
 			Id:          "DmgReduction",
-			Description: "Zmniejsza obrażenia o 10% podczas trwania",
+			Description: "Podczas trwania zmniejsza obrażenia o 10%",
 		},
 	}
 }
@@ -503,6 +534,12 @@ func (skill SPC_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 		},
 	})
 
+	fightInstance.(*battle.Fight).DiscordChannel <- types.DiscordMessageStruct{
+		ChannelID:      fightInstance.(*battle.Fight).Location.CID,
+		MessageContent: discord.NewMessageCreateBuilder().SetContentf("Zwiększenie obrażeń wynosi %d", spdReduction).Build(),
+		DM:             false,
+	}
+
 	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value:      SPC_LVL_5_EFFECT{},
 		Expire:     1,
@@ -539,17 +576,21 @@ func (skill SPC_LVL_5) GetCooldown(upgrades int) int {
 }
 
 func (skill SPC_LVL_5) GetUpgradableDescription(upgrades int) string {
-	trigger := "kolejny atak"
+	trigger := ""
 
 	if HasUpgrade(upgrades, 1) {
 		trigger += " lub umiejętność"
 	}
 
-	resist := ""
-
-	if HasUpgrade(upgrades, 3) {
-		resist = "\nZmniejsza obrażenia o 10% podczas trwania."
+	effectDuration := "kolejny"
+	if HasUpgrade(upgrades, 2) {
+		effectDuration = ""
 	}
 
-	return fmt.Sprintf("Zmniejsza SPD do podstawowej wartości na jedną turę, zwiększa %s o zabraną wartość.%s", trigger, resist)
+	resist := ""
+	if HasUpgrade(upgrades, 3) {
+		resist = "\nPodczas trwania zmniejsza obrażenia o 10%"
+	}
+
+	return fmt.Sprintf("Zmniejsza SPD do początkowej wartości na jedną turę. Zwiększa%s atak%s o zabraną wartość.%s", effectDuration, trigger, resist)
 }

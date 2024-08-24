@@ -42,10 +42,13 @@ func Deserialize(data map[string]interface{}) *Party {
 		Leader: uuid.MustParse(data["leader"].(string)),
 	}
 
-	for _, player := range data["players"].([]map[string]interface{}) {
+	for _, player := range data["players"].([]interface{}) {
+
+		plr := player.(map[string]interface{})
+
 		party.Players = append(party.Players, &PartyEntry{
-			PlayerUuid: uuid.MustParse(player["player"].(string)),
-			Role:       PartyRole(player["role"].(float64)),
+			PlayerUuid: uuid.MustParse(plr["player"].(string)),
+			Role:       PartyRole(plr["role"].(float64)),
 		})
 	}
 

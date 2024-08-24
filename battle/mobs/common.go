@@ -17,6 +17,7 @@ type MobEntity struct {
 	ATK       int
 	Effects   EffectList
 	UUID      uuid.UUID
+	Name      string
 	Props     map[string]interface{}
 	Loot      []battle.Loot
 	TempSkill []*types.WithExpire[types.PlayerSkill]
@@ -109,15 +110,8 @@ func (e EffectList) Cleanse() EffectList {
 }
 
 func (m *MobEntity) GetName() string {
-	switch m.Id {
-	case "LV0_Rycerz":
-		return "Rycerz"
-	case "LV0_Boss":
-		return "Boss"
-	case "LV0_Wilk":
-		return "Wilk"
-	case "LV0_Skalniak":
-		return "Skalniak"
+	if m.Name != "" {
+		return m.Name
 	}
 
 	return "Nieznana istota"
@@ -445,6 +439,7 @@ func Spawn(id string) *MobEntity {
 			Props:     make(map[string]interface{}, 0),
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+			Name:      "Rycerz",
 		}
 	case "LV0_Wilk":
 		return &MobEntity{
@@ -458,6 +453,7 @@ func Spawn(id string) *MobEntity {
 			Props:     make(map[string]interface{}, 0),
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+			Name:      "Wilk",
 		}
 	case "LV0_Skalniak":
 		return &MobEntity{
@@ -471,6 +467,7 @@ func Spawn(id string) *MobEntity {
 			Props:     make(map[string]interface{}, 0),
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 40}, {Type: battle.LOOT_GOLD, Count: 20}},
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+			Name:      "Skalniak",
 		}
 	case "LV0_Boss":
 		return &MobEntity{
@@ -484,6 +481,7 @@ func Spawn(id string) *MobEntity {
 			Props:     make(map[string]interface{}, 0),
 			Loot:      []battle.Loot{{Type: battle.LOOT_EXP, Count: 55}},
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+			Name:      "Boss",
 		}
 	}
 

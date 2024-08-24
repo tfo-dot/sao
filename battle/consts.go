@@ -212,6 +212,7 @@ type PlayerEntity interface {
 
 	AppendDerivedStat(types.DerivedStat)
 	SetLevelStat(types.Stat, int)
+	GetLevelStat(types.Stat) int
 	GetDefaultStat(types.Stat) int
 	ReduceCooldowns(types.SkillTrigger)
 }

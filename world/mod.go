@@ -81,27 +81,20 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 	return nil
 }
 
-func (w *World) PlayerSearch(uuid uuid.UUID) {
-	player := w.Players[uuid]
+func (w *World) PlayerFight(pUuid uuid.UUID, mobId string, mobCount int) {
+	player := w.Players[pUuid]
 
 	floor := w.Floors[player.Meta.Location.Floor]
 
 	var location location.Location
+
+	entityMap := make(battle.EntityMap)
 
 	for _, loc := range floor.Locations {
 		if loc.Name == player.Meta.Location.Location {
 			location = loc
 		}
 	}
-
-	if len(location.Enemies) == 0 {
-		return
-	}
-
-	enemyEntry := utils.RandomElement(location.Enemies)
-	enemyCount := utils.RandomNumber(enemyEntry.MinNum, enemyEntry.MaxNum)
-
-	entityMap := make(battle.EntityMap)
 
 	if player.Meta.Party != nil {
 		partyData := w.Parties[*player.Meta.Party]
@@ -211,8 +204,8 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 		entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
 	}
 
-	for i := 0; i < enemyCount; i++ {
-		entity := mobs.Spawn(enemyEntry.Enemy)
+	for i := 0; i < mobCount; i++ {
+		entity := mobs.Spawn(mobId)
 
 		entityMap[entity.GetUUID()] = battle.EntityEntry{Entity: entity, Side: 1}
 	}
@@ -220,7 +213,6 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 	fight := battle.Fight{
 		Entities:       entityMap,
 		DiscordChannel: w.DChannel,
-		StartTime:      w.Time.Copy(),
 		Location:       &location,
 	}
 
@@ -231,6 +223,30 @@ func (w *World) PlayerSearch(uuid uuid.UUID) {
 	player.Meta.FightInstance = &fightUUID
 
 	go w.ListenForFight(fightUUID)
+
+}
+
+func (w *World) PlayerSearch(uuid uuid.UUID) {
+	player := w.Players[uuid]
+
+	floor := w.Floors[player.Meta.Location.Floor]
+
+	var location location.Location
+
+	for _, loc := range floor.Locations {
+		if loc.Name == player.Meta.Location.Location {
+			location = loc
+		}
+	}
+
+	if len(location.Enemies) == 0 {
+		return
+	}
+
+	enemyEntry := utils.RandomElement(location.Enemies)
+	enemyCount := utils.RandomNumber(enemyEntry.MinNum, enemyEntry.MaxNum)
+
+	w.PlayerFight(uuid, enemyEntry.Enemy, enemyCount)
 }
 
 func (w *World) StartBackupClock() {
@@ -1120,7 +1136,6 @@ func (w *World) StartMatch(tUuid uuid.UUID, matchIdx int) {
 	fight := battle.Fight{
 		Entities:       entityMap,
 		DiscordChannel: w.DChannel,
-		StartTime:      w.Time.Copy(),
 		Location:       &fightingLocation,
 		Tournament: &battle.TournamentData{
 			Tournament: tUuid,
@@ -1493,4 +1508,16 @@ func (w *World) GetUnlockedFloorCount() int {
 	}
 
 	return unlockedFloors
+}
+
+func (w *World) RegisterParty(party party.Party) {
+	partyUuid := uuid.New()
+
+	for _, member := range party.Players {
+		player := w.Players[member.PlayerUuid]
+
+		player.Meta.Party = &partyUuid
+	}
+
+	w.Parties[partyUuid] = &party
 }

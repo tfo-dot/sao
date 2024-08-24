@@ -76,6 +76,8 @@ type CooldownMeta struct {
 	PassEvent SkillTrigger
 }
 
+//TODO Attack trigger (TRIGGER_ATTACK_GOT_HIT) should TRIGGER_DAMAGE effects too
+
 type SkillTrigger int
 
 const (

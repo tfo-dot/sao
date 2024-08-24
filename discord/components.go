@@ -344,10 +344,10 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 	}
 
 	if strings.HasPrefix(customId, "party") {
-		if customId == "party/res" {
-			userSnowflake := event.Member().User.ID.String()
+		if strings.HasPrefix(customId, "party/res") {
+			userSnowflake := event.User().ID.String()
 
-			partyUuid := uuid.MustParse(customId[10:])
+			partyUuid := uuid.MustParse(strings.Split(customId, "|")[1])
 
 			for _, pl := range World.Players {
 				if pl.Meta.UserID == userSnowflake {
@@ -384,11 +384,10 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		}
 
 		if customId == "party/rej" {
-			event.UpdateMessage(messageUpdateClearComponents)
-
-			event.CreateMessage(
+			event.UpdateMessage(
 				discord.
-					NewMessageCreateBuilder().
+					NewMessageUpdateBuilder().
+					ClearContainerComponents().
 					SetContent("Odrzucono zaproszenie").
 					Build(),
 			)
@@ -451,19 +450,63 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 				return
 			}
 
-			event.UpdateMessage(messageUpdateClearComponents)
+			if len(playerEnemies) == 1 {
+				fight.PlayerActions <- battle.Action{
+					Event:  battle.ACTION_ATTACK,
+					Source: player.GetUUID(),
+					Target: playerEnemies[0].GetUUID(),
+				}
 
-			fight.PlayerActions <- battle.Action{
-				Event:  battle.ACTION_ATTACK,
-				Source: player.GetUUID(),
-				Target: playerEnemies[0].GetUUID(),
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Zaatakowano!").
+						SetEphemeral(true).
+						Build(),
+				)
+
+				return
 			}
 
-			event.CreateMessage(
+			selectMenuUuid := uuid.New().String()
+
+			options := make([]discord.StringSelectMenuOption, 0)
+
+			for _, enemy := range playerEnemies {
+				options = append(options, discord.NewStringSelectMenuOption(enemy.GetName(), enemy.GetUUID().String()))
+			}
+
+			Choices = append(Choices, types.DiscordChoice{
+				Id: selectMenuUuid,
+				Select: func(event *events.ComponentInteractionCreate) {
+
+					selected := event.StringSelectMenuInteractionData().Values
+
+					parsedUuids := make([]uuid.UUID, len(selected))
+
+					for idx, rawUuid := range selected {
+						parsedUuids[idx] = uuid.MustParse(rawUuid)
+					}
+
+					fight.PlayerActions <- battle.Action{
+						Event:  battle.ACTION_ATTACK,
+						Source: player.GetUUID(),
+						Target: parsedUuids[0],
+					}
+
+					event.UpdateMessage(messageUpdateClearComponents)
+				},
+			})
+
+			selectMenu := discord.NewStringSelectMenu("chc/"+selectMenuUuid, "Wybierz wrogów").AddOptions(options...).WithMaxValues(1)
+
+			event.UpdateMessage(
 				discord.
-					NewMessageCreateBuilder().
-					SetContent("Zaatakowano!").
-					SetEphemeral(true).
+					NewMessageUpdateBuilder().
+					SetContent("Wybierz cel").
+					ClearEmbeds().
+					ClearContainerComponents().
+					AddActionRow(selectMenu).
 					Build(),
 			)
 

@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"fmt"
 	"sao/battle"
 	"sao/battle/mobs"
 	"sao/types"
@@ -58,13 +59,31 @@ func (skill CON_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id:          "Speed",
-			Description: "Zwiększa prędkość użytkownika o 10 na 1 turę",
+			Description: "Zwiększa SPD użytkownika o 10 na 1 turę",
 		},
 		{
 			Id:          "Slow",
-			Description: "Spowalnia przeciwnika o 10 po zakończeniu ogłuszenia",
+			Description: "Po zakończeniu ogłuszenia zmniejsza SPD przeciwnika o 10 na 1 turę.",
 		},
 	}
+}
+
+func (skill CON_LVL_1) GetDescription() string {
+	return "Ogłusza przeciwnika na jedną turę"
+}
+
+func (skill CON_LVL_1) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{"", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment[0] = "\nPo użyciu daje 10 SPD na 1 turę."
+	}
+
+	if HasUpgrade(upgrades, 2) {
+		upgradeSegment[1] = "\nPo zakończeniu ogłuszenia zmniejsza SPD celu o 10 przez 1 turę"
+	}
+
+	return "Ogłusza przeciwnika na jedną turę." + upgradeSegment[0] + upgradeSegment[1]
 }
 
 func (skill CON_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
@@ -139,24 +158,6 @@ func (skill CON_LVL_1) GetCooldown(upgrades int) int {
 	return baseCD
 }
 
-func (skill CON_LVL_1) GetDescription() string {
-	return "Ogłusza przeciwnika na jedną turę"
-}
-
-func (skill CON_LVL_1) GetUpgradableDescription(upgrades int) string {
-	upgradeSegment := []string{"", ""}
-
-	if HasUpgrade(upgrades, 1) {
-		upgradeSegment[0] = " Zmniejsza czas odnowienia o 1 turę"
-	}
-
-	if HasUpgrade(upgrades, 2) {
-		upgradeSegment[1] = "\nPo zakończeniu ogłuszenia spowalnia cel o 10 na turę"
-	}
-
-	return "Ogłusza przeciwnika na jedną turę." + upgradeSegment[0] + upgradeSegment[1]
-}
-
 func (skill CON_LVL_1) GetLevel() int {
 	return 1
 }
@@ -176,31 +177,33 @@ func (skill CON_LVL_2) GetName() string {
 }
 
 func (skill CON_LVL_2) GetUpgradableDescription(upgrades int) string {
-	upgradeSegment := []string{"5 SPD i AGL.", "", "", ""}
+	upgradeSegment := []string{"", "", ""}
+
+	statValue := 5
 
 	if HasUpgrade(upgrades, 2) {
-		upgradeSegment[0] = "10 SPD i AGL."
+		statValue = 10
 	}
 
 	if HasUpgrade(upgrades, 1) {
-		upgradeSegment[1] = "\nPo trafieniu przeciwnika spowolnia go o 10."
+		upgradeSegment[0] = "\nPo trafieniu przeciwnika zmniejsza jego SPD o 10 na 1 turę."
 	}
 
 	if HasUpgrade(upgrades, 3) {
-		upgradeSegment[2] = "\nPo trafieniu przeciwnika zmniejsza jego AGL o 10."
+		upgradeSegment[1] = "\nPo trafieniu przeciwnika zmniejsza jego AGL o 10 na 1 turę."
 	}
 
 	if HasUpgrade(upgrades, 1) && HasUpgrade(upgrades, 3) {
+		upgradeSegment[0] = ""
 		upgradeSegment[1] = ""
-		upgradeSegment[2] = ""
-		upgradeSegment[3] = "\nPo trafieniu przeciwnika zmniejsza jego SPD i AGL o 10."
+		upgradeSegment[2] = "\nPo trafieniu przeciwnika zmniejsza jego SPD i AGL o 10 na 1 turę."
 	}
 
-	return "Dostajesz " + upgradeSegment[0] + upgradeSegment[1] + upgradeSegment[2] + upgradeSegment[3]
+	return fmt.Sprintf("Otrzymujesz %d SPD i AGL. %s%s%s", statValue, upgradeSegment[0], upgradeSegment[1], upgradeSegment[2])
 }
 
 func (skill CON_LVL_2) GetDescription() string {
-	return "Dostajesz 5 SPD i AGL"
+	return "Otrzymujesz 5 SPD i AGL"
 }
 
 func (skill CON_LVL_2) GetLevel() int {
@@ -211,15 +214,15 @@ func (skill CON_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "OnHit",
-			Description: "Po trafieniu spowalnia przeciwnika o 10 SPD",
+			Description: "Po trafieniu ataku zmniejsza SPD przeciwnika o 10 na 1 turę",
 		},
 		{
 			Id:          "Increase",
-			Description: "Zwiększa wartości dwukrotnie",
+			Description: "Zwiększa wartości pasywne do 10 SPD i AGL",
 		},
 		{
 			Id:          "OnHit",
-			Description: "Po trafieniu zmniejsza statystyki przeciwnika o 10 DGD",
+			Description: "Po trafieniu ataku zmniejsza AGL przeciwnika o 10 na 1 turę",
 		},
 	}
 }
@@ -347,7 +350,7 @@ func (skill CON_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Ally",
-			Description: "Może być użyte na sojuszniku",
+			Description: "Celem umiejętności może być sojusznik",
 		},
 		{
 			Id:          "Cooldown",
@@ -355,7 +358,7 @@ func (skill CON_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id:          "Cost",
-			Description: "Nie kosztuje many",
+			Description: "Umiejętność nie kosztuje many",
 		},
 	}
 }
@@ -445,7 +448,21 @@ func (skill CON_LVL_4_EFFECT) GetName() string {
 }
 
 func (skill CON_LVL_4_EFFECT) GetDescription() string {
-	return "Po trafieniu ataku zmniejsza CD wszystkich umiejętności o 1"
+	return "Kolejny trafiony atak zmniejszy CD wszystkich umiejętności o 1"
+}
+
+func (skill CON_LVL_4) GetUpgradableDescription(upgrades int) string {
+	upgradeSegment := []string{" trafiony", ""}
+
+	if HasUpgrade(upgrades, 1) {
+		upgradeSegment[1] = "Dodatkowo losowy przeciwnik dostanie obrażenia w wysokości 20% ataku"
+	}
+
+	if !HasUpgrade(upgrades, 2) {
+		upgradeSegment[0] = ""
+	}
+
+	return "Kolejny" + upgradeSegment[0] + " atak zmniejszy CD wszystkich umiejętności o 1." + upgradeSegment[1]
 }
 
 func (skill CON_LVL_4) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
@@ -459,20 +476,6 @@ func (skill CON_LVL_4) UpgradableExecute(owner, target, fightInstance, meta inte
 	})
 
 	return nil
-}
-
-func (skill CON_LVL_4) GetUpgradableDescription(upgrades int) string {
-	upgradeSegment := []string{" trafionym", ""}
-
-	if HasUpgrade(upgrades, 1) {
-		upgradeSegment[1] = "Dodatkowo losowy przeciwnik dostanie obrażenia w wysokości 20% ataku"
-	}
-
-	if !HasUpgrade(upgrades, 2) {
-		upgradeSegment[0] = ""
-	}
-
-	return "Po " + upgradeSegment[0] + "ataku zmniejsza CD wszystkich umiejętności o 1." + upgradeSegment[1]
 }
 
 func (skill CON_LVL_4) GetCD() int {
@@ -495,11 +498,11 @@ func (skill CON_LVL_4) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Ripple",
-			Description: "Zadaje 20% obrażeń losowemu przeciwnikowi",
+			Description: "Przy aktywacji efektu dodatkowo zada 20% obrażeń ataku losowemu przeciwnikowi",
 		},
 		{
 			Id:          "CanMiss",
-			Description: "Może nie trafić",
+			Description: "Zmienia warunek aktywacji na \"przy kolejnym ataku\" (wcześniej \"przy kolejnym trafionym ataku\")",
 		},
 	}
 }
@@ -519,28 +522,31 @@ func (skill CON_LVL_5) GetName() string {
 }
 
 func (skill CON_LVL_5) GetDescription() string {
-	//DEF, MR, SPD, AD, AP, HP
-	return "Tworzy klona który ma 25% statystyk użytkownika, może tylko atakować i bronić"
+	return "Tworzy klona który ma 25% statystyk (DEF, RES, SPD, ATK, AP, HP) użytkownika i utrzymuje się 5 tur."
 }
 
 func (skill CON_LVL_5) GetUpgradableDescription(upgrades int) string {
-	upgradeSegment := []string{" 25% ", "", ""}
-
-	if HasUpgrade(upgrades, 1) {
-		upgradeSegment[1] = " Jest 20% szans że użyje umiejętności zamiast ataku."
-	}
+	ratio := 25
 
 	if HasUpgrade(upgrades, 2) {
-		upgradeSegment[0] = " 50% "
+		ratio = 50
 	}
+
+	cloneCount := 1
+	summonEffect := ""
 
 	if HasUpgrade(upgrades, 3) {
-		upgradeSegment[2] = "Możesz mieć 2 klony, a po przyzwaniu klon prowokuje wszystkich przeciwników"
-	} else {
-		upgradeSegment[2] = "Możesz mieć 1 klona."
+		cloneCount = 2
+		summonEffect = "Po przyzwaniu klon prowokuje wszystkich przeciwników"
 	}
 
-	return "Tworzy klona który ma" + upgradeSegment[0] + "statystyk użytkownika." + upgradeSegment[0] + upgradeSegment[1] + upgradeSegment[2]
+	skillUsage := ""
+
+	if HasUpgrade(upgrades, 1) {
+		skillUsage = " Klon ma 20% szans na użycie umiejętności."
+	}
+
+	return fmt.Sprintf("Tworzy klona który ma %d%% statystyk (DEF, RES, SPD, ATK, AP, HP) użytkownika i utrzymuje się 5 tur.%s Max ilość klonów %d.  %s", ratio, skillUsage, cloneCount, summonEffect)
 }
 
 func (skill CON_LVL_5) GetLevel() int {
@@ -637,15 +643,14 @@ func (skill CON_LVL_5) GetCD() int {
 }
 
 func (skill CON_LVL_5) GetCooldown(upgrades int) int {
-	// return skill.GetCD()
-	return 0
+	return skill.GetCD()
 }
 
 func (skill CON_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id:          "Actions",
-			Description: "20% szans że użyje umiejętności",
+			Description: "Klon ma 20% szans na użycie umiejętności",
 		},
 		{
 			Id:          "Stats",
@@ -653,7 +658,7 @@ func (skill CON_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id:          "MaxCount",
-			Description: "Możesz mieć 2 klony. Po przyzwaniu klon prowokuje wszystkich przeciwników",
+			Description: "Limit klonów zwiększa się do 2. Po przyzwaniu klon prowokuje wszystkich przeciwników",
 		},
 	}
 }
