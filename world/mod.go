@@ -82,22 +82,22 @@ func (w *World) MovePlayer(pUuid uuid.UUID, floorName, locationName, reason stri
 }
 
 func (w *World) PlayerFight(pUuid uuid.UUID, mobId string, mobCount int) {
-	player := w.Players[pUuid]
+	selectedPlayer := w.Players[pUuid]
 
-	floor := w.Floors[player.Meta.Location.Floor]
+	floor := w.Floors[selectedPlayer.Meta.Location.Floor]
 
 	var location location.Location
 
 	entityMap := make(battle.EntityMap)
 
 	for _, loc := range floor.Locations {
-		if loc.Name == player.Meta.Location.Location {
+		if loc.Name == selectedPlayer.Meta.Location.Location {
 			location = loc
 		}
 	}
 
-	if player.Meta.Party != nil {
-		partyData := w.Parties[*player.Meta.Party]
+	if selectedPlayer.Meta.Party != nil {
+		partyData := w.Parties[*selectedPlayer.Meta.Party]
 		partyMemberCount := len(partyData.Players)
 
 		for _, member := range partyData.Players {
@@ -201,7 +201,7 @@ func (w *World) PlayerFight(pUuid uuid.UUID, mobId string, mobCount int) {
 			entityMap[resolvedUser.GetUUID()] = battle.EntityEntry{Entity: resolvedUser, Side: 0}
 		}
 	} else {
-		entityMap[player.GetUUID()] = battle.EntityEntry{Entity: player, Side: 0}
+		entityMap[selectedPlayer.GetUUID()] = battle.EntityEntry{Entity: selectedPlayer, Side: 0}
 	}
 
 	for i := 0; i < mobCount; i++ {
@@ -220,10 +220,13 @@ func (w *World) PlayerFight(pUuid uuid.UUID, mobId string, mobCount int) {
 
 	fightUUID := w.RegisterFight(fight)
 
-	player.Meta.FightInstance = &fightUUID
+	for _, entity := range entityMap {
+		if entity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
+			entity.Entity.(*player.Player).Meta.FightInstance = &fightUUID
+		}
+	}
 
 	go w.ListenForFight(fightUUID)
-
 }
 
 func (w *World) PlayerSearch(uuid uuid.UUID) {
