@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000004"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000004"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000004",
+  "00000000-0000-0001-0000-000000000004",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Piaskowe ostrze"
 Description = "Zadawanie obrażeń zmniejsza leczenie wroga."
 TakesSlot = true
@@ -21,39 +21,33 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Piaskowe ostrze" end,
-  GetDescription = function() return "Zadawanie obrażeń zmniejsza leczenie wroga." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "DAMAGE",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "DAMAGE",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    fightInstance.HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner.GetUUID(),
-      Target = target.GetUUID(),
+      Source = GetUUID(owner),
+      Target = GetUUID(target),
       Meta = {
         Effect = "EFFECT_STAT_DEC",
         Value = -20,
         Duration = 1,
-        Uuid = "New uuid",    --@TODO uuid.New(),
+        Uuid = utils.GenerateUUID(),
         Meta = {
-          Stat = "STAT_HEAL_POWER",
+          Stat = StatsConst.STAT_HEAL_POWER,
           Value = -20,
           IsPercent = false,
         },
-        Caster = owner.GetUUID(),
+        Caster = GetUUID(owner),
         Source = "SOURCE_ITEM",
       },
     })
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

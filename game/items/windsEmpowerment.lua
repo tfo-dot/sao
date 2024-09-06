@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000018"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000018"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000018",
+  "00000000-0000-0001-0000-000000000018",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Wietrzne wzmocenienie"
 Description = "Otrzymujesz SPD w zależności od siły leczenia i tarcz. Oraz leczysz przy ataku"
 TakesSlot = true
@@ -21,61 +21,74 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Wietrzne wzmocenienie" end,
-  GetDescription = function() return "Otrzymujesz SPD w zależności od siły leczenia i tarcz. Oraz leczysz przy ataku" end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_HIT"
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_HIT"
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local validTargets = fightInstance:GetAlliesFor(owner:GetUUID())
+    ---@diagnostic disable-next-line: undefined-global
+    local validTargets = GetAlliesFor(fightInstance, GetUUID(owner))
 
-    if validTargets.len == 0 then
+    if #validTargets == 0 then
       return nil
     end
 
     local healTarget
 
-    for idx = 1, validTargets.len do
+    for idx = 1, #validTargets do
       if healTarget == nil then
         healTarget = validTargets[idx]
       end
 
-      local healTargetPercent = healTarget.GetCurrentHP() / healTarget.GetStat("STAT_HP")
-      local entityPercent = validTargets[idx].GetCurrentHP() / validTargets[idx].GetStat("STAT_HP")
+      ---@diagnostic disable-next-line: undefined-global
+      local healTargetPercent = GetCurrentHP(healTarget) / GetStat(healTarget, StatsConst.STAT_HP)
+      ---@diagnostic disable-next-line: undefined-global
+      local entityPercent = GetCurrentHP(validTargets[idx]) / GetStat(validTargets[idx], StatsConst.STAT_HP)
 
       if entityPercent < healTargetPercent then
         healTarget = validTargets[idx]
       end
     end
 
-    local healValue = utils.PercentOf(owner:GetStat("STAT_AD"), 10)
+    ---@diagnostic disable-next-line: undefined-global
+    local healValue = utils.PercentOf(GetStat(owner, StatsConst.STAT_AD), 10)
 
-    fightInstance:HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = healTarget.GetUUID(),
-      Meta = { Value = healValue },
+      ---@diagnostic disable-next-line: undefined-global
+      Source = GetUUID(owner),
+      ---@diagnostic disable-next-line: undefined-global
+      Target = GetUUID(healTarget),
+      Meta = {
+        Effect = "EFFECT_HEAL",
+        Value = 0,
+        Duration = 1,
+        Uuid = ReservedUIDs[2],
+        Meta = {
+          Value = healValue,
+        },
+        ---@diagnostic disable-next-line: undefined-global
+        Caster = GetUUID(owner),
+        ---@diagnostic disable-next-line: undefined-global
+        Target = GetUUID(healTarget),
+        Source = "SOURCE_ITEM",
+      },
     })
 
     return nil
   end,
-  GetEvents = function()
-    return {
-      TRIGGER_UNLOCK = function(owner)
-        owner:AppendDerivedStat({
-          Base = "STAT_HEAL_POWER",
-          Derived = "STAT_SPD",
-          Percent = 100,
-          Source = ReservedUIDs[2]
-        })
-      end
-    }
-  end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+  Events = {
+    TRIGGER_UNLOCK = function(owner)
+      ---@diagnostic disable-next-line: undefined-global
+      AppendDerivedStat(owner, {
+        Base = StatsConst.STAT_HEAL_POWER,
+        Derived = StatsConst.STAT_SPD,
+        Percent = 100,
+        Source = ReservedUIDs[2]
+      })
+    end
+  },
+} }

@@ -1,12 +1,11 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000015"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000015"
---EffectID
-ReservedUIDs[2] = "00000000-0000-0001-0001-000000000015"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000015",
+  "00000000-0000-0001-0000-000000000015",
+  "00000000-0000-0001-0001-000000000015",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Ognisty trybularz"
 Description = "Leczenie i tarcze zwiększają obrażenia i prędkość sojusznika."
 TakesSlot = true
@@ -24,57 +23,63 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Ognisty trybularz" end,
-  GetDescription = function() return "Leczenie i tarcze zwiększają obrażenia i prędkość sojusznika." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "HEAL_OTHER"
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "HEAL_OTHER"
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    target:AppendTempSkill({
-      Value = utils.BaseAttackIncreaseSkill(
-        {
-          Calculate = function(meta)
-            return {
-              Effects = {
-                {
-                  Value = utils.PercentOf(owner:GetStat("STAT_AP"), 25),
-                  Percent = false,
-                  Type = 1,
-                },
+    ---@diagnostic disable-next-line: undefined-global
+    AppendTempSkill(target, {
+      Value = {
+        Trigger = {
+          Type = "PASSIVE",
+          Event = "ATTACK_BEFORE"
+        },
+        Execute = function(_owner, _target, _fightInstance, _meta)
+          return {
+            Effects = {
+              {
+                ---@diagnostic disable-next-line: undefined-global
+                Value = utils.PercentOf(GetStat(owner, StatsConst.STAT_AP), 25),
+                Percent = false,
+                Type = 1,
               },
-            }
-          end
-        }
-      ),
+            },
+          }
+        end
+      },
+      Expire = 2,
+      AfterUsage = false,
+      Either = true
     })
 
-    fightInstance:HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = target:GetUUID(),
+      ---@diagnostic disable-next-line: undefined-global
+      Source = GetUUID(owner),
+      ---@diagnostic disable-next-line: undefined-global
+      Target = GetUUID(target),
       Meta = {
         Effect = "EFFECT_STAT_INC",
         Value = 0,
         Duration = 1,
-        Uuid = ReservedUIDs[2],
+        Uuid = ReservedUIDs[3],
         Meta = {
-          Stat = "STAT_SPD",
+          Stat = StatsConst.STAT_SPD,
           Value = 10,
           IsPercent = false,
         },
-        Caster = owner:GetUUID(),
+        ---@diagnostic disable-next-line: undefined-global
+        Caster = GetUUID(owner),
+        ---@diagnostic disable-next-line: undefined-global
+        Target = GetUUID(target),
         Source = "SOURCE_ITEM",
       },
     })
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

@@ -29,6 +29,7 @@ type Floor struct {
 	Default          string
 	Locations        []Location
 	Effects          []LocationEffect
+	Flags            []string
 	Unlocked         bool
 	CountsAsUnlocked bool
 }
@@ -92,6 +93,14 @@ func GetFloors() map[string]Floor {
 		Default := floor["Default"].(string)
 		Unlocked := floor["Unlocked"].(bool)
 		CountsAsUnlocked := floor["CountsAsUnlocked"].(bool)
+
+		floorFlags := floor["Flags"].([]interface{})
+
+		var flags = make([]string, len(floorFlags))
+
+		for i, flag := range floorFlags {
+			flags[i] = flag.(string)
+		}
 
 		var Locations = make([]Location, 0)
 
@@ -162,6 +171,7 @@ func GetFloors() map[string]Floor {
 			Effects:          Effects,
 			Unlocked:         Unlocked,
 			CountsAsUnlocked: CountsAsUnlocked,
+			Flags:            flags,
 		}
 
 	}

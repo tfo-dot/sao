@@ -3,6 +3,7 @@
     "Contentf",
     "Cooldown",
     "Cooldowns",
+    "Defeatable",
     "Descriptionf",
     "disgo",
     "disgoorg",
@@ -16,8 +17,12 @@
   ],
   "cSpell.language": "pl,en",
   "Lua.diagnostics.globals": [
-    "Effects",
-    "ReservedUIDs",
-    "utils"
+    "utils",
+    "StatsConst",
+    "GetUUID",
+    "GetStat"
+  ],
+  "Lua.diagnostics.disable": [
+    "undefined-global"
   ]
 }

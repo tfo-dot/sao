@@ -13,6 +13,10 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		3: []types.PlayerSkillUpgradable{DMG_LVL_3{}},
 		4: []types.PlayerSkillUpgradable{DMG_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{DMG_LVL_5{}},
+		6: []types.PlayerSkillUpgradable{DMG_LVL_6{}},
+		// 10: []types.PlayerSkillUpgradable{
+		// 	DMG_ULT_1{},
+		// },
 	},
 	types.PathEndurance: {
 		1: []types.PlayerSkillUpgradable{END_LVL_1{}},
@@ -20,6 +24,7 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		3: []types.PlayerSkillUpgradable{END_LVL_3{}},
 		4: []types.PlayerSkillUpgradable{END_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{END_LVL_5{}},
+		6: []types.PlayerSkillUpgradable{END_LVL_6{}},
 	},
 	types.PathControl: {
 		1: []types.PlayerSkillUpgradable{CON_LVL_1{}},
@@ -27,6 +32,11 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		3: []types.PlayerSkillUpgradable{CON_LVL_3{}},
 		4: []types.PlayerSkillUpgradable{CON_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{CON_LVL_5{}},
+		6: []types.PlayerSkillUpgradable{CON_LVL_6{}},
+		// 10: []types.PlayerSkillUpgradable{
+		// 	CON_ULT_1{},
+		// 	CON_ULT_2{},
+		// },
 	},
 	types.PathSpecial: {
 		1: []types.PlayerSkillUpgradable{SPC_LVL_1{}},
@@ -34,6 +44,11 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		3: []types.PlayerSkillUpgradable{SPC_LVL_3{}},
 		4: []types.PlayerSkillUpgradable{SPC_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{SPC_LVL_5{}},
+		6: []types.PlayerSkillUpgradable{SPC_LVL_6{}},
+		// 10: []types.PlayerSkillUpgradable{
+		// 	SPC_ULT_1{},
+		// 	SPC_ULT_2{},
+		// },
 	},
 }
 
@@ -43,6 +58,7 @@ var BaseCooldowns = map[int]int{
 	3: 4,
 	4: 4,
 	5: 4,
+	6: 4,
 }
 
 func HasUpgrade(upgrades, check int) bool {
@@ -51,7 +67,7 @@ func HasUpgrade(upgrades, check int) bool {
 
 type NoEvents struct{}
 
-func (n NoEvents) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
+func (n NoEvents) GetEvents() map[types.CustomTrigger]func(owner types.PlayerEntity) {
 	return nil
 }
 
@@ -93,7 +109,7 @@ func (n NoTrigger) GetUpgradableTrigger(upgrades int) types.Trigger {
 
 type NoExecute struct{}
 
-func (n NoExecute) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (n NoExecute) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	return nil
 }
 

@@ -1,12 +1,11 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000013"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000013"
---EffectID
-ReservedUIDs[2] = "00000000-0000-0001-0001-000000000013"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000013",
+  "00000000-0000-0001-0000-000000000013",
+  "00000000-0000-0001-0001-000000000013",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Ostrze kontrolera"
 Description = "Atakowanie zmniejsza prędkość wrogów."
 TakesSlot = true
@@ -23,42 +22,36 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Ostrze kontrolera" end,
-  GetDescription = function() return "Atakowanie zmniejsza prędkość wrogów." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_HIT",
-      Cooldown = {
-        PassEvent = "ATTACK_HIT"
-      }
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_HIT",
+    Cooldown = {
+      PassEvent = "ATTACK_HIT"
     }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    fightInstance:HandleAction({
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = owner:GetUUID(),
+      Source = GetUUID(owner),
+      Target = GetUUID(target),
       Meta = {
         Effect = "EFFECT_STAT_DEC",
         Value = 0,
         Duration = 1,
-        Uuid = ReservedUIDs[2],
+        Uuid = ReservedUIDs[3],
         Meta = {
-          Stat = "STAT_SPD",
-          Value = -10,
+          Stat = StatsConst.STAT_SPD,
+          Value = 10,
           IsPercent = false,
         },
-        Caster = owner:GetUUID(),
+        Caster = GetUUID(owner),
         Source = "SOURCE_ITEM",
       },
     })
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 3 end,
-  GetCost = function() return 0 end
-}
+  CD = 3,
+} }

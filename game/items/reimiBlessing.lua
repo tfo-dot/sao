@@ -1,12 +1,11 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000000"
---SkillID
-ReservedUIDs[1] = "00000000-0000-0001-0000-000000000001"
---EffectID
-ReservedUIDs[2] = "00000000-0000-0001-0001-000000000001"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000000",
+  "00000000-0000-0001-0000-000000000001",
+  "00000000-0000-0001-0001-000000000001",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Błogosławieństwo Reimi"
 Description = "Przeleczenie daje tarczę."
 TakesSlot = true
@@ -24,30 +23,30 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Błogosławieństwo Reimi" end,
-  GetDescription = function() return "Przeleczenie daje tarczę." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "HEAL_SELF",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "HEAL_SELF",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local oldEffect = owner:GetEffectByUUID(ReservedUIDs[2])
-    local maxShield = utils.percentOf(owner:GetStat("HP"), 25) + utils.percentOf(owner:GetStat("ATK"), 25)
+    ---@diagnostic disable-next-line: undefined-global
+    local oldEffect = GetEffectByUUID(owner, ReservedUIDs[3])
+    ---@diagnostic disable-next-line: undefined-global
+    local maxShield = utils.percentOf(GetStat(owner, StatsConst.STAT_HP), 25) +
+        ---@diagnostic disable-next-line: undefined-global
+        utils.percentOf(GetStat(owner, StatsConst.STAT_AD), 25)
 
     if oldEffect ~= nil then
-      owner.RemoveEffect(oldEffect)
+      owner.RemoveEffect(ReservedUIDs[3])
     else
       oldEffect = {
         Effect = "EFFECT_SHIELD",
         Value = 0,
         Duration = -1,
-        Uuid = ReservedUIDs[2],
+        Uuid = ReservedUIDs[3],
         Meta = nil,
-        Caster = owner.GetUUID(),
+        Caster = GetUUID(owner),
         Source = "SOURCE_ITEM",
       }
     end
@@ -70,12 +69,12 @@ Effects[0] = {
     return {
       TRIGGER_UNLOCK = function(owner, target, fightInstance, meta)
         owner:ApplyEffect({
-          Effect = "Shield",
+          Effect = "EFFECT_SHIELD",
           Value = 0,
           Duration = -1,
-          Uuid = ReservedUIDs[2],
+          Uuid = ReservedUIDs[3],
           Meta = nil,
-          Caster = owner:GetUUID(),
+          Caster = GetUUID(owner),
           Source = "SOURCE_ITEM"
         })
       end,
@@ -83,4 +82,4 @@ Effects[0] = {
   end,
   GetCD = function() return 0 end,
   GetCost = function() return 0 end
-}
+} }

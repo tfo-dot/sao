@@ -19,6 +19,7 @@ type PlayerInventory struct {
 	LevelSkills         map[int]types.PlayerSkillUpgradable
 	LevelChoices        map[int]int
 	LevelSkillsUpgrades map[int]int
+	LevelSkillMeta      map[int]interface{}
 	FurySkillsCD        map[uuid.UUID]int
 }
 
@@ -256,7 +257,7 @@ func (inv PlayerInventory) GetStat(stat types.Stat) int {
 	return value
 }
 
-func (inv *PlayerInventory) UseItem(itemUuid uuid.UUID, owner interface{}, target interface{}, fightInstance *interface{}) {
+func (inv *PlayerInventory) UseItem(itemUuid uuid.UUID, owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance) {
 	for i, item := range inv.Items {
 		if item.UUID == itemUuid {
 			if item.Consume && item.Count <= 0 {
@@ -316,6 +317,7 @@ func GetDefaultInventory() PlayerInventory {
 		LevelSkillsCDS:      make(map[int]int),
 		LevelSkillsUpgrades: make(map[int]int),
 		LevelChoices:        make(map[int]int),
+		LevelSkillMeta:      make(map[int]interface{}),
 		FurySkillsCD:        make(map[uuid.UUID]int),
 	}
 }

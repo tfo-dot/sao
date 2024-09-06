@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000010"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000010"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000010",
+  "00000000-0000-0001-0000-000000000010",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Przeklęty lód"
 Description = "Efekty spowolnienia są mocniejsze"
 TakesSlot = true
@@ -21,19 +21,15 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Przeklęty lód" end,
-  GetDescription = function() return "Efekty spowolnienia są mocniejsze" end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "APPLY_CROWD_CONTROL",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "APPLY_CROWD_CONTROL",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
     if meta.Effect == "EFFECT_STAT_DEC" then
-      if meta.Meta.Stat == "STAT_SPD" then
+      if meta.Meta.Stat == StatsConst.STAT_SPD then
         return {
           Effects = {
             {
@@ -47,7 +43,4 @@ Effects[0] = {
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

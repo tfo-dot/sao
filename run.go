@@ -14,6 +14,7 @@ func main() {
 	world.LoadBackup()
 
 	go world.StartClock()
+	go world.MessageHandler()
 
 	discord.World = &world
 

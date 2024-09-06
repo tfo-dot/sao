@@ -1,8 +1,10 @@
 package data
 
 import (
+	"fmt"
 	"os"
 	"sao/config"
+	saoLua "sao/lua"
 	"sao/types"
 	"sao/utils"
 
@@ -32,14 +34,6 @@ func GetItems() map[uuid.UUID]types.PlayerItem {
 
 		state.NewTable()
 
-		state.SetGlobal("Effects")
-
-		state.NewTable()
-
-		state.SetGlobal("ReservedUIDs")
-
-		state.NewTable()
-
 		state.PushGoFunction(func(state *lua.State) int {
 			value := lua.CheckInteger(state, 1)
 			percent := lua.CheckInteger(state, 2)
@@ -49,9 +43,24 @@ func GetItems() map[uuid.UUID]types.PlayerItem {
 			return 1
 		})
 
-		state.SetField(-2, "percentOf")
+		state.SetField(-2, "PercentOf")
+
+		state.PushGoFunction(func(state *lua.State) int {
+			state.PushString(uuid.New().String())
+
+			return 1
+		})
+
+		state.SetField(-2, "GenerateUUID")
 
 		state.SetGlobal("utils")
+
+		saoLua.AddStatTypes(state)
+		saoLua.AddPlayerFunctions(state)
+		saoLua.AddEntityFunctions(state)
+		saoLua.AddFightFunctions(state)
+
+		println("Loading item: " + file.Name())
 
 		err := lua.DoFile(state, config.Config.GameDataLocation+"/items/"+file.Name())
 
@@ -60,48 +69,52 @@ func GetItems() map[uuid.UUID]types.PlayerItem {
 		}
 
 		item := types.PlayerItem{
-			UUID:        uuid.MustParse(GetLuaString(state, "UUID")),
-			Name:        GetLuaString(state, "Name"),
-			Description: GetLuaString(state, "Description"),
-			TakesSlot:   GetLuaBool(state, "TakesSlot"),
-			Stacks:      GetLuaBool(state, "Stacks"),
-			Consume:     GetLuaBool(state, "Consume"),
-			Count:       int(GetLuaFloat(state, "Count")),
-			MaxCount:    int(GetLuaFloat(state, "MaxCount")),
-			Hidden:      GetLuaBool(state, "Hidden"),
+			UUID:        uuid.MustParse(utils.GetLuaString(state, "UUID")),
+			Name:        utils.GetLuaString(state, "Name"),
+			Description: utils.GetLuaString(state, "Description"),
+			TakesSlot:   utils.GetLuaBool(state, "TakesSlot"),
+			Stacks:      utils.GetLuaBool(state, "Stacks"),
+			Consume:     utils.GetLuaBool(state, "Consume"),
+			Count:       utils.GetLuaInt(state, "Count"),
+			MaxCount:    utils.GetLuaInt(state, "MaxCount"),
+			Hidden:      utils.GetLuaBool(state, "Hidden"),
 			Stats:       map[types.Stat]int{},
 			Effects:     []types.PlayerSkill{},
 		}
 
 		state.Global("Stats")
 
-		state.PushNil()
+		tempStats, err := utils.GetTableAsMap(state)
 
-		for state.Next(-2) {
-			key, _ := state.ToString(-2)
-			value, _ := state.ToNumber(-1)
-
-			item.Stats[utils.StringToStat[key]] = int(value)
-
-			state.Pop(1)
+		if err != nil {
+			panic(err)
 		}
 
-		state.Pop(1)
+		for key, value := range tempStats {
+			item.Stats[utils.StringToStat[key]] = int(value.(float64))
+		}
 
-		//TODO Implement effects when items are actually used
-		// state.Global("Effects")
+		state.Global("Effects")
 
-		// state.RawGetInt(-1, 0)
+		if state.IsNil(-1) {
+			state.Pop(1)
+			items[item.UUID] = item
+			continue
+		}
 
-		// state.PushNil()
+		tempEffects, err := utils.GetTableAsArray(state)
 
-		// for state.Next(-2) {
-		// 	key, _ := state.ToString(-2)
+		if err != nil {
+			panic(err)
+		}
 
-		// 	println(key)
-
-		// 	state.Pop(1)
-		// }
+		for idx, effect := range tempEffects {
+			item.Effects = append(item.Effects, ItemEffect{
+				State:      state,
+				Idx:        idx,
+				EffectData: effect.(map[string]interface{}),
+			})
+		}
 
 		items[item.UUID] = item
 	}
@@ -109,37 +122,146 @@ func GetItems() map[uuid.UUID]types.PlayerItem {
 	return items
 }
 
-func GetLuaString(state *lua.State, str string) string {
-	state.Global(str)
-
-	value, ok := state.ToString(-1)
-
-	if !ok {
-		panic("Cannot convert to string")
-	}
-
-	state.Pop(1)
-	return value
+type ItemEffect struct {
+	State      *lua.State
+	Idx        int
+	EffectData map[string]interface{}
 }
 
-func GetLuaBool(state *lua.State, str string) bool {
-	state.Global(str)
+func (ie ItemEffect) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	if execute, exists := ie.EffectData["Execute"]; exists {
+		if val, ok := execute.(utils.LuaFunctionRef); ok {
+			ie.State.Global(val.FunctionName)
 
-	value := state.ToBoolean(-1)
+			ie.State.PushUserData(owner)
+			ie.State.PushUserData(target)
+			ie.State.PushUserData(fightInstance)
 
-	state.Pop(1)
-	return value
-}
+			//TODO push as table
+			ie.State.PushUserData(meta)
 
-func GetLuaFloat(state *lua.State, str string) float64 {
-	state.Global(str)
+			ie.State.Call(4, 1)
 
-	value, ok := state.ToNumber(-1)
+			if !ie.State.IsNil(-1) {
+				rValue, err := utils.GetTableAsMap(ie.State)
 
-	if !ok {
-		panic("Cannot convert to float")
+				if err != nil {
+					panic(err)
+				}
+
+				trigger := ie.GetTrigger()
+
+				return saoLua.ParseReturnMeta(rValue, trigger)
+			}
+
+			return nil
+		}
+
+		panic(fmt.Sprintf("Execute (#%d) is not a function", ie.Idx))
 	}
 
-	state.Pop(1)
-	return value
+	return nil
+}
+
+func (ie ItemEffect) GetEvents() map[types.CustomTrigger]func(owner types.PlayerEntity) {
+	eventData, exists := ie.EffectData["Events"]
+
+	if !exists {
+		return nil
+	}
+
+	events := map[types.CustomTrigger]func(owner types.PlayerEntity){}
+
+	for key, value := range eventData.(map[string]interface{}) {
+		if key == "TRIGGER_UNLOCK" {
+			if val, ok := value.(utils.LuaFunctionRef); ok {
+				events[types.CUSTOM_TRIGGER_UNLOCK] = func(owner types.PlayerEntity) {
+					ie.State.Global(val.FunctionName)
+
+					ie.State.PushUserData(owner)
+
+					ie.State.Call(1, 0)
+				}
+			}
+		}
+	}
+
+	return events
+}
+
+func (ie ItemEffect) GetUUID() uuid.UUID {
+	return uuid.New()
+}
+
+func (ie ItemEffect) GetName() string {
+	return ""
+}
+
+func (ie ItemEffect) GetDescription() string {
+	return ""
+}
+
+func (ie ItemEffect) GetCD() int {
+	if cd, exists := ie.EffectData["CD"]; exists {
+		return int(cd.(float64))
+	}
+
+	return 0
+}
+
+func (ie ItemEffect) GetCost() int {
+	return 0
+}
+
+func (ie ItemEffect) GetTrigger() types.Trigger {
+	if trigger, exists := ie.EffectData["Trigger"]; exists {
+		return saoLua.ReadMapAsTrigger(trigger.(map[string]interface{}))
+	} else {
+		panic(fmt.Sprintf("Trigger (#%d) is not defined", ie.Idx))
+	}
+}
+
+func (ie ItemEffect) IsLevelSkill() bool {
+	return false
+}
+
+type SimplePlayerSkill struct {
+	Trigger types.Trigger
+	Exec    func(owner, target, fightInstance, meta interface{}) interface{}
+}
+
+func (s SimplePlayerSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+	return s.Exec(owner, target, fightInstance, meta)
+}
+
+func (s SimplePlayerSkill) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
+	return nil
+}
+
+func (s SimplePlayerSkill) GetUUID() uuid.UUID {
+	return uuid.New()
+}
+
+func (s SimplePlayerSkill) GetName() string {
+	return ""
+}
+
+func (s SimplePlayerSkill) GetDescription() string {
+	return ""
+}
+
+func (s SimplePlayerSkill) GetCD() int {
+	return 0
+}
+
+func (s SimplePlayerSkill) GetCost() int {
+	return 0
+}
+
+func (s SimplePlayerSkill) GetTrigger() types.Trigger {
+	return s.Trigger
+}
+
+func (s SimplePlayerSkill) IsLevelSkill() bool {
+	return false
 }

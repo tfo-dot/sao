@@ -14,6 +14,8 @@ type AppConfig struct {
 	GuildID          string
 	RoleID           string
 	GameDataLocation string
+	Emote            string
+	LogChannelID     string
 }
 
 func ReadConfig() AppConfig {

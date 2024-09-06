@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000000F"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000000F"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000000F",
+  "00000000-0000-0001-0000-00000000000F",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Bransoleta kontrolera"
 Description = "Nałożenie efektu CC leczy ciebie i sojusznika."
 TakesSlot = true
@@ -22,37 +22,67 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Bransoleta kontrolera" end,
-  GetDescription = function() return "Nałożenie efektu CC leczy ciebie i sojusznika." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "APPLY_CROWD_CONTROL",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "APPLY_CROWD_CONTROL",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local healValue = utils.PercentOf(owner:GetStat("STAT_AD"), 15) + utils.PercentOf(owner:GetStat("STAT_AP"), 15)
-    --@TODO Choose heal target (now it should heal ccd target)
+    local healValue = utils.PercentOf(GetStat(owner, StatsConst.STAT_AD), 15) +
+        utils.PercentOf(GetStat(owner, StatsConst.STAT_AP), 15)
 
-    fightInstance:HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    local allies = GetAlliesFor(fightInstance, owner)
+
+    local healTarget = allies[math.random(#allies)]
+
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = target:GetUUID(),
-      Meta = { Value = healValue },
+      ---@diagnostic disable-next-line: undefined-global
+      Source = GetUUID(owner),
+      ---@diagnostic disable-next-line: undefined-global
+      Target = GetUUID(owner),
+      Meta = {
+        Effect = "EFFECT_HEAL",
+        Value = 0,
+        Duration = 0,
+        ---@diagnostic disable-next-line: undefined-global
+        Target = GetUUID(owner),
+        ---@diagnostic disable-next-line: undefined-global
+        Caster = GetUUID(owner),
+        Source = "SOURCE_ITEM",
+        Meta = {
+          ---@diagnostic disable-next-line: undefined-global
+          Value = healValue
+        }
+      },
     })
 
-    fightInstance:HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = owner:GetUUID(),
-      Meta = { Value = healValue },
+      ---@diagnostic disable-next-line: undefined-global
+      Source = GetUUID(owner),
+      ---@diagnostic disable-next-line: undefined-global
+      Target = GetUUID(healTarget),
+      Meta = {
+        Effect = "EFFECT_HEAL",
+        Value = 0,
+        Duration = 0,
+        ---@diagnostic disable-next-line: undefined-global
+        Target = GetUUID(healTarget),
+        ---@diagnostic disable-next-line: undefined-global
+        Caster = GetUUID(owner),
+        Source = "SOURCE_ITEM",
+        Meta = {
+          ---@diagnostic disable-next-line: undefined-global
+          Value = healValue
+        }
+      },
     })
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

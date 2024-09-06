@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000002"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000002"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000002",
+  "00000000-0000-0001-0000-000000000002",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Zabójca gigantów"
 Description = "Zadaje dodatkowe obrażenia w zależności od pancerza przeciwnika."
 TakesSlot = true
@@ -21,26 +21,20 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Pogromca gigantów" end,
-  GetDescription = function() return "Zadaje dodatkowe obrażenia w zależności od pancerza przeciwnika." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_BEFORE",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_BEFORE",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local damageValue = utils.PercentOf(target.GetStat("HP"), 2)
+    ---@diagnostic disable-next-line: undefined-global
+    local damageValue = utils.PercentOf(GetStat(target, StatsConst.STAT_HP), 2)
 
     return {
       Effects = {
-        { Value = damageValue, Type = "DMG_PHYSICAL" }
+        { Value = damageValue, Type = 0, Percent = false }
       },
     }
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

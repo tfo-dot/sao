@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000000E"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000000E"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000000E",
+  "00000000-0000-0001-0000-00000000000E",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Płaszcz wzmacniający"
 Description = "Zwiększa maksymalne zdrowie o 20%."
 TakesSlot = true
@@ -21,28 +21,26 @@ Stats = {
   RES = 10,
 }
 
--- Effects
-Effects[0] = {
-  GetName = function() return "Płaszcz wzmacniający" end,
-  GetDescription = function() return "Zwiększa maksymalne zdrowie o 20%." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "NONE",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
-  Execute = function(owner, target, fightInstance, meta) return nil end,
-  GetEvents = function() return {
-    TRIGGER_UNLOCK = function(owner)
-      owner:AppendDerivedStat({
-        Base = "STAT_HP",
-        Derived = "STAT_HP",
-        Percent = 20,
-        Source = ReservedUIDs[1],
-      })
-    end
-  } end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
+Consts = {
+  STATS_HP = 1
 }
+
+-- Effects
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "NONE",
+  },
+  UUID = ReservedUIDs[2],
+  Events = {
+    TRIGGER_UNLOCK = function(owner)
+      ---@diagnostic disable-next-line: undefined-global
+      AppendDerivedStat(owner, {
+        Base = Consts.STATS_HP,
+        Derived = Consts.STATS_HP,
+        Percent = 20,
+        Source = ReservedUIDs[2],
+      })
+    end,
+  },
+} }

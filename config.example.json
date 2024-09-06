@@ -4,5 +4,7 @@
   "BackupLocation": "<Location for backups>",
   "GameDataLocation": "<Location of game metadata, mobs, floors, npc etc>",
   "GuildID": "<Guild ID>",
-  "RoleID": "<ID of role to grant after player creation>"
+  "RoleID": "<ID of role to grant after player creation>",
+  "Emote": "<Emote string to react when admin command is used>",
+  "LogChannelID": "<ID of channel to log to>"
 }

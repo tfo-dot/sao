@@ -25,6 +25,8 @@ func GetRecipes() map[uuid.UUID]types.Recipe {
 			continue
 		}
 
+		println("Loading recipe: " + file.Name())
+
 		rawData, err := os.ReadFile(config.Config.GameDataLocation + "/recipes/" + file.Name())
 
 		if err != nil {

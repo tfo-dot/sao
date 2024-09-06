@@ -1,12 +1,11 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000011"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000011"
---EffectID
-ReservedUIDs[2] = "00000000-0000-0001-0001-000000000011"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000011",
+  "00000000-0000-0001-0000-000000000011",
+  "00000000-0000-0001-0001-000000000011",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Runa kontrolera"
 Description = "Zabicie wroga objętego CC przywraca manę."
 TakesSlot = true
@@ -23,36 +22,29 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Runa kontrolera" end,
-  GetDescription = function() return "Zabicie wroga objętego CC przywraca manę." end,
-  GetTrigger = function()
-    return {
+Effects = { {
+  Trigger = {
       Type = "PASSIVE",
       Event = "EXECUTE",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+    },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    fightInstance:HandleAction({
+---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance,{
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = owner:GetUUID(),
+      Source = GetUUID(owner),
+      Target = GetUUID(owner),
       Meta = {
         Effect = "EFFECT_MANA_RESTORE",
         Value = 1,
         Duration = 0,
-        Uuid = ReservedUIDs[2],
+        Uuid = ReservedUIDs[3],
         Meta = nil,
-        Caster = owner:GetUUID(),
+        Caster = GetUUID(owner),
         Source = "SOURCE_ITEM",
       },
     })
 
-
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

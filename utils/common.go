@@ -42,6 +42,10 @@ func CalcReducedDamage(atk, reductionValue int) int {
 }
 
 func PercentOf(value, percent int) int {
+	if value == 0 || percent == 0 {
+		return 0
+	}
+
 	return int(math.Round(float64(value) * float64(percent) / 100.0))
 }
 

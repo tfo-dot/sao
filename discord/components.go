@@ -2,11 +2,9 @@ package discord
 
 import (
 	"fmt"
-	"sao/battle"
 	"sao/data"
 	"sao/player"
 	"sao/types"
-	"sao/world/npc"
 	"sao/world/party"
 	"sao/world/transaction"
 	"strconv"
@@ -42,13 +40,6 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 		return
 	}
 
-	event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Zakupiono").Build())
-
-	if stockItem.Quantity < amount {
-		event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Za mało towaru").Build())
-		return
-	}
-
 	player := World.GetPlayer(event.User().ID.String())
 
 	if player == nil {
@@ -62,7 +53,6 @@ func ModalSubmitHandler(event *events.ModalSubmitInteractionCreate) {
 	}
 
 	player.Inventory.Gold -= stockItem.Price * amount
-	stockItem.Quantity -= amount
 
 	for i := 0; i < amount; i++ {
 		if stockItem.ItemType == types.ITEM_MATERIAL {
@@ -368,7 +358,15 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						Role:       party.None,
 					})
 
-					pl.Meta.Party = &partyUuid
+					for _, player := range World.Parties[partyUuid].Players {
+						World.Players[player.PlayerUuid].Meta.Party.MembersCount = len(World.Parties[partyUuid].Players)
+					}
+
+					pl.Meta.Party = &player.PartialParty{
+						UUID:         partyUuid,
+						Role:         party.None,
+						MembersCount: len(World.Parties[partyUuid].Players),
+					}
 
 					event.CreateMessage(
 						discord.
@@ -451,8 +449,8 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			}
 
 			if len(playerEnemies) == 1 {
-				fight.PlayerActions <- battle.Action{
-					Event:  battle.ACTION_ATTACK,
+				fight.PlayerActions <- types.Action{
+					Event:  types.ACTION_ATTACK,
 					Source: player.GetUUID(),
 					Target: playerEnemies[0].GetUUID(),
 				}
@@ -488,8 +486,8 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						parsedUuids[idx] = uuid.MustParse(rawUuid)
 					}
 
-					fight.PlayerActions <- battle.Action{
-						Event:  battle.ACTION_ATTACK,
+					fight.PlayerActions <- types.Action{
+						Event:  types.ACTION_ATTACK,
 						Source: player.GetUUID(),
 						Target: parsedUuids[0],
 					}
@@ -514,8 +512,8 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		case "defend":
 			event.UpdateMessage(messageUpdateClearComponents)
 
-			fight.PlayerActions <- battle.Action{
-				Event:  battle.ACTION_DEFEND,
+			fight.PlayerActions <- types.Action{
+				Event:  types.ACTION_DEFEND,
 				Source: player.GetUUID(),
 				Target: player.GetUUID(),
 			}
@@ -534,7 +532,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			for _, skill := range player.Inventory.LevelSkills {
 				if player.CanUseSkill(skill) {
-					if !skill.CanUse(&player, &fight, player.Inventory.LevelSkillsUpgrades[skill.GetLevel()]) {
+					if !skill.CanUse(player, fight) {
 						continue
 					}
 					options = append(options, discord.NewStringSelectMenuOption(skill.GetName(), fmt.Sprintf("l|%d", skill.GetLevel())))
@@ -587,12 +585,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
 							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-							fight.PlayerActions <- battle.Action{
-								Event:       battle.ACTION_SKILL,
+							fight.PlayerActions <- types.Action{
+								Event:       types.ACTION_SKILL,
 								Source:      player.GetUUID(),
 								Target:      player.GetUUID(),
 								ConsumeTurn: &skipTurn,
-								Meta: battle.ActionSkillMeta{
+								Meta: types.ActionSkillMeta{
 									IsForLevel: true,
 									Lvl:        skillObj.GetLevel(),
 								},
@@ -638,12 +636,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-									fight.PlayerActions <- battle.Action{
-										Event:       battle.ACTION_SKILL,
+									fight.PlayerActions <- types.Action{
+										Event:       types.ACTION_SKILL,
 										Source:      player.GetUUID(),
 										Target:      player.GetUUID(),
 										ConsumeTurn: &skipTurn,
-										Meta: battle.ActionSkillMeta{
+										Meta: types.ActionSkillMeta{
 											IsForLevel: true,
 											Lvl:        skillObj.GetLevel(),
 											Targets:    parsedUuids,
@@ -707,12 +705,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-									fight.PlayerActions <- battle.Action{
-										Event:       battle.ACTION_SKILL,
+									fight.PlayerActions <- types.Action{
+										Event:       types.ACTION_SKILL,
 										Source:      player.GetUUID(),
 										Target:      player.GetUUID(),
 										ConsumeTurn: &skipTurn,
-										Meta: battle.ActionSkillMeta{
+										Meta: types.ActionSkillMeta{
 											IsForLevel: true,
 											Lvl:        skillObj.GetLevel(),
 											Targets:    parsedUuids,
@@ -742,7 +740,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 							return
 						}
 
-						skillTargets := make([]battle.Entity, 0)
+						skillTargets := make([]types.Entity, 0)
 
 						if skillTrigger.Target.Target&types.TARGET_SELF != 0 {
 							skillTargets = append(skillTargets, player)
@@ -778,12 +776,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-								fight.PlayerActions <- battle.Action{
-									Event:       battle.ACTION_SKILL,
+								fight.PlayerActions <- types.Action{
+									Event:       types.ACTION_SKILL,
 									Source:      player.GetUUID(),
 									Target:      player.GetUUID(),
 									ConsumeTurn: &skipTurn,
-									Meta: battle.ActionSkillMeta{
+									Meta: types.ActionSkillMeta{
 										IsForLevel: true,
 										Lvl:        skillObj.GetLevel(),
 										Targets:    parsedUuids,
@@ -838,12 +836,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 						if skillTrigger.Target == nil || skillTrigger.Target.Target == types.TARGET_SELF {
 							skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-							fight.PlayerActions <- battle.Action{
-								Event:       battle.ACTION_SKILL,
+							fight.PlayerActions <- types.Action{
+								Event:       types.ACTION_SKILL,
 								Source:      player.GetUUID(),
 								Target:      player.GetUUID(),
 								ConsumeTurn: &skipTurn,
-								Meta: battle.ActionSkillMeta{
+								Meta: types.ActionSkillMeta{
 									IsForLevel: false,
 									SkillUuid:  skillObj.GetUUID(),
 								},
@@ -889,12 +887,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-									fight.PlayerActions <- battle.Action{
-										Event:       battle.ACTION_SKILL,
+									fight.PlayerActions <- types.Action{
+										Event:       types.ACTION_SKILL,
 										Source:      player.GetUUID(),
 										Target:      player.GetUUID(),
 										ConsumeTurn: &skipTurn,
-										Meta: battle.ActionSkillMeta{
+										Meta: types.ActionSkillMeta{
 											IsForLevel: false,
 											SkillUuid:  skillObj.GetUUID(),
 											Targets:    parsedUuids,
@@ -959,12 +957,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 									skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-									fight.PlayerActions <- battle.Action{
-										Event:       battle.ACTION_SKILL,
+									fight.PlayerActions <- types.Action{
+										Event:       types.ACTION_SKILL,
 										Source:      player.GetUUID(),
 										Target:      player.GetUUID(),
 										ConsumeTurn: &skipTurn,
-										Meta: battle.ActionSkillMeta{
+										Meta: types.ActionSkillMeta{
 											IsForLevel: false,
 											SkillUuid:  skillObj.GetUUID(),
 											Targets:    parsedUuids,
@@ -994,7 +992,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 							return
 						}
 
-						skillTargets := make([]battle.Entity, 0)
+						skillTargets := make([]types.Entity, 0)
 
 						if skillTrigger.Target.Target&types.TARGET_SELF != 0 {
 							skillTargets = append(skillTargets, player)
@@ -1030,12 +1028,12 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 								skipTurn := skillTrigger.Flags&types.FLAG_INSTANT_SKILL == 0
 
-								fight.PlayerActions <- battle.Action{
-									Event:       battle.ACTION_SKILL,
+								fight.PlayerActions <- types.Action{
+									Event:       types.ACTION_SKILL,
 									Source:      player.GetUUID(),
 									Target:      player.GetUUID(),
 									ConsumeTurn: &skipTurn,
-									Meta: battle.ActionSkillMeta{
+									Meta: types.ActionSkillMeta{
 										IsForLevel: false,
 										SkillUuid:  skillObj.GetUUID(),
 										Targets:    parsedUuids,
@@ -1118,18 +1116,11 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 			for _, item := range player.Inventory.Items {
 				if item.UUID == itemUuid {
 					if item.Consume {
-						event.UpdateMessage(
-							discord.
-								NewMessageUpdateBuilder().
-								ClearContainerComponents().
-								Build(),
-						)
-
-						fight.PlayerActions <- battle.Action{
-							Event:  battle.ACTION_ITEM,
+						fight.PlayerActions <- types.Action{
+							Event:  types.ACTION_ITEM,
 							Source: player.GetUUID(),
 							Target: player.GetUUID(),
-							Meta: battle.ActionItemMeta{
+							Meta: types.ActionItemMeta{
 								Item:    item.UUID,
 								Targets: []uuid.UUID{},
 							},
@@ -1160,8 +1151,8 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 		case "escape":
 			event.UpdateMessage(messageUpdateClearComponents)
 
-			fight.PlayerActions <- battle.Action{
-				Event:  battle.ACTION_RUN,
+			fight.PlayerActions <- types.Action{
+				Event:  types.ACTION_RUN,
 				Source: player.GetUUID(),
 				Target: player.GetUUID(),
 			}
@@ -1194,7 +1185,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			embed.SetTitle("Sklep: " + store.Name)
 
-			var pageStock []*npc.Stock
+			var pageStock []*types.Stock
 
 			if pageEnd > len(store.Stock) {
 				pageStock = store.Stock[pageStart:]
@@ -1215,15 +1206,11 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 				productButton := discord.NewPrimaryButton(itemName, "shop/buy/"+segments[3]+"/"+fmt.Sprint(itemIdx))
 
-				if stock.Quantity <= 0 {
-					productButton = productButton.AsDisabled()
-				}
-
-				embed.AddField(itemName, fmt.Sprintf("Cena: %d\nIlość: %d/%d", stock.Price, stock.Quantity, stock.Limit), true)
+				embed.AddField(itemName, fmt.Sprintf("Cena: %d", stock.Price), true)
 				productButtons = append(productButtons, productButton)
 			}
 
-			embed.SetFooterTextf("Ostatnia dostawa %s, strona %d/%d", store.LastRestock.String(), 1, 1)
+			embed.SetFooterTextf("Ostatnia dostawa -, strona %d/%d", page, (len(store.Stock)/5)+1)
 
 			message.AddEmbeds(embed.Build())
 			message.AddActionRow(productButtons...)
@@ -1244,15 +1231,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			event.CreateMessage(message.Build())
 		case "buy":
-			store := World.Stores[uuid.MustParse(segments[2])]
 			itemIdx, _ := strconv.Atoi(segments[3])
-
-			stockItem := store.Stock[itemIdx]
-
-			if stockItem.Quantity <= 0 {
-				event.CreateMessage(discord.NewMessageCreateBuilder().SetContent("Brak towaru").Build())
-				return
-			}
 
 			modal := discord.NewModalCreateBuilder()
 

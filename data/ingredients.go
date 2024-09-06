@@ -26,6 +26,8 @@ func GetIngredients() map[uuid.UUID]types.Ingredient {
 			continue
 		}
 
+		println("Loading ingredient: " + file.Name())
+
 		rawData, err := os.ReadFile(config.Config.GameDataLocation + "/ingredients/" + file.Name())
 
 		if err != nil {

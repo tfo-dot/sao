@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000000C"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000000C"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000000C",
+  "00000000-0000-0001-0000-00000000000C",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Ostrze obrońcy"
 Description = "Zwiększa ataki o twój RES i DEF."
 TakesSlot = true
@@ -23,30 +23,26 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Ostrze obrońcy" end,
-  GetDescription = function() return "Zwiększa ataki o twój RES i DEF." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_BEFORE",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_BEFORE",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local defStat = owner:GetStat("STAT_DEF")
-    local mrStat = owner:GetStat("STAT_MR")
+    ---@diagnostic disable-next-line: undefined-global
+    local defStat = GetStat(owner, "STAT_DEF")
+    ---@diagnostic disable-next-line: undefined-global
+    local mrStat = GetStat(owner, "STAT_MR")
 
     return {
       Effects = {
         {
           Value = utils.PercentOf(defStat, 2) + utils.PercentOf(mrStat, 3),
-          Type = "DMG_PHYSICAL",
+          Type = 0,
+          Percent = false
         },
       }
     }
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

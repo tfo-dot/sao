@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000000B"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000000B"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000000B",
+  "00000000-0000-0001-0000-00000000000B",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Dziedzictwo Ryu"
 Description = "Zwiększa RES i DEF o 20%."
 TakesSlot = true
@@ -22,36 +22,29 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Dziedzictwo Ryu" end,
-  GetDescription = function() return "Zwiększa RES i DEF o 20%." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "NONE",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
-  Execute = function(owner, target, fightInstance, meta) return nil end,
-  GetEvents = function()
-    return {
-      TRIGGER_UNLOCK = function(owner)
-        owner:AppendDerivedStat({
-          Base = "STAT_DEF",
-          Derived = "STAT_DEF",
-          Percent = 20,
-          Source = ReservedUIDs[1],
-        })
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "NONE",
+  },
+  UUID = ReservedUIDs[2],
+  GetEvents = {
+    TRIGGER_UNLOCK = function(owner)
+      ---@diagnostic disable-next-line: undefined-global
+      AppendDerivedStat(owner, {
+        Base = StatsConst.STAT_DEF,
+        Derived = StatsConst.STAT_DEF,
+        Percent = 20,
+        Source = ReservedUIDs[2],
+      })
 
-        owner:AppendDerivedStat({
-          Base = "STAT_MR",
-          Derived = "STAT_MR",
-          Percent = 20,
-          Source = ReservedUIDs[1],
-        })
-      end
-    }
-  end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+      ---@diagnostic disable-next-line: undefined-global
+      AppendDerivedStat(owner, {
+        Base = StatsConst.STAT_MR,
+        Derived = StatsConst.STAT_MR,
+        Percent = 20,
+        Source = ReservedUIDs[2],
+      })
+    end
+  },
+} }

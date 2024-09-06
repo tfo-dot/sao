@@ -1,8 +1,7 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000009"
+ReservedUIDs = { "00000000-0000-0000-0000-000000000009" }
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Drugi oddech"
 Description = "Zwiększa otrzymywane leczenie."
 TakesSlot = true

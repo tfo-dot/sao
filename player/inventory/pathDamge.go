@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"fmt"
-	"sao/battle"
 	"sao/types"
 	"sao/utils"
 
@@ -11,7 +10,7 @@ import (
 
 type DamageSkill struct{}
 
-func (skill DamageSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+func (skill DamageSkill) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	return nil
 }
 
@@ -27,7 +26,7 @@ func (skill DamageSkill) IsLevelSkill() bool {
 	return true
 }
 
-func (skill DamageSkill) CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool {
+func (skill DamageSkill) CanUse(owner types.PlayerEntity, fightInstance types.FightInstance) bool {
 	return true
 }
 
@@ -100,7 +99,7 @@ func (skill DMG_LVL_1_Effect) IsLevelSkill() bool {
 	return false
 }
 
-func (skill DMG_LVL_1_Effect) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+func (skill DMG_LVL_1_Effect) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	return types.AttackTriggerMeta{
 		Effects: []types.DamagePartial{
 			{
@@ -112,21 +111,21 @@ func (skill DMG_LVL_1_Effect) Execute(owner, target, fightInstance, meta interfa
 	}
 }
 
-func (skill DMG_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (skill DMG_LVL_1) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	baseIncrease := 10
 	baseDuration := 1
 
-	if HasUpgrade(upgrades, 2) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2) {
 		baseIncrease = 20
-		baseIncrease += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 1)
-		baseIncrease += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 1)
+		baseIncrease += utils.PercentOf(owner.GetStat(types.STAT_AD), 1)
+		baseIncrease += utils.PercentOf(owner.GetStat(types.STAT_AP), 1)
 	}
 
-	if HasUpgrade(upgrades, 3) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) {
 		baseDuration++
 	}
 
-	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value:      DMG_LVL_1_Effect{Damage: baseIncrease},
 		AfterUsage: false,
 		Expire:     baseDuration,
@@ -194,10 +193,10 @@ func (skill DMG_LVL_2) GetDescription() string {
 	return "Zwiększa otrzymywany atak co poziom o 5"
 }
 
-func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner interface{}) {
-	return map[types.CustomTrigger]func(owner interface{}){
-		types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
-			owner.(battle.PlayerEntity).SetLevelStat(types.STAT_AD, owner.(battle.PlayerEntity).GetLevelStat(types.STAT_AD)+5)
+func (skill DMG_LVL_2) GetEvents() map[types.CustomTrigger]func(owner types.PlayerEntity) {
+	return map[types.CustomTrigger]func(owner types.PlayerEntity){
+		types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
+			owner.SetLevelStat(types.STAT_AD, owner.GetLevelStat(types.STAT_AD)+5)
 		},
 	}
 }
@@ -225,9 +224,9 @@ func (skill DMG_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id: "APPen",
-			Events: &map[types.CustomTrigger]func(owner interface{}){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
-					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner types.PlayerEntity){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
+					owner.AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_AP,
 						Derived: types.STAT_AP,
 						Percent: 1,
@@ -238,9 +237,9 @@ func (skill DMG_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id: "APStat",
-			Events: &map[types.CustomTrigger]func(owner interface{}){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
-					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner types.PlayerEntity){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
+					owner.AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_AD,
 						Derived: types.STAT_AP,
 						Percent: 10,
@@ -251,9 +250,9 @@ func (skill DMG_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 		},
 		{
 			Id: "ADPen",
-			Events: &map[types.CustomTrigger]func(owner interface{}){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner interface{}) {
-					owner.(battle.PlayerEntity).AppendDerivedStat(types.DerivedStat{
+			Events: &map[types.CustomTrigger]func(owner types.PlayerEntity){
+				types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
+					owner.AppendDerivedStat(types.DerivedStat{
 						Base:    types.STAT_AD,
 						Derived: types.STAT_LETHAL,
 						Percent: 1,
@@ -325,16 +324,16 @@ func (skill DMG_LVL_3_Effect_2) GetDescription() string {
 	return "Zadaje 25 obrażeń wszystkim wrogom (poza celem ataku)"
 }
 
-func (skill DMG_LVL_3_Effect_2) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+func (skill DMG_LVL_3_Effect_2) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 
-	dmgValue := 25 + utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 20)
+	dmgValue := 25 + utils.PercentOf(owner.GetStat(types.STAT_AP), 20)
 
-	for _, entity := range fightInstance.(*battle.Fight).GetAlliesFor(skill.OriginalEntity) {
-		fightInstance.(*battle.Fight).HandleAction(battle.Action{
-			Event:  battle.ACTION_DMG,
-			Source: owner.(battle.Entity).GetUUID(),
+	for _, entity := range fightInstance.GetAlliesFor(skill.OriginalEntity) {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_DMG,
+			Source: owner.GetUUID(),
 			Target: entity.GetUUID(),
-			Meta:   battle.ActionDamage{Damage: []battle.Damage{{Value: dmgValue, IsPercent: false, Type: 0}}},
+			Meta:   types.ActionDamage{Damage: []types.Damage{{Value: dmgValue, IsPercent: false, Type: 0}}},
 		})
 	}
 
@@ -348,9 +347,9 @@ func (skill DMG_LVL_3_Effect_2) GetTrigger() types.Trigger {
 	}
 }
 
-func (skill DMG_LVL_3_Effect) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
-		Value:      DMG_LVL_3_Effect_2{OriginalEntity: target.(battle.Entity).GetUUID()},
+func (skill DMG_LVL_3_Effect) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value:      DMG_LVL_3_Effect_2{OriginalEntity: target.GetUUID()},
 		AfterUsage: false,
 		Expire:     1,
 	})
@@ -381,21 +380,21 @@ func (skill DMG_LVL_3_Effect) GetTrigger() types.Trigger {
 	}
 }
 
-func (skill DMG_LVL_3) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (skill DMG_LVL_3) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	baseDamage := 25
-	ripple := HasUpgrade(upgrades, 2)
+	ripple := HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2)
 
-	if HasUpgrade(upgrades, 1) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 1) {
 		baseDamage = 30
-		baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 2)
-		baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 2)
+		baseDamage += utils.PercentOf(owner.GetStat(types.STAT_AD), 2)
+		baseDamage += utils.PercentOf(owner.GetStat(types.STAT_AP), 2)
 	}
 
-	if HasUpgrade(upgrades, 3) && len(fightInstance.(*battle.Fight).GetAlliesFor(target.(battle.Entity).GetUUID())) == 0 {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) && len(fightInstance.GetAlliesFor(target.GetUUID())) == 0 {
 		baseDamage += utils.PercentOf(baseDamage, 125)
 	}
 
-	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value:      DMG_LVL_3_Effect{Damage: baseDamage, Ripple: ripple},
 		AfterUsage: true,
 		Expire:     1,
@@ -516,10 +515,10 @@ func (skill DMG_LVL_4_Effect) GetTrigger() types.Trigger {
 	}
 }
 
-func (skill DMG_LVL_4_Effect) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	if target.(battle.Entity).GetCurrentHP() <= 0 {
-		for _, loot := range target.(battle.Entity).GetLoot() {
-			if loot.Type == battle.LOOT_ITEM {
+func (skill DMG_LVL_4_Effect) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	if target.GetCurrentHP() <= 0 {
+		for _, loot := range target.GetLoot() {
+			if loot.Type == types.LOOT_ITEM {
 				continue
 			}
 
@@ -527,10 +526,10 @@ func (skill DMG_LVL_4_Effect) Execute(owner, target, fightInstance, meta interfa
 
 			tempLoot.Count = utils.PercentOf(loot.Count, skill.IncreaseValue)
 
-			fightInstance.(*battle.Fight).AddAdditionalLoot(tempLoot, owner.(battle.Entity).GetUUID(), skill.PartyWide)
+			fightInstance.AddAdditionalLoot(tempLoot, owner.GetUUID(), skill.PartyWide)
 
 			if skill.ManaReturn {
-				owner.(battle.PlayerEntity).RestoreMana(1)
+				owner.RestoreMana(1)
 			}
 		}
 	}
@@ -538,17 +537,17 @@ func (skill DMG_LVL_4_Effect) Execute(owner, target, fightInstance, meta interfa
 	return nil
 }
 
-func (skill DMG_LVL_4) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (skill DMG_LVL_4) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	increaseValue := 10
 
-	if HasUpgrade(upgrades, 1) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 1) {
 		increaseValue = 20
 	}
 
-	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value: DMG_LVL_4_Effect{IncreaseValue: increaseValue,
-			PartyWide:  HasUpgrade(upgrades, 2),
-			ManaReturn: HasUpgrade(upgrades, 3),
+			PartyWide:  HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2),
+			ManaReturn: HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3),
 		},
 		AfterUsage: true,
 		Expire:     1,
@@ -634,20 +633,20 @@ func (skill DMG_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
 	}
 }
 
-func (skill DMG_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (skill DMG_LVL_5) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	baseDamage := 100
-	baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 40)
-	baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 30)
+	baseDamage += utils.PercentOf(owner.GetStat(types.STAT_AD), 40)
+	baseDamage += utils.PercentOf(owner.GetStat(types.STAT_AP), 30)
 
-	if HasUpgrade(upgrades, 1) {
-		baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 10)
-		baseDamage += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 10)
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 1) {
+		baseDamage += utils.PercentOf(owner.GetStat(types.STAT_AD), 10)
+		baseDamage += utils.PercentOf(owner.GetStat(types.STAT_AP), 10)
 	}
 
-	validTargets := fightInstance.(*battle.Fight).GetEnemiesFor(owner.(battle.Entity).GetUUID())
-	var targets []battle.Entity
+	validTargets := fightInstance.GetEnemiesFor(owner.GetUUID())
+	var targets []types.Entity
 
-	if HasUpgrade(upgrades, 2) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2) {
 		if len(validTargets) > 6 {
 			targets = validTargets[:6]
 		} else {
@@ -665,16 +664,16 @@ func (skill DMG_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 
 		maxHPThreshold := utils.PercentOf(entity.GetStat(types.STAT_HP), 70)
 
-		if HasUpgrade(upgrades, 3) && entity.GetCurrentHP() > maxHPThreshold {
+		if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) && entity.GetCurrentHP() > maxHPThreshold {
 			baseDamage = utils.PercentOf(baseDamage, 125)
 		}
 
-		fightInstance.(*battle.Fight).HandleAction(battle.Action{
-			Event:  battle.ACTION_DMG,
-			Source: owner.(battle.Entity).GetUUID(),
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_DMG,
+			Source: owner.GetUUID(),
 			Target: entity.GetUUID(),
-			Meta: battle.ActionDamage{
-				Damage: []battle.Damage{
+			Meta: types.ActionDamage{
+				Damage: []types.Damage{
 					{
 						Value:     baseDamage,
 						IsPercent: false,
@@ -706,4 +705,424 @@ func (skill DMG_LVL_5) GetUpgradableDescription(upgrades int) string {
 	}
 
 	return fmt.Sprintf("Zadaje %d wrogom 100 + %s.%s", targetCount, upgradeSegments[0], upgradeSegments[1])
+}
+
+type DMG_LVL_6 struct {
+	DamageSkill
+	DefaultCost
+	NoStats
+	NoEvents
+}
+
+func (skill DMG_LVL_6) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Target: &types.TargetTrigger{Target: types.TARGET_ENEMY, MaxTargets: 1}}
+}
+
+func (skill DMG_LVL_6) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return skill.GetTrigger()
+}
+
+type DMG_LVL_6_EFFECT struct {
+	NoCost
+	NoCooldown
+	NoEvents
+	NoLevel
+	Owner          uuid.UUID
+	DmgFactor      int
+	ExecuteUpgrade bool
+}
+
+func (effect DMG_LVL_6_EFFECT) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	if target.GetUUID() != effect.Owner {
+		return nil
+	}
+
+	og := fightInstance.GetEntity(effect.Owner)
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_DMG,
+		Target: effect.Owner,
+		Source: effect.Owner,
+		Meta: types.ActionDamage{
+			Damage: []types.Damage{
+				{
+					Value:     utils.PercentOf(target.GetCurrentHP(), effect.DmgFactor),
+					IsPercent: false,
+					Type:      0,
+				},
+			},
+		},
+	})
+
+	if effect.ExecuteUpgrade {
+		execThreshold := utils.PercentOf(og.GetStat(types.STAT_AD), 10)
+
+		if target.GetCurrentHP() < execThreshold {
+			fightInstance.HandleAction(types.Action{
+				Event:  types.ACTION_DMG,
+				Target: effect.Owner,
+				Source: effect.Owner,
+				Meta: types.ActionDamage{
+					Damage: []types.Damage{
+						{
+							Value:     target.GetCurrentHP() + 1,
+							IsPercent: false,
+							Type:      types.DMG_TRUE,
+						},
+					},
+				},
+			})
+		}
+	}
+
+	return nil
+}
+
+func (effect DMG_LVL_6_EFFECT) GetDescription() string {
+	return "Zadaje obrażenia równe 5% maksymalnego HP celu"
+}
+
+func (effect DMG_LVL_6_EFFECT) GetName() string {
+	return "Efekt obrażenia - poziom 6"
+}
+
+func (effect DMG_LVL_6_EFFECT) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_ATTACK_GOT_HIT,
+	}
+}
+
+func (skill DMG_LVL_6) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	dmgFactor := 5
+
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 1) {
+		dmgFactor += 5
+	}
+
+	target.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value: DMG_LVL_6_EFFECT{
+			Owner:          owner.GetUUID(),
+			DmgFactor:      dmgFactor,
+			ExecuteUpgrade: HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2),
+		},
+		AfterUsage: false,
+		Expire:     1,
+	})
+
+	return nil
+}
+
+func (skill DMG_LVL_6) GetName() string {
+	return "Poziom 6 - obrażenia"
+}
+
+func (skill DMG_LVL_6) GetDescription() string {
+	return "Oznacza wroga, uderzenie zada mu 5% aktualnego HP"
+}
+
+func (skill DMG_LVL_6) GetLevel() int {
+	return 6
+}
+
+func (skill DMG_LVL_6) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
+		{
+			Id:          "DmgIncrease",
+			Description: "Obrażenia zwiększone o 5%",
+		},
+		{
+			Id:          "Execute",
+			Description: "Gdy zdrowie celu po rozbiciu spadnie poniżej 10% ATK użytkownika dobije go.",
+		},
+	}
+}
+
+func (skill DMG_LVL_6) GetUpgradableDescription(upgrades int) string {
+	dmgFactor := 5
+
+	if HasUpgrade(upgrades, 1) {
+		dmgFactor = 10
+	}
+
+	executeUpgrade := ""
+
+	if HasUpgrade(upgrades, 2) {
+		executeUpgrade = " Gdy zdrowie celu po rozbiciu spadnie poniżej 10% ATK użytkownika dobije go."
+	}
+
+	return fmt.Sprintf("Oznacza wroga, uderzenie zada mu %d%%.%s", dmgFactor, executeUpgrade)
+}
+
+func (skill DMG_LVL_6) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill DMG_LVL_6) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+type DMG_ULT_1 struct {
+	DamageSkill
+	DefaultCost
+	NoStats
+	NoEvents
+	DefaultActiveTrigger
+}
+
+func (skill DMG_ULT_1) GetName() string {
+	return "Poziom 10 - obrażenia"
+}
+
+func (skill DMG_ULT_1) GetDescription() string {
+	return "Na 2 tury prowokuje wszystkich wrogów niwelując wszystkie otrzymane obrażenia.\nPo zakończeniu prowokacji leczy się całkowicie, zyskując jedną turę odporności na efekty kontroli tłumu, a wszyscy wrogowie zostają ogłuszeni.\nNastępnie przez 8 tur zyskuje 10% kradzieży życia oraz tarczę równą 50% przyjętych obrażeń. Jego AD i AP jest zwiększone o 120% i dodatkowo o 1% przyjętych obrażeń"
+}
+
+func (skill DMG_ULT_1) GetLevel() int {
+	return 10
+}
+
+func (skill DMG_ULT_1) GetCD() int {
+	return 10
+}
+
+func (skill DMG_ULT_1) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill DMG_ULT_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{}
+}
+
+func (skill DMG_ULT_1) GetUpgradableDescription(upgrades int) string {
+	return skill.GetDescription()
+}
+
+func (skill DMG_ULT_1) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return skill.Execute(owner, target, fightInstance, meta)
+}
+
+type DMG_ULT_1_Effect struct {
+	NoCost
+	NoCooldown
+	NoEvents
+	NoLevel
+	NoStats
+}
+
+func (skill DMG_ULT_1_Effect) GetName() string {
+	return "Obrażenia 10 - Efekt"
+}
+
+func (skill DMG_ULT_1_Effect) GetDescription() string {
+	return ""
+}
+
+func (skill DMG_ULT_1_Effect) GetTrigger() types.Trigger {
+	return types.Trigger{
+		Type:  types.TRIGGER_PASSIVE,
+		Event: types.TRIGGER_DAMAGE_GOT_HIT,
+	}
+}
+
+func (skill DMG_ULT_1_Effect) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return nil
+}
+
+func (skill DMG_ULT_1) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	handlerUuid := fightInstance.AppendEventHandler(
+		owner.GetUUID(),
+		types.TRIGGER_DAMAGE_GOT_HIT,
+		func(owner, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+			for _, event := range meta.(types.DamageTriggerMeta).Effects {
+				if event.Percent {
+					continue
+				}
+
+				dmgTaken := target.(types.PlayerEntity).GetLevelSkillMeta(skill.GetLevel())
+				target.(types.PlayerEntity).SetLevelSkillMeta(skill.GetLevel(), dmgTaken.(int)+event.Value)
+			}
+
+			return nil
+		},
+	)
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_RESIST,
+			Value:    0,
+			Duration: 2,
+			Uuid:     uuid.New(),
+			Meta: types.ActionEffectResist{
+				All:       true,
+				Value:     0,
+				IsPercent: false,
+				DmgType:   4,
+			},
+			Caster: owner.GetUUID(),
+			Target: owner.GetUUID(),
+			Source: types.SOURCE_ND,
+		},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_TAUNT,
+			Value:    0,
+			Duration: 2,
+			Uuid:     uuid.New(),
+			Meta:     nil,
+			Caster:   owner.GetUUID(),
+			Target:   owner.GetUUID(),
+			Source:   types.SOURCE_ND,
+			OnExpire: func(owner types.Entity, fight types.FightInstance, meta types.ActionEffect) {
+				owner.Heal(owner.GetStat(types.STAT_HP))
+				fight.RemoveEventHandler(handlerUuid)
+
+				dmgTaken := owner.(types.PlayerEntity).GetLevelSkillMeta(skill.GetLevel()).(int)
+
+				for _, entity := range fight.GetEnemiesFor(owner.GetUUID()) {
+					fight.HandleAction(types.Action{
+						Event:  types.ACTION_EFFECT,
+						Target: entity.GetUUID(),
+						Source: owner.GetUUID(),
+						Meta: types.ActionEffect{
+							Effect:   types.EFFECT_STUN,
+							Value:    0,
+							Duration: 1,
+							Uuid:     uuid.New(),
+							Meta:     nil,
+							Caster:   owner.GetUUID(),
+							Target:   entity.GetUUID(),
+							Source:   types.SOURCE_ND,
+						},
+					})
+				}
+
+				fight.HandleAction(types.Action{
+					Event:  types.ACTION_EFFECT,
+					Target: owner.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionEffect{
+						Effect:   types.EFFECT_STAT_INC,
+						Value:    0,
+						Duration: 8,
+						Uuid:     uuid.New(),
+						Meta: types.ActionEffectStat{
+							Stat:      types.STAT_ATK_VAMP,
+							Value:     10,
+							IsPercent: false,
+						},
+						Caster: owner.GetUUID(),
+						Target: owner.GetUUID(),
+						Source: types.SOURCE_ND,
+					},
+				})
+
+				fight.HandleAction(types.Action{
+					Event:  types.ACTION_EFFECT,
+					Target: owner.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionEffect{
+						Effect:   types.EFFECT_SHIELD,
+						Value:    utils.PercentOf(dmgTaken, 50),
+						Duration: 8,
+						Uuid:     uuid.New(),
+						Meta:     nil,
+						Caster:   owner.GetUUID(),
+						Target:   owner.GetUUID(),
+						Source:   types.SOURCE_ND,
+					},
+				})
+
+				fight.HandleAction(types.Action{
+					Event:  types.ACTION_EFFECT,
+					Target: owner.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionEffect{
+						Effect:   types.EFFECT_STAT_INC,
+						Value:    0,
+						Duration: 8,
+						Uuid:     uuid.New(),
+						Meta: types.ActionEffectStat{
+							Stat:      types.STAT_AD,
+							Value:     utils.PercentOf(dmgTaken, 1),
+							IsPercent: false,
+						},
+						Caster: owner.GetUUID(),
+						Target: owner.GetUUID(),
+						Source: types.SOURCE_ND,
+					},
+				})
+
+				fight.HandleAction(types.Action{
+					Event:  types.ACTION_EFFECT,
+					Target: owner.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionEffect{
+						Effect:   types.EFFECT_STAT_INC,
+						Value:    0,
+						Duration: 8,
+						Uuid:     uuid.New(),
+						Meta: types.ActionEffectStat{
+							Stat:      types.STAT_AP,
+							Value:     utils.PercentOf(dmgTaken, 1),
+							IsPercent: false,
+						},
+						Caster: owner.GetUUID(),
+						Target: owner.GetUUID(),
+						Source: types.SOURCE_ND,
+					},
+				})
+
+				fight.HandleAction(types.Action{
+					Event:  types.ACTION_EFFECT,
+					Target: owner.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionEffect{
+						Effect:   types.EFFECT_STAT_INC,
+						Value:    0,
+						Duration: 8,
+						Uuid:     uuid.New(),
+						Meta: types.ActionEffectStat{
+							Stat:      types.STAT_AD,
+							Value:     20,
+							IsPercent: true,
+						},
+						Caster: owner.GetUUID(),
+						Target: owner.GetUUID(),
+						Source: types.SOURCE_ND,
+					},
+				})
+
+				fight.HandleAction(types.Action{
+					Event:  types.ACTION_EFFECT,
+					Target: owner.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionEffect{
+						Effect:   types.EFFECT_STAT_INC,
+						Value:    0,
+						Duration: 8,
+						Uuid:     uuid.New(),
+						Meta: types.ActionEffectStat{
+							Stat:      types.STAT_AP,
+							Value:     20,
+							IsPercent: true,
+						},
+						Caster: owner.GetUUID(),
+						Target: owner.GetUUID(),
+						Source: types.SOURCE_ND,
+					},
+				})
+			},
+		},
+	})
+
+	return nil
 }

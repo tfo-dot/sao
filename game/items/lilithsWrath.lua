@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000000A"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000000A"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000000A",
+  "00000000-0000-0001-0000-00000000000A",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Gniew Lilith"
 Description = "Co ture zadaje obrażenia w zależności od zdrowia użytkownika."
 TakesSlot = true
@@ -21,32 +21,33 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Gniew Lilith" end,
-  GetDescription = function() return "Co ture zadaje obrażenia w zależności od zdrowia użytkownika." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "TURN",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "TURN",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    --@TODO For all enemies
-    fightInstance.HandleAction({
-      Event = "ACTION_DMG",
-      Source = owner:GetUUID(),
-      Target = target:GetUUID(),
-      Meta = { {
-        Value = utils.PercentOf(owner:GetStat("STAT_HP"), 5),
-        Type = "DMG_PHYSICAL",
-        CanDodge = false,
-      } },
-    })
+    ---@diagnostic disable-next-line: undefined-global
+    local enemies = GetEnemies(fightInstance, owner)
+
+    for idx = 1, #enemies do
+      local enemy = enemies[idx]
+
+      ---@diagnostic disable-next-line: undefined-global
+      HandleAction(fightInstance, {
+        Event = "ACTION_DMG",
+        Source = GetUUID(owner),
+        Target = GetUUID(enemy),
+        Meta = { {
+          ---@diagnostic disable-next-line: undefined-global
+          Value = utils.PercentOf(GetStat(owner, StatsConst.STAT_HP), 5),
+          Type = 0,
+          CanDodge = false,
+        } },
+      })
+    end
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

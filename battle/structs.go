@@ -5,7 +5,6 @@ import (
 	"sao/types"
 	"sao/utils"
 	"sao/world/location"
-	"slices"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/google/uuid"
@@ -23,30 +22,27 @@ type Fight struct {
 	SpeedMap        map[uuid.UUID]int
 	ExternalChannel chan FightEvent
 	DiscordChannel  chan types.DiscordMessageStruct
-	Effects         []ActionEffect
+	Effects         []types.ActionEffect
 	Location        *location.Location
-	Tournament      *TournamentData
-	AdditionalLoot  []types.WithTarget[Loot]
-	PlayerActions   chan Action
+	Meta            *FightMeta
+	AdditionalLoot  []types.WithTarget[types.Loot]
+	TurnCounter     map[uuid.UUID]int
+	PlayerActions   chan types.Action
+	EventHandlers   map[uuid.UUID]EventHandler
 }
 
-type TournamentData struct {
-	Tournament uuid.UUID
-	Location   string
+func (f *Fight) DiscordSend(msg types.DiscordMessageStruct) {
+	f.DiscordChannel <- msg
 }
 
-type EntityMap map[uuid.UUID]EntityEntry
-
-type EntityEntry struct {
-	Entity Entity
-	Side   int
+func (f *Fight) GetEntity(uuid uuid.UUID) types.Entity {
+	return f.Entities[uuid].Entity
 }
 
-func (mp EntityMap) SidesLeft() []int {
+func (f *Fight) SidesLeft() []int {
 	sides := make([]int, 0)
 
-	for _, entity := range mp {
-
+	for _, entity := range f.Entities {
 		if entity.Entity.GetCurrentHP() <= 0 {
 			continue
 		}
@@ -67,24 +63,84 @@ func (mp EntityMap) SidesLeft() []int {
 	return sides
 }
 
-func (mp EntityMap) FromSide(side int) []Entity {
-	entities := make([]Entity, 0)
+func (f *Fight) FromSide(side int) []types.Entity {
+	return f.GetEntitiesWithFilter(func(entity EntityEntry) bool {
+		return entity.Side == side
+	})
+}
 
-	for _, entity := range mp {
-		if entity.Side == side {
-			entities = append(entities, entity.Entity)
+func (f *Fight) AppendEventHandler(owner uuid.UUID, sTrigger types.SkillTrigger, handler func(source, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{}) uuid.UUID {
+	handlerUuid := uuid.New()
+
+	f.EventHandlers[handlerUuid] = EventHandler{
+		Target:  owner,
+		Handler: handler,
+		Trigger: sTrigger,
+	}
+
+	return handlerUuid
+}
+
+func (f *Fight) RemoveEventHandler(uuid uuid.UUID) {
+	delete(f.EventHandlers, uuid)
+}
+
+func (f *Fight) TriggerEvent(source types.Entity, target types.Entity, event types.SkillTrigger, meta any) []any {
+	returnValue := make([]any, 0)
+
+	for _, handler := range f.EventHandlers {
+		if handler.Trigger == event && handler.Target == target.GetUUID() {
+			rValue := handler.Handler(source, target, f, meta)
+
+			if rValue != nil {
+				returnValue = append(returnValue, rValue)
+			}
 		}
 	}
 
-	return entities
+	rValue := source.TriggerEvent(event, types.EventData{
+		Source: source,
+		Target: target,
+		Fight:  f,
+	}, meta)
+
+	if rValue != nil {
+		returnValue = append(returnValue, rValue)
+	}
+
+	if event == types.TRIGGER_ATTACK_GOT_HIT {
+		rv := f.TriggerEvent(target, source, types.TRIGGER_DAMAGE_GOT_HIT, meta)
+
+		if len(rv) > 0 {
+			returnValue = append(returnValue, rv...)
+		}
+	}
+
+	return returnValue
 }
 
-func (f *Fight) AddAdditionalLoot(loot Loot, source uuid.UUID, teamWide bool) {
+func (f *Fight) GetTurnFor(uuid uuid.UUID) int {
+	return f.TurnCounter[uuid]
+}
+
+func (f *Fight) GetChannelId() string {
+	if f.Meta.ThreadId != "" {
+		return f.Meta.ThreadId
+	}
+
+	if f.Meta.Tournament != nil {
+		return f.Meta.Tournament.Location
+	}
+
+	return f.Location.CID
+}
+
+func (f *Fight) AddAdditionalLoot(loot types.Loot, source uuid.UUID, teamWide bool) {
 	if teamWide {
 		for _, entity := range f.GetAlliesFor(source) {
 			f.AdditionalLoot = append(
 				f.AdditionalLoot,
-				types.WithTarget[Loot]{
+				types.WithTarget[types.Loot]{
 					Value:  loot,
 					Target: entity.GetUUID(),
 				},
@@ -94,7 +150,7 @@ func (f *Fight) AddAdditionalLoot(loot Loot, source uuid.UUID, teamWide bool) {
 
 	f.AdditionalLoot = append(
 		f.AdditionalLoot,
-		types.WithTarget[Loot]{
+		types.WithTarget[types.Loot]{
 			Value:  loot,
 			Target: source,
 		},
@@ -102,846 +158,601 @@ func (f *Fight) AddAdditionalLoot(loot Loot, source uuid.UUID, teamWide bool) {
 }
 
 func (f *Fight) IsFinished() bool {
-	return len(f.Entities.SidesLeft()) <= 1
+	return len(f.SidesLeft()) <= 1
 }
 
-func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []Entity {
+func (f *Fight) GetEnemiesFor(uuid uuid.UUID) []types.Entity {
 	entitySide := f.Entities[uuid].Side
 
-	enemiesList := make([]Entity, 0)
-
-	for _, entry := range f.Entities {
-		if entry.Side == entitySide {
-			continue
-		}
-
-		if entry.Entity.GetCurrentHP() <= 0 {
-			continue
-		}
-
-		enemiesList = append(enemiesList, entry.Entity)
-	}
-
-	return enemiesList
+	return f.GetEntitiesWithFilter(func(entity EntityEntry) bool {
+		return entity.Side != entitySide && entity.Entity.GetCurrentHP() > 0 && entity.Entity.GetUUID() != uuid
+	})
 }
 
-func (f *Fight) GetAlliesFor(uuid uuid.UUID) []Entity {
+func (f *Fight) GetAlliesFor(uuid uuid.UUID) []types.Entity {
 	entitySide := f.Entities[uuid].Side
 
-	alliesList := make([]Entity, 0)
-
-	for _, entry := range f.Entities {
-		if entry.Side != entitySide {
-			continue
-		}
-
-		if entry.Entity.GetCurrentHP() <= 0 {
-			continue
-		}
-
-		alliesList = append(alliesList, entry.Entity)
-	}
-
-	return alliesList
+	return f.GetEntitiesWithFilter(func(entity EntityEntry) bool {
+		return entity.Side == entitySide && entity.Entity.GetCurrentHP() > 0 && entity.Entity.GetUUID() != uuid
+	})
 }
 
-func (f *Fight) HandleAction(act Action) {
-	channelId := f.Location.CID
+func (f *Fight) GetEntitiesWithFilter(filter func(entity EntityEntry) bool) []types.Entity {
+	entities := make([]types.Entity, 0)
 
-	if f.Tournament != nil {
-		channelId = f.Tournament.Location
+	for _, entity := range f.Entities {
+		if filter(entity) {
+			entities = append(entities, entity.Entity)
+		}
 	}
 
+	return entities
+}
+
+func (f *Fight) HandleAction(act types.Action) {
 	switch act.Event {
-	case ACTION_ATTACK:
-		sourceEntityEntry := f.Entities[act.Source]
-		sourceEntity := sourceEntityEntry.Entity
+	case types.ACTION_ATTACK:
+		f.HandleActionAttack(act)
+	case types.ACTION_EFFECT:
+		f.HandleActionEffect(act)
+	case types.ACTION_DEFEND:
+		entity := f.Entities[act.Source].Entity
 
-		tempMeta := act.Meta
+		if entity.GetFlags()&types.ENTITY_AUTO == 0 {
+			entity.(types.PlayerEntity).SetDefendingState(true)
 
-		if _, ok := tempMeta.(ActionDamage); !ok {
-			tempMeta = ActionDamage{
-				Damage: []Damage{
+			f.DiscordChannel <- types.DiscordMessageStruct{
+				ChannelID: f.GetChannelId(),
+				MessageContent: discord.MessageCreate{
+					Embeds: []discord.Embed{{
+						Title:       "Defensywa!",
+						Description: fmt.Sprintf("%s przygotowuje się na nadchodzący atak!", entity.GetName()),
+						Color:       0x00ff00,
+					}},
+				},
+			}
+
+		} else {
+			panic("Cannot defend with auto entity")
+		}
+	case types.ACTION_SKILL:
+		f.HandleActionSkill(act)
+	case types.ACTION_DMG:
+		f.HandleActionDamage(act)
+	case types.ACTION_COUNTER:
+		f.HandleActionCounter(act)
+	case types.ACTION_ITEM:
+		f.HandleActionItem(act)
+	case types.ACTION_RUN:
+		f.HandleActionRun(act)
+	case types.ACTION_SUMMON:
+		f.HandleActionSummon(act)
+	}
+}
+
+func (f *Fight) HandleActionAttack(act types.Action) {
+	targetEntity := f.Entities[act.Target].Entity
+	var meta types.ActionDamage
+
+	if tempMeta, ok := act.Meta.(types.ActionDamage); !ok {
+		meta = types.ActionDamage{
+			Damage: []types.Damage{
+				{
+					Value:    f.Entities[act.Source].Entity.GetStat(types.STAT_AD),
+					Type:     types.DMG_PHYSICAL,
+					CanDodge: true,
+				},
+			},
+			CanDodge: true,
+		}
+	} else {
+		meta = tempMeta
+	}
+
+	if targetEntity.GetCurrentHP() <= 0 {
+		return
+	}
+
+	constDamage, percentageDamage := OverallDamage(meta.Damage)
+
+	dmgDealt, dodged := targetEntity.TakeDMGOrDodge(
+		types.ActionDamage{Damage: append(constDamage, percentageDamage...), CanDodge: meta.CanDodge},
+	)
+
+	f.TriggerAttackEffect(dodged, dmgDealt, meta.Damage, AttackEmbedMeta{
+		Title:      "Atak!",
+		TextIfHit:  "%s zaatakował %s.",
+		TextIfMiss: "%s chciał zaatakować %s, ale nie trafił.",
+	}, AttackMeta{
+		Source:  f.Entities[act.Source].Entity,
+		Target:  f.Entities[act.Target].Entity,
+		IsSkill: false,
+
+		EventHitAfterSource:  types.TRIGGER_ATTACK_HIT,
+		EventHitAfterTarget:  types.TRIGGER_ATTACK_GOT_HIT,
+		EventMissAfterSource: types.TRIGGER_ATTACK_MISS,
+		EventMissAfterTarget: types.TRIGGER_NONE,
+	})
+}
+
+func (f *Fight) HandleActionEffect(act types.Action) {
+	meta := act.Meta.(types.ActionEffect)
+
+	if meta.Duration == 0 {
+		if meta.Effect == types.EFFECT_HEAL {
+			healMeta := meta.Meta.(types.ActionEffectHeal)
+
+			if act.Source != act.Target {
+				healMeta.Value = utils.PercentOf(healMeta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
+
+				f.TriggerEvent(f.Entities[act.Source].Entity, f.Entities[act.Target].Entity, types.TRIGGER_HEAL_OTHER, types.ActionEffectHeal{Value: healMeta.Value})
+			} else {
+				f.TriggerEvent(f.Entities[act.Source].Entity, f.Entities[act.Source].Entity, types.TRIGGER_HEAL_SELF, types.ActionEffectHeal{Value: healMeta.Value})
+			}
+
+			f.Entities[act.Target].Entity.Heal(healMeta.Value)
+			return
+		}
+
+		f.Entities[act.Target].Entity.ApplyEffect(meta)
+		return
+	}
+
+	if meta.Effect == types.EFFECT_SHIELD && act.Source != act.Target {
+		meta.Value = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
+
+		f.TriggerEvent(f.Entities[act.Source].Entity, f.Entities[act.Target].Entity, types.TRIGGER_HEAL_OTHER, types.ActionEffectHeal{Value: meta.Value})
+	}
+
+	if meta.Effect == types.EFFECT_TAUNT {
+		for _, entity := range f.GetEnemiesFor(act.Target) {
+			newEffect := types.ActionEffect{
+				Effect:   types.EFFECT_TAUNTED,
+				Duration: meta.Duration,
+				Meta:     act.Target,
+				Value:    0,
+				Uuid:     uuid.New(),
+			}
+
+			entity.ApplyEffect(newEffect)
+		}
+
+		return
+	}
+
+	f.Entities[act.Target].Entity.ApplyEffect(meta)
+}
+
+func (f *Fight) HandleActionSkill(act types.Action) {
+	sourceEntity := f.Entities[act.Source].Entity
+	sourceEntityFlags := sourceEntity.GetFlags()
+
+	isPlayer := sourceEntityFlags&types.ENTITY_AUTO == 0
+	isSummon := sourceEntityFlags&types.ENTITY_SUMMON != 0 || sourceEntityFlags&types.ENTITY_AUTO == 0
+
+	if !isPlayer || !isSummon {
+		return
+	}
+
+	skillUsageMeta := act.Meta.(types.ActionSkillMeta)
+
+	skillUpgrades := 0
+
+	if isPlayer {
+		skillUpgrades = sourceEntity.(types.PlayerEntity).GetUpgrades(skillUsageMeta.Lvl)
+	} else {
+		ownerUuid := f.SummonMap[act.Source].Owner
+
+		skillUpgrades = f.Entities[ownerUuid].Entity.(types.PlayerEntity).GetUpgrades(skillUsageMeta.Lvl)
+	}
+
+	skill := sourceEntity.(types.PlayerEntity).GetLvlSkill(skillUsageMeta.Lvl)
+
+	trigger := skill.GetTrigger()
+	skillCost := skill.GetCost()
+	cooldown := skill.GetCD()
+
+	if skill.IsLevelSkill() {
+		trigger = skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(skillUpgrades)
+		skillCost = skill.(types.PlayerSkillUpgradable).GetUpgradableCost(skillUpgrades)
+		cooldown = skill.(types.PlayerSkillUpgradable).GetCooldown(skillUpgrades)
+	}
+
+	if sourceEntity.GetCurrentMana() < skillCost {
+		f.DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID:      f.GetChannelId(),
+			MessageContent: discord.NewMessageCreateBuilder().SetContent("Nie masz many na użycie tej umiejętności").Build(),
+		}
+
+		return
+	}
+
+	if trigger.Type != types.TRIGGER_ACTIVE {
+		f.DiscordChannel <- types.DiscordMessageStruct{
+			ChannelID:      f.GetChannelId(),
+			MessageContent: discord.NewMessageCreateBuilder().SetContent("Nie można użyć tej umiejętności").Build(),
+		}
+
+		return
+	}
+
+	sourceEntity.RestoreMana(-skillCost)
+	sourceEntity.(types.PlayerEntity).SetLvlCD(skillUsageMeta.Lvl, cooldown)
+
+	if skillUsageMeta.Lvl%10 == 0 {
+		sourceEntity.TriggerEvent(types.TRIGGER_CAST_ULT, types.EventData{
+			Source: sourceEntity,
+			Target: f.Entities[act.Target].Entity,
+			Fight:  f,
+		}, nil)
+	}
+
+	if len(skillUsageMeta.Targets) > 0 {
+		for _, target := range skillUsageMeta.Targets {
+			if skill.IsLevelSkill() {
+				skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.(types.PlayerEntity), f.Entities[target].Entity, f, nil)
+			} else {
+				skill.Execute(sourceEntity.(types.PlayerEntity), f.Entities[target].Entity, f, nil)
+			}
+		}
+	} else {
+		if skill.IsLevelSkill() {
+			skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.(types.PlayerEntity), f.Entities[act.Target].Entity, f, nil)
+		} else {
+			skill.Execute(sourceEntity.(types.PlayerEntity), f.Entities[act.Target].Entity, f, nil)
+		}
+	}
+
+	f.DiscordChannel <- types.DiscordMessageStruct{
+		ChannelID: f.GetChannelId(),
+		MessageContent: discord.MessageCreate{
+			Embeds: []discord.Embed{{
+				Title:       "Skill!",
+				Description: fmt.Sprintf("%s użył `%s`!", sourceEntity.GetName(), skill.GetName()),
+				Color:       0x00ff00,
+			}},
+		},
+	}
+}
+
+func (f *Fight) HandleActionDamage(act types.Action) {
+	targetEntity := f.Entities[act.Target].Entity
+	meta := act.Meta.(types.ActionDamage)
+
+	if targetEntity.GetCurrentHP() <= 0 {
+		return
+	}
+
+	constDamage, percentageDamage := OverallDamage(meta.Damage)
+
+	dmgDealt, dodged := f.Entities[act.Target].Entity.TakeDMGOrDodge(
+		types.ActionDamage{Damage: append(constDamage, percentageDamage...), CanDodge: meta.CanDodge},
+	)
+
+	f.TriggerAttackEffect(dodged, dmgDealt, meta.Damage, AttackEmbedMeta{
+		Title:      "Obrażenia!",
+		TextIfHit:  "%s zadał obrażenia %s.",
+		TextIfMiss: "%s chciał zadać obrażenia %s, ale nie trafił.",
+	}, AttackMeta{Source: f.Entities[act.Source].Entity, Target: f.Entities[act.Target].Entity, IsSkill: true,
+		EventHitAfterSource:  types.TRIGGER_DAMAGE,
+		EventHitAfterTarget:  types.TRIGGER_DAMAGE_GOT_HIT,
+		EventMissAfterSource: types.TRIGGER_NONE,
+		EventMissAfterTarget: types.TRIGGER_NONE,
+	})
+}
+
+func OverallDamage(damage []types.Damage) ([]types.Damage, []types.Damage) {
+	constDamage := []types.Damage{
+		{Value: 0, Type: types.DMG_PHYSICAL},
+		{Value: 0, Type: types.DMG_MAGICAL},
+		{Value: 0, Type: types.DMG_TRUE},
+	}
+
+	percentageDamage := []types.Damage{
+		{Value: 0, Type: types.DMG_PHYSICAL},
+		{Value: 0, Type: types.DMG_MAGICAL},
+		{Value: 0, Type: types.DMG_TRUE},
+	}
+
+	for _, dmg := range damage {
+		if dmg.IsPercent {
+			percentageDamage[dmg.Type].Value += dmg.Value
+		} else {
+			constDamage[dmg.Type].Value += dmg.Value
+		}
+	}
+
+	return constDamage, percentageDamage
+}
+
+func (f *Fight) HandleActionCounter(act types.Action) {
+	sourceEntity := f.Entities[act.Source].Entity
+
+	meta := act.Meta.(types.ActionDamage)
+
+	constDamage, percentageDamage := OverallDamage(meta.Damage)
+
+	dmgDealt, dodged := f.Entities[act.Target].Entity.TakeDMGOrDodge(
+		types.ActionDamage{Damage: append(constDamage, percentageDamage...), CanDodge: true},
+	)
+
+	f.TriggerAttackEffect(dodged, dmgDealt, meta.Damage, AttackEmbedMeta{
+		Title:      "Kontra!",
+		TextIfHit:  "%s zaatakował %s.",
+		TextIfMiss: "%s nie trafił.",
+	}, AttackMeta{Source: sourceEntity, Target: f.Entities[act.Target].Entity, IsSkill: false,
+		EventHitAfterSource:  types.TRIGGER_ATTACK_HIT,
+		EventHitAfterTarget:  types.TRIGGER_ATTACK_GOT_HIT,
+		EventMissAfterSource: types.TRIGGER_ATTACK_MISS,
+		EventMissAfterTarget: types.TRIGGER_NONE,
+	})
+}
+
+func (f *Fight) TriggerAttackEffect(dodged bool, damage []types.Damage, rawDamage []types.Damage, embedMeta AttackEmbedMeta, meta AttackMeta) {
+	tempEmbed := discord.NewEmbedBuilder().SetTitle(embedMeta.Title)
+
+	if !dodged {
+		dmgSum := damage[0].Value + damage[1].Value + damage[2].Value
+
+		vampType := types.STAT_ATK_VAMP
+
+		if meta.IsSkill {
+			vampType = types.STAT_OMNI_VAMP
+		}
+
+		f.TriggerVampEvent(meta.Source, vampType, dmgSum, tempEmbed)
+
+		tempEmbed.
+			SetFooterTextf(embedMeta.TextIfHit+"%s ma teraz %d HP", meta.Source.GetName(), meta.Target.GetName(), meta.Target.GetName(), meta.Target.GetCurrentHP()).
+			SetDescriptionf("Zadano łącznie %d obrażeń", dmgSum).SetColor(0x00ff00).
+			AddField("Obrażenia", DamageSummary(rawDamage), false)
+
+		if meta.EventHitAfterSource != types.TRIGGER_NONE {
+			f.TriggerEvent(meta.Source, meta.Target, meta.EventHitAfterSource, nil)
+		}
+
+		if meta.EventHitAfterTarget != types.TRIGGER_NONE {
+			f.TriggerEvent(meta.Target, meta.Source, meta.EventHitAfterTarget, nil)
+		}
+
+		f.TriggerCounter(meta.Source, meta.Target)
+	} else {
+		if meta.EventMissAfterSource != types.TRIGGER_NONE {
+			f.TriggerEvent(meta.Source, meta.Target, meta.EventMissAfterSource, nil)
+		}
+
+		if meta.EventMissAfterTarget != types.TRIGGER_NONE {
+			f.TriggerEvent(meta.Target, meta.Source, meta.EventMissAfterTarget, nil)
+		}
+
+		tempEmbed.SetDescriptionf(embedMeta.TextIfMiss, meta.Source.GetName(), meta.Target.GetName()).SetColor(0xff0000)
+	}
+
+	tempEmbed.AddFields(embedMeta.AdditionalFields...)
+
+	f.DiscordChannel <- types.DiscordMessageStruct{
+		ChannelID: f.GetChannelId(),
+		MessageContent: discord.MessageCreate{
+			Embeds: []discord.Embed{tempEmbed.Build()},
+		},
+	}
+}
+
+type AttackEmbedMeta struct {
+	Title string
+	/*source <action> target.*/
+	TextIfHit string
+	/*source <action> target.*/
+	TextIfMiss       string
+	AdditionalFields []discord.EmbedField
+}
+
+type AttackMeta struct {
+	Source  types.Entity
+	Target  types.Entity
+	IsSkill bool
+
+	EventMissAfterSource types.SkillTrigger
+	EventMissAfterTarget types.SkillTrigger
+	EventHitAfterSource  types.SkillTrigger
+	EventHitAfterTarget  types.SkillTrigger
+}
+
+func (f *Fight) TriggerVampEvent(source types.Entity, vampType types.Stat, dmg int, embed *discord.EmbedBuilder) {
+	vampValue := source.GetStat(vampType)
+
+	if vampValue <= 0 {
+		return
+	}
+
+	value := utils.PercentOf(dmg, vampValue)
+
+	source.Heal(value)
+
+	source.TriggerEvent(
+		types.TRIGGER_HEAL_SELF,
+		types.EventData{Source: source, Target: source, Fight: f},
+		types.ActionEffectHeal{Value: value},
+	)
+
+	if embed != nil {
+		embed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", source.GetName(), value), false)
+	}
+}
+
+// Target as in target of the damage
+func (f *Fight) TriggerCounter(source, target types.Entity) {
+	if types.HasFlag(target.GetFlags(), types.ENTITY_AUTO) {
+		return
+	}
+
+	if !target.(types.PlayerEntity).GetDefendingState() {
+		return
+	}
+
+	if utils.RandomNumber(0, 100) < target.GetStat(types.STAT_AGL) {
+		counterDmg := utils.PercentOf(source.GetStat(types.STAT_AD), 70)
+		counterDmg += utils.PercentOf(source.GetStat(types.STAT_DEF), 15)
+		counterDmg += utils.PercentOf(source.GetStat(types.STAT_MR), 15)
+
+		f.HandleAction(types.Action{
+			Event:  types.ACTION_COUNTER,
+			Source: target.GetUUID(),
+			Target: source.GetUUID(),
+			Meta: types.ActionDamage{
+				Damage: []types.Damage{
 					{
-						Value:    sourceEntity.GetStat(types.STAT_AD),
+						Value:    counterDmg,
 						Type:     types.DMG_PHYSICAL,
 						CanDodge: true,
 					},
 				},
 				CanDodge: true,
-			}
-		}
-
-		overallDmg := []Damage{
-			{Value: 0, Type: types.DMG_PHYSICAL},
-			{Value: 0, Type: types.DMG_MAGICAL},
-			{Value: 0, Type: types.DMG_TRUE},
-		}
-
-		meta := tempMeta.(ActionDamage)
-
-		increaseValue := sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_BEFORE, types.EventData{
-			Source: sourceEntity,
-			Target: f.Entities[act.Target].Entity,
-			Fight:  &f,
-		}, meta)
-
-		for _, val := range increaseValue {
-			for _, dmg := range val.(types.AttackTriggerMeta).Effects {
-				meta.Damage = append(meta.Damage, Damage{
-					Value:     dmg.Value,
-					Type:      dmg.Type,
-					IsPercent: dmg.Percent,
-				})
-			}
-		}
-
-		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
-			if left.IsPercent && !right.IsPercent {
-				return -1
-			}
-
-			if !left.IsPercent && right.IsPercent {
-				return 1
-			}
-
-			return 0
+			},
 		})
+	}
+}
 
-		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
+func DamageSummary(dmgList []types.Damage) string {
+	dmgText := ""
 
-		dodged := false
-		var dmgDealt []Damage
+	for _, dmg := range dmgList {
+		if dmg.Value == 0 {
+			continue
+		}
 
-		if canDodge {
-			for _, dmg := range meta.Damage {
-				if dmg.IsPercent {
-					continue
-				}
-				overallDmg[dmg.Type].Value += dmg.Value
-			}
+		dmgType := "fizycznych"
 
-			dmgDealt, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(
-				ActionDamage{overallDmg, canDodge},
-			)
+		switch dmg.Type {
+		case types.DMG_MAGICAL:
+			dmgType = "magicznych"
+		case types.DMG_TRUE:
+			dmgType = "nieuchronnych"
+		}
+
+		if dmg.IsPercent {
+			dmgText += fmt.Sprintf("- %d%% obrażeń %s\n", dmg.Value, dmgType)
 		} else {
-			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
+			dmgText += fmt.Sprintf("- %d obrażeń %s\n", dmg.Value, dmgType)
 		}
+	}
 
-		tempEmbed := discord.NewEmbedBuilder().SetTitle("Atak")
+	return dmgText
+}
 
-		if !dodged {
-			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_HIT, types.EventData{
-				Source: sourceEntity,
-				Target: f.Entities[act.Target].Entity,
-				Fight:  f,
-			}, meta)
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, types.EventData{
-				Target: sourceEntity,
-				Source: f.Entities[act.Target].Entity,
-				Fight:  f,
-			}, nil)
+func (f *Fight) HandleActionItem(act types.Action) {
+	sourceEntity := f.Entities[act.Source].Entity.(types.PlayerEntity)
 
-			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
+	itemMeta := act.Meta.(types.ActionItemMeta)
 
-			tempEmbed.
-				SetFooterTextf("%s zaatakował %s. %s ma teraz %d HP", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetCurrentHP()).
-				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum).
-				SetColor(0x00ff00)
+	var item *types.PlayerItem
 
-			dmgText := ""
-
-			for _, dmg := range meta.Damage {
-				if dmg.Value == 0 {
-					continue
-				}
-
-				dmgType := "fizycznych"
-
-				switch dmg.Type {
-				case types.DMG_MAGICAL:
-					dmgType = "magicznych"
-				case types.DMG_TRUE:
-					dmgType = "prawdziwych"
-				}
-
-				if dmg.IsPercent {
-					dmgText += fmt.Sprintf("- %d%% obrażeń %s\n", dmg.Value, dmgType)
-				} else {
-					dmgText += fmt.Sprintf("- %d obrażeń %s\n", dmg.Value, dmgType)
-				}
-			}
-
-			tempEmbed.AddField("Obrażenia", dmgText, false)
-
-			vampValue := sourceEntity.GetStat(types.STAT_ATK_VAMP)
-
-			if vampValue > 0 {
-				value := utils.PercentOf(dmgSum, vampValue)
-
-				sourceEntity.Heal(value)
-
-				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, types.EventData{
-					Source: sourceEntity,
-					Target: sourceEntity,
-					Fight:  &f,
-				}, ActionEffectHeal{Value: value})
-
-				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
-			}
-
-		} else {
-			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS, types.EventData{
-				Source: sourceEntity,
-				Target: f.Entities[act.Target].Entity,
-				Fight:  &f,
-			}, nil)
-
-			tempEmbed.SetColor(0xff0000).SetDescriptionf("%s zaatakował %s, ale atak został uniknięty", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
+	for _, invItem := range sourceEntity.GetAllItems() {
+		if invItem.UUID == itemMeta.Item {
+			item = invItem
+			break
 		}
+	}
 
-		targetEntity := f.Entities[act.Target]
-
-		if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
-			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
-					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
-
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_DEF), 15)
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_MR), 15)
-
-					f.HandleAction(Action{
-						Event:  ACTION_COUNTER,
-						Source: act.Target,
-						Target: act.Source,
-						Meta: ActionDamage{
-							Damage: []Damage{
-								{
-									Value:    counterDmg,
-									Type:     types.DMG_PHYSICAL,
-									CanDodge: true,
-								},
-							},
-							CanDodge: true,
-						},
-					})
-				}
-			}
+	if act.Target == uuid.Nil {
+		for _, target := range itemMeta.Targets {
+			sourceEntity.UseItem(item.UUID, f.Entities[target].Entity, f)
 		}
+	} else {
+		sourceEntity.UseItem(item.UUID, f.Entities[act.Target].Entity, f)
+	}
 
+	f.DiscordChannel <- types.DiscordMessageStruct{
+		ChannelID: f.GetChannelId(),
+		MessageContent: discord.MessageCreate{
+			Embeds: []discord.Embed{{
+				Title:       "Przedmiot!",
+				Description: fmt.Sprintf("%s użył %s!\nEfekt: %s", sourceEntity.GetName(), item.Name, item.Description),
+			}},
+		},
+	}
+}
+
+func (f *Fight) HandleActionRun(act types.Action) {
+	entity := f.Entities[act.Source].Entity
+	side := f.Entities[act.Source].Side
+
+	if utils.RandomNumber(0, 100) < entity.GetStat(types.STAT_AGL) {
 		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID:      channelId,
-			MessageContent: discord.NewMessageCreateBuilder().AddEmbeds(tempEmbed.Build()).Build(),
-		}
-	case ACTION_EFFECT:
-		meta := act.Meta.(ActionEffect)
-
-		if meta.Duration == 0 {
-			if meta.Effect == EFFECT_HEAL {
-				healValue := meta.Value
-
-				if act.Source != act.Target {
-					healValue = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
-				}
-
-				f.Entities[act.Target].Entity.Heal(healValue)
-				return
-			}
-
-			f.Entities[act.Target].Entity.ApplyEffect(meta)
-
-			return
-		}
-
-		if meta.Effect == EFFECT_SHIELD {
-			meta.Value = utils.PercentOf(meta.Value, 100+f.Entities[act.Source].Entity.GetStat(types.STAT_HEAL_POWER))
-		}
-
-		if meta.Effect == EFFECT_TAUNT {
-			for _, entity := range f.GetEnemiesFor(act.Target) {
-				newEffect := ActionEffect{
-					Effect:   EFFECT_TAUNTED,
-					Duration: meta.Duration,
-					Meta:     act.Target,
-					Value:    0,
-					Uuid:     uuid.New(),
-				}
-
-				entity.ApplyEffect(newEffect)
-			}
-
-			return
-		}
-
-		f.Entities[act.Target].Entity.ApplyEffect(meta)
-	case ACTION_DEFEND:
-		entity := f.Entities[act.Source]
-
-		if entity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
-			entity.Entity.(PlayerEntity).SetDefendingState(true)
-
-			f.HandleAction(Action{
-				Event:  ACTION_EFFECT,
-				Source: act.Source,
-				Target: act.Source,
-				Meta: ActionEffect{
-					Effect:   EFFECT_STAT_INC,
-					Duration: 1,
-					Meta: ActionEffectStat{
-						Stat:      types.STAT_DEF,
-						Value:     20,
-						IsPercent: true,
-					},
-				},
-			})
-
-			f.HandleAction(Action{
-				Event:  ACTION_EFFECT,
-				Source: act.Source,
-				Target: act.Source,
-				Meta: ActionEffect{
-					Effect:   EFFECT_STAT_INC,
-					Duration: 0,
-					Meta: ActionEffectStat{
-						Stat:      types.STAT_MR,
-						Value:     20,
-						IsPercent: true,
-					},
-				},
-			})
-		}
-	case ACTION_SKILL:
-		sourceEntity := f.Entities[act.Source]
-
-		sourceEntityFlags := sourceEntity.Entity.GetFlags()
-
-		isPlayer := sourceEntityFlags&types.ENTITY_AUTO == 0
-		isSummon := sourceEntityFlags&types.ENTITY_SUMMON != 0 || sourceEntityFlags&types.ENTITY_AUTO == 0
-
-		if !isPlayer || !isSummon {
-			return
-		}
-
-		skillUsageMeta := act.Meta.(ActionSkillMeta)
-
-		skillUpgrades := 0
-
-		if isPlayer {
-			skillUpgrades = sourceEntity.Entity.(PlayerEntity).GetUpgrades(skillUsageMeta.Lvl)
-		} else {
-			ownerUuid := f.SummonMap[act.Source].Owner
-
-			skillUpgrades = f.Entities[ownerUuid].Entity.(PlayerEntity).GetUpgrades(skillUsageMeta.Lvl)
-		}
-
-		skill := sourceEntity.Entity.(PlayerEntity).GetLvlSkill(skillUsageMeta.Lvl)
-
-		trigger := skill.GetTrigger()
-
-		skillCost := skill.GetCost()
-
-		if skill.IsLevelSkill() {
-			trigger = skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(skillUpgrades)
-
-			skillCost = skill.(types.PlayerSkillUpgradable).GetUpgradableCost(skillUpgrades)
-		}
-
-		if sourceEntity.Entity.GetCurrentMana() < skillCost {
-			f.DiscordChannel <- types.DiscordMessageStruct{
-				ChannelID:      channelId,
-				MessageContent: discord.NewMessageCreateBuilder().SetContent("Nie masz many na użycie tej umiejętności").Build(),
-			}
-
-			return
-		}
-
-		if trigger.Type != types.TRIGGER_ACTIVE {
-			f.DiscordChannel <- types.DiscordMessageStruct{
-				ChannelID:      channelId,
-				MessageContent: discord.NewMessageCreateBuilder().SetContent("Nie można użyć tej umiejętności").Build(),
-			}
-
-			return
-		}
-
-		sourceEntity.Entity.RestoreMana(-skillCost)
-
-		if skillUsageMeta.Lvl%10 == 0 {
-			sourceEntity.Entity.TriggerEvent(types.TRIGGER_CAST_ULT, types.EventData{
-				Source: sourceEntity.Entity,
-				Target: f.Entities[act.Target].Entity,
-				Fight:  &f,
-			}, nil)
-		}
-
-		if len(skillUsageMeta.Targets) > 0 {
-			for _, target := range skillUsageMeta.Targets {
-				if skill.IsLevelSkill() {
-					skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.Entity, f.Entities[target].Entity, f, nil, skillUpgrades)
-				} else {
-					skill.Execute(sourceEntity.Entity, f.Entities[target].Entity, f, nil)
-				}
-			}
-		} else {
-			if skill.IsLevelSkill() {
-				skill.(types.PlayerSkillUpgradable).UpgradableExecute(sourceEntity.Entity, f.Entities[act.Target].Entity, f, nil, skillUpgrades)
-			} else {
-				skill.Execute(sourceEntity.Entity, f.Entities[act.Target].Entity, f, nil)
-			}
-		}
-
-		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID: channelId,
-			MessageContent: discord.
-				NewMessageCreateBuilder().
-				AddEmbeds(
-					discord.NewEmbedBuilder().
-						SetTitle("Skill!").
-						SetDescriptionf(
-							"%s użył `%s`!\n",
-							sourceEntity.Entity.GetName(),
-							skill.GetName(),
-						).SetColor(0x00ff00).
-						Build(),
-				).
-				Build(),
+			ChannelID: f.GetChannelId(),
+			MessageContent: discord.MessageCreate{
+				Embeds: []discord.Embed{{
+					Title:       "Ucieczka!",
+					Description: fmt.Sprintf("%s próbował uciec i mu się to nie udało", entity.GetName()),
+					Color:       0xff0000,
+				}},
+			},
 		}
 
 		return
-	case ACTION_DMG:
-		targetEntity := f.Entities[act.Target]
-		meta := act.Meta.(ActionDamage)
+	}
 
-		if targetEntity.Entity.GetCurrentHP() <= 0 {
-			return
+	f.Entities[act.Source].Entity.(types.PlayerEntity).ClearFight()
+
+	delete(f.Entities, act.Source)
+
+	entities := f.FromSide(side)
+
+	count := 0
+
+	for _, entity := range entities {
+		if entity.GetCurrentHP() > 0 && !types.HasFlag(entity.GetFlags(), types.ENTITY_AUTO) {
+			count++
 		}
-
-		overallDmg := []Damage{
-			{Value: 0, Type: types.DMG_PHYSICAL},
-			{Value: 0, Type: types.DMG_MAGICAL},
-			{Value: 0, Type: types.DMG_TRUE},
-		}
-
-		increaseValue := f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_DAMAGE_BEFORE,
-			types.EventData{
-				Source: f.Entities[act.Source].Entity,
-				Target: f.Entities[act.Target].Entity,
-				Fight:  &f,
-			}, nil)
-
-		for _, val := range increaseValue {
-			for _, dmg := range val.(types.DamageTriggerMeta).Effects {
-				meta.Damage = append(meta.Damage, Damage{
-					Value:     dmg.Value,
-					Type:      dmg.Type,
-					IsPercent: dmg.Percent,
-				})
-			}
-		}
-
-		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
-			if left.IsPercent && !right.IsPercent {
-				return -1
-			}
-
-			if !left.IsPercent && right.IsPercent {
-				return 1
-			}
-
-			return 0
-		})
-
-		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
-
-		dodged := false
-		var dmgDealt []Damage
-
-		if canDodge {
-			for _, dmg := range meta.Damage {
-				if dmg.IsPercent {
-					continue
-				}
-				overallDmg[dmg.Type].Value += dmg.Value
-			}
-
-			dmgDealt, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(
-				ActionDamage{overallDmg, canDodge},
-			)
-		} else {
-			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
-		}
-
-		tempEmbed := discord.NewEmbedBuilder().SetTitle("Obrażenia!")
-
-		sourceEntity := f.Entities[act.Source].Entity
-
-		if !dodged {
-			f.Entities[act.Target].Entity.TriggerEvent(types.TRIGGER_ATTACK_GOT_HIT, types.EventData{
-				Target: sourceEntity,
-				Source: f.Entities[act.Target].Entity,
-				Fight:  &f,
-			}, nil)
-
-			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
-
-			tempEmbed.
-				SetFooterTextf("%s zadał obrażenia %s. %s ma teraz %d HP", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetCurrentHP()).
-				SetDescriptionf("Zadano łacznie %d obrażeń", dmgSum).SetColor(0x00ff00)
-
-			dmgText := ""
-
-			for _, dmg := range meta.Damage {
-				if dmg.Value == 0 {
-					continue
-				}
-
-				dmgType := "fizycznych"
-
-				switch dmg.Type {
-				case types.DMG_MAGICAL:
-					dmgType = "magicznych"
-				case types.DMG_TRUE:
-					dmgType = "prawdziwych"
-				}
-
-				if dmg.IsPercent {
-					dmgText += fmt.Sprintf("- %d%% obrażeń %s\n", dmg.Value, dmgType)
-				} else {
-					dmgText += fmt.Sprintf("- %d obrażeń %s\n", dmg.Value, dmgType)
-				}
-			}
-
-			tempEmbed.AddField("Obrażenia", dmgText, false)
-
-			vampValue := sourceEntity.GetStat(types.STAT_OMNI_VAMP)
-
-			if vampValue > 0 {
-				value := utils.PercentOf(dmgSum, vampValue)
-
-				sourceEntity.Heal(value)
-
-				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF, types.EventData{
-					Source: sourceEntity,
-					Target: sourceEntity,
-					Fight:  &f,
-				}, ActionEffectHeal{Value: value})
-
-				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
-			}
-
-		} else {
-			tempEmbed.SetColor(0xff0000).SetDescriptionf("%s chciał zadać obrażenia %s, ale nie trafił", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName())
-		}
-
-		if targetEntity.Entity.GetCurrentHP() <= 0 {
-			f.Entities[act.Source].Entity.TriggerEvent(types.TRIGGER_EXECUTE,
-				types.EventData{
-					Source: f.Entities[act.Source].Entity,
-					Target: f.Entities[act.Target].Entity,
-					Fight:  &f,
-				}, nil)
-		}
-
-		if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 && targetEntity.Entity.GetCurrentHP() > 0 {
-			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
-					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
-
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_DEF), 15)
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_MR), 15)
-
-					f.HandleAction(Action{
-						Event:  ACTION_COUNTER,
-						Source: act.Target,
-						Target: act.Source,
-						Meta: ActionDamage{
-							Damage: []Damage{
-								{
-									Value:    counterDmg,
-									Type:     types.DMG_PHYSICAL,
-									CanDodge: true,
-								},
-							},
-							CanDodge: true,
-						},
-					})
-				}
-			}
-		}
-
-		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID:      channelId,
-			MessageContent: discord.NewMessageCreateBuilder().AddEmbeds(tempEmbed.Build()).Build(),
-		}
-	case ACTION_COUNTER:
-		sourceEntityEntry := f.Entities[act.Source]
-		sourceEntity := sourceEntityEntry.Entity
-
-		overallDmg := []Damage{
-			{Value: 0, Type: types.DMG_PHYSICAL},
-			{Value: 0, Type: types.DMG_MAGICAL},
-			{Value: 0, Type: types.DMG_TRUE},
-		}
-
-		meta := act.Meta.(ActionDamage)
-
-		slices.SortFunc(meta.Damage, func(left Damage, right Damage) int {
-			if left.IsPercent && !right.IsPercent {
-				return -1
-			}
-
-			if !left.IsPercent && right.IsPercent {
-				return 1
-			}
-
-			return 0
-		})
-
-		canDodge := meta.CanDodge && f.Entities[act.Target].Entity.CanDodge()
-
-		dodged := false
-		var dmgDealt []Damage
-
-		if canDodge {
-			for _, dmg := range meta.Damage {
-				if dmg.IsPercent {
-					continue
-				}
-				overallDmg[dmg.Type].Value += dmg.Value
-			}
-
-			dmgDealt, dodged = f.Entities[act.Target].Entity.(DodgeEntity).TakeDMGOrDodge(
-				ActionDamage{overallDmg, canDodge},
-			)
-		} else {
-			dmgDealt = f.Entities[act.Target].Entity.TakeDMG(meta)
-		}
-
-		tempEmbed := discord.NewEmbedBuilder().SetTitle("Kontra!")
-
-		if !dodged {
-			dmgSum := dmgDealt[0].Value + dmgDealt[1].Value + dmgDealt[2].Value
-
-			tempEmbed.
-				SetFooterTextf("%s zaatakował %s. %s ma teraz %d HP", sourceEntity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetName(), f.Entities[act.Target].Entity.GetCurrentHP()).
-				SetDescriptionf("Zadano łącznie %d obrażeń", dmgSum).SetColor(0x00ff00)
-
-			dmgText := ""
-
-			for _, dmg := range meta.Damage {
-				if dmg.Value == 0 {
-					continue
-				}
-
-				dmgType := "fizycznych"
-
-				switch dmg.Type {
-				case types.DMG_MAGICAL:
-					dmgType = "magicznych"
-				case types.DMG_TRUE:
-					dmgType = "prawdziwych"
-				}
-
-				if dmg.IsPercent {
-					dmgText += fmt.Sprintf("- %d%% obrażeń %s\n", dmg.Value, dmgType)
-				} else {
-					dmgText += fmt.Sprintf("- %d obrażeń %s\n", dmg.Value, dmgType)
-				}
-			}
-
-			tempEmbed.AddField("Obrażenia", dmgText, false)
-
-			vampValue := sourceEntity.GetStat(types.STAT_ATK_VAMP)
-
-			if vampValue > 0 {
-				value := utils.PercentOf(dmgSum, vampValue)
-
-				sourceEntity.Heal(value)
-
-				sourceEntity.TriggerEvent(types.TRIGGER_HEAL_SELF,
-					types.EventData{
-						Source: sourceEntity,
-						Target: f.Entities[act.Target].Entity,
-						Fight:  &f,
-					}, ActionEffectHeal{Value: value})
-
-				tempEmbed.AddField("Wampiryzm!", fmt.Sprintf("%s dodatkowo wyleczył się o %d", sourceEntity.GetName(), value), false)
-			}
-
-		} else {
-			sourceEntity.TriggerEvent(types.TRIGGER_ATTACK_MISS,
-				types.EventData{
-					Source: sourceEntity,
-					Target: f.Entities[act.Target].Entity,
-					Fight:  &f,
-				}, nil)
-
-			tempEmbed.SetDescriptionf("Kontra %s nie udana!", sourceEntity.GetName()).SetColor(0xff0000)
-		}
-
-		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID:      channelId,
-			MessageContent: discord.NewMessageCreateBuilder().AddEmbeds(tempEmbed.Build()).Build(),
-		}
-
-		targetEntity := f.Entities[act.Target]
-
-		if targetEntity.Entity.GetFlags()&types.ENTITY_AUTO == 0 {
-			if targetEntity.Entity.(PlayerEntity).GetDefendingState() {
-				if utils.RandomNumber(0, 100) < targetEntity.Entity.GetStat(types.STAT_AGL) {
-
-					counterDmg := utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_AD), 70)
-
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_DEF), 15)
-					counterDmg += utils.PercentOf(targetEntity.Entity.GetStat(types.STAT_MR), 15)
-
-					f.HandleAction(Action{
-						Event:  ACTION_COUNTER,
-						Source: act.Target,
-						Target: act.Source,
-						Meta: ActionDamage{
-							Damage: []Damage{
-								{
-									Value:    counterDmg,
-									Type:     types.DMG_PHYSICAL,
-									CanDodge: true,
-								},
-							},
-							CanDodge: true,
-						},
-					})
-				}
-			}
-		}
-	case ACTION_ITEM:
-		sourceEntity := f.Entities[act.Source]
-
-		itemMeta := act.Meta.(ActionItemMeta)
-
-		var item *types.PlayerItem
-		var itemIdx int
-
-		for idx, invItem := range sourceEntity.Entity.(PlayerEntity).GetAllItems() {
-			if invItem.UUID == itemMeta.Item {
-				item = invItem
-				itemIdx = idx
-				break
-			}
-		}
-
-		if act.Target == uuid.Nil {
-			for _, target := range itemMeta.Targets {
-				item.UseItem(sourceEntity.Entity, f.Entities[target].Entity, nil)
-			}
-		} else {
-			item.UseItem(sourceEntity.Entity, f.Entities[act.Target].Entity, nil)
-		}
-
-		if item.Count == 0 && item.Consume {
-			sourceEntity.Entity.(PlayerEntity).RemoveItem(itemIdx)
-		}
-
-		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID: channelId,
-			MessageContent: discord.
-				NewMessageCreateBuilder().
-				AddEmbeds(
-					discord.NewEmbedBuilder().
-						SetTitle("Przedmiot!").
-						SetDescriptionf(
-							"%s użył %s!\nEfekt: %s",
-							sourceEntity.Entity.GetName(),
-							item.Name, item.Description,
-						).
-						Build(),
-				).Build(),
-		}
-	case ACTION_RUN:
-		entity := f.Entities[act.Source].Entity
-		side := f.Entities[act.Source].Side
-
-		if utils.RandomNumber(0, 100) < entity.GetStat(types.STAT_AGL) {
-			f.DiscordChannel <- types.DiscordMessageStruct{
-				ChannelID: channelId,
-				MessageContent: discord.
-					NewMessageCreateBuilder().
-					AddEmbeds(
-						discord.NewEmbedBuilder().
-							SetTitle("Ucieczka!").
-							SetDescriptionf("%s próbował uciec, ale mu się to nie udało", entity.GetName()).
-							SetColor(0xff0000).
-							Build(),
-					).Build(),
-			}
-
-			return
-		}
-
-		f.Entities[act.Source].Entity.(PlayerEntity).ClearFight()
-
-		delete(f.Entities, act.Source)
-
-		entities := f.Entities.FromSide(side)
-
-		count := 0
-
-		for _, entity := range entities {
-			if entity.GetCurrentHP() > 0 && entity.GetFlags()&types.ENTITY_AUTO == 0 {
-				count++
-			}
-		}
-
-		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID: channelId,
-			MessageContent: discord.
-				NewMessageCreateBuilder().
-				AddEmbeds(
-					discord.NewEmbedBuilder().
-						SetTitle("Ucieczka!").
-						SetDescriptionf("%s próbował uciec i mu się to udało", entity.GetName()).
-						SetColor(0x00ff00).
-						Build(),
-				).Build(),
-		}
-
-		if count == 0 {
-			f.ExternalChannel <- FightEndMsg{RunAway: true}
-		}
-	case ACTION_SUMMON:
-		sourceEntity := f.Entities[act.Source]
-
-		expires := act.Meta.(ActionSummon).Flags&SUMMON_FLAG_EXPIRE != 0
-
-		newEntity := act.Meta.(ActionSummon).Entity
-
-		f.DiscordChannel <- types.DiscordMessageStruct{
-			ChannelID: channelId,
-			MessageContent: discord.
-				NewMessageCreateBuilder().
-				AddEmbeds(
-					discord.
-						NewEmbedBuilder().
-						SetTitle("Przywołanie!").
-						SetDescriptionf("%s przywołał %s", sourceEntity.Entity.GetName(), newEntity.GetName()).
-						SetColor(0x00ff00).
-						Build(),
-				).
-				Build(),
-		}
-
-		if expires {
-			f.ExpireMap[newEntity.GetUUID()] = act.Meta.(ActionSummon).ExpireTimer
-		}
-
-		f.SummonMap[newEntity.GetUUID()] = SummonEntityMeta{
-			Owner: sourceEntity.Entity.GetUUID(),
-			Type:  act.Meta.(ActionSummon).EntityType,
-		}
-
-		f.Entities[act.Meta.(ActionSummon).Entity.GetUUID()] = EntityEntry{
-			Entity: newEntity,
-			Side:   sourceEntity.Side,
-		}
+	}
+
+	f.DiscordChannel <- types.DiscordMessageStruct{
+		ChannelID: f.GetChannelId(),
+		MessageContent: discord.MessageCreate{
+			Embeds: []discord.Embed{{
+				Title:       "Ucieczka!",
+				Description: fmt.Sprintf("%s próbował uciec i mu się to udało", entity.GetName()),
+				Color:       0x00ff00,
+			}},
+		},
+	}
+
+	if count == 0 {
+		f.ExternalChannel <- FightEndMsg{RunAway: true}
+	}
+}
+
+func (f *Fight) HandleActionSummon(act types.Action) {
+	actionMeta := act.Meta.(types.ActionSummon)
+
+	sourceEntity := f.Entities[act.Source]
+
+	f.DiscordChannel <- types.DiscordMessageStruct{
+		ChannelID: f.GetChannelId(),
+		MessageContent: discord.
+			MessageCreate{
+			Embeds: []discord.Embed{{
+				Title:       "Przywołanie!",
+				Description: fmt.Sprintf("%s przywołał %s", sourceEntity.Entity.GetName(), actionMeta.Entity.GetName()),
+				Color:       0x00ff00,
+			}},
+		},
+	}
+
+	newEntityUUID := actionMeta.Entity.GetUUID()
+
+	if types.HasFlag(actionMeta.Flags, types.SUMMON_FLAG_EXPIRE) {
+		f.ExpireMap[newEntityUUID] = actionMeta.ExpireTimer
+	}
+
+	f.SummonMap[newEntityUUID] = SummonEntityMeta{
+		Owner: sourceEntity.Entity.GetUUID(),
+		Type:  actionMeta.EntityType,
+	}
+
+	f.Entities[newEntityUUID] = EntityEntry{
+		Entity: actionMeta.Entity,
+		Side:   sourceEntity.Side,
 	}
 }
 
@@ -963,30 +774,38 @@ func (f *Fight) CanSummon(entityType uuid.UUID, maxCount int) bool {
 
 func (f *Fight) Init() {
 	f.SpeedMap = make(map[uuid.UUID]int)
+	f.TurnCounter = make(map[uuid.UUID]int)
 
-	for _, entity := range f.Entities {
-		f.SpeedMap[entity.Entity.GetUUID()] = entity.Entity.GetStat(types.STAT_SPD)
+	for uuid, entity := range f.Entities {
+		f.SpeedMap[uuid] = entity.Entity.GetStat(types.STAT_SPD)
+		f.TurnCounter[uuid] = 0
 	}
 
 	f.ExternalChannel = make(chan FightEvent, 10)
-	f.PlayerActions = make(chan Action, 10)
+	f.PlayerActions = make(chan types.Action, 10)
 	f.ExpireMap = make(map[uuid.UUID]int)
 	f.SummonMap = make(map[uuid.UUID]SummonEntityMeta)
+	f.EventHandlers = make(map[uuid.UUID]EventHandler)
 }
 
 func (f *Fight) Run() {
 	f.ExternalChannel <- FightStartMsg{}
 
-	channelId := f.Location.CID
-
-	if f.Tournament != nil {
-		channelId = f.Tournament.Location
-	}
-
-	for len(f.Entities.SidesLeft()) > 1 {
-
+	for len(f.SidesLeft()) > 1 {
 		for entity, exp := range f.ExpireMap {
 			f.ExpireMap[entity] = exp - 1
+
+			{
+				temp := f.Entities[entity].Entity
+
+				if temp.GetCurrentHP() <= 0 {
+					delete(f.ExpireMap, entity)
+
+					f.ExternalChannel <- SummonExpired{Entity: entity}
+
+					continue
+				}
+			}
 
 			if exp <= 0 {
 				delete(f.ExpireMap, entity)
@@ -997,41 +816,41 @@ func (f *Fight) Run() {
 
 		turnList := make([]uuid.UUID, 0)
 
-		for uuid, speed := range f.SpeedMap {
-			entity := f.Entities[uuid].Entity
+		for uuid := range f.SpeedMap {
+			f.SpeedMap[uuid] += f.Entities[uuid].Entity.GetStat(types.STAT_SPD)
 
-			f.SpeedMap[uuid] = speed + entity.GetStat(types.STAT_SPD)
+			for f.SpeedMap[uuid] >= SPEED_GAUGE {
+				f.SpeedMap[uuid] -= SPEED_GAUGE
 
-			turns := f.SpeedMap[uuid] / SPEED_GAUGE
-
-			if turns == 0 {
-				continue
-			}
-
-			f.SpeedMap[uuid] -= turns * SPEED_GAUGE
-
-			for i := 0; i < turns; i++ {
-				turnList = append(turnList, entity.GetUUID())
+				turnList = append(turnList, uuid)
 			}
 		}
 
 		for _, entityUuid := range turnList {
-			entity := f.Entities[entityUuid].Entity
+			var entity types.Entity
 
-			if entity.GetCurrentHP() <= 0 {
-				continue
+			{
+				temp, exists := f.Entities[entityUuid]
+
+				if !exists || temp.Entity.GetCurrentHP() <= 0 {
+					continue
+				}
+
+				entity = temp.Entity
 			}
 
 			entity.TriggerEvent(types.TRIGGER_TURN, types.EventData{
 				Source: entity,
 				Target: entity,
-				Fight:  &f,
+				Fight:  f,
 			}, nil)
 
-			if entity.GetFlags()&types.ENTITY_AUTO == 0 {
-				entity.(PlayerEntity).SetDefendingState(false)
+			f.TurnCounter[entityUuid]++
 
-				entity.(PlayerEntity).ReduceCooldowns(types.TRIGGER_TURN)
+			if !types.HasFlag(entity.GetFlags(), types.ENTITY_AUTO) {
+				entity.(types.PlayerEntity).SetDefendingState(false)
+
+				entity.(types.PlayerEntity).ReduceCooldowns(types.TRIGGER_TURN)
 
 				f.ExternalChannel <- FightActionNeededMsg{Entity: entityUuid}
 
@@ -1047,33 +866,27 @@ func (f *Fight) Run() {
 					f.HandleAction(tempAction)
 				}
 			} else {
-				if entity.GetEffectByType(EFFECT_STUN) == nil {
+				if entity.GetEffectByType(types.EFFECT_STUN) == nil {
 					for _, action := range entity.Action(f) {
 						f.HandleAction(action)
 					}
-				} else {
-					f.DiscordChannel <- types.DiscordMessageStruct{
-						ChannelID: channelId,
-						MessageContent: discord.
-							NewMessageCreateBuilder().
-							AddEmbeds(
-								discord.NewEmbedBuilder().
-									SetTitle("Efekt!").
-									SetDescriptionf("%s jest ogłuszony, pomijamy!", entity.GetName()).
-									Build(),
-							).Build(),
-					}
+
+					continue
+				}
+
+				f.DiscordChannel <- types.DiscordMessageStruct{
+					ChannelID: f.GetChannelId(),
+					MessageContent: discord.MessageCreate{
+						Embeds: []discord.Embed{{
+							Title:       "Efekt!",
+							Description: fmt.Sprintf("%s jest ogłuszony, pomijamy!", entity.GetName()),
+						}},
+					},
 				}
 			}
 
 			entity.TriggerAllEffects()
 			entity.TriggerTempSkills()
-		}
-
-		for _, entry := range f.Entities {
-			if entry.Entity.GetCurrentHP() <= 0 {
-				continue
-			}
 		}
 	}
 

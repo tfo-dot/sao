@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-000000000005"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-000000000005"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-000000000005",
+  "00000000-0000-0001-0000-000000000005",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Wodne ostrze"
 Description = "Zadawanie obrażeń leczy o brakujące zdrowie."
 TakesSlot = true
@@ -22,35 +22,40 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Wodne ostrze" end,
-  GetDescription = function() return "Zadawanie obrażeń leczy o brakujące zdrowie." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_HIT",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_HIT",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local addPercentage = utils.PercentOf(owner:GetStat("AD"), 1)
+    ---@diagnostic disable-next-line: undefined-global
+    local addPercentage = utils.PercentOf(GetStat(owner, StatsConst.STAT_AD), 1)
 
-    fightInstance.HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = owner:GetUUID(),
+      ---@diagnostic disable-next-line: undefined-global
+      Source = GetUUID(owner),
+      ---@diagnostic disable-next-line: undefined-global
+      Target = GetUUID(owner),
       Meta = {
         Effect = "EFFECT_HEAL",
-        Value = utils.PercentOf(owner.GetStat("HP") - owner.GetCurrentHP(), 10 + addPercentage),
+        Value = 0,
         Duration = 0,
-        Caster = owner.GetUUID(),
+        ---@diagnostic disable-next-line: undefined-global
+        Caster = GetUUID(owner),
+        ---@diagnostic disable-next-line: undefined-global
+        Target = GetUUID(owner),
         Source = "SOURCE_ITEM",
+        Meta = {
+          ---@diagnostic disable-next-line: undefined-global
+          Value = utils.PercentOf(GetStat(owner, StatsConst.STAT_HP) - GetCurrentHP(owner), 10 + addPercentage)
+        }
       },
     })
 
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 10 end,
-  GetCost = function() return 0 end
-}
+  CD = 10,
+} }

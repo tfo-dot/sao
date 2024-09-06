@@ -12,7 +12,6 @@ import (
 	"sao/utils"
 	"sao/world"
 	"sao/world/location"
-	"sao/world/npc"
 	"sao/world/party"
 	"sao/world/tournament"
 	"slices"
@@ -40,7 +39,7 @@ func StartClient() {
 			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == config.Config.Owner {
 				data := World.CreateBackup()
 
-				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, "02Calc:1159034005493129228")
+				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, config.Config.Emote)
 
 				chanel, err := e.Client().Rest().CreateDMChannel(snowflake.MustParse(config.Config.Owner))
 
@@ -88,28 +87,37 @@ func StartClient() {
 
 func worldMessageListener() {
 	for {
-		msg, ok := <-World.DChannel
+		msg, ok := <-World.DiscordChannel
 
 		if !ok {
 			return
 		}
 
-		snowflake := snowflake.MustParse(msg.ChannelID)
+		switch msg.GetEvent() {
+		case types.MSG_SEND:
+			data := msg.GetData().(types.DiscordMessageStruct)
 
-		if msg.DM {
-			ch, err := (*Client).Rest().CreateDMChannel(snowflake)
+			snowflake := snowflake.MustParse(data.ChannelID)
 
-			if err != nil {
-				return
+			if data.DM {
+				ch, err := (*Client).Rest().CreateDMChannel(snowflake)
+
+				if err != nil {
+					return
+				}
+
+				snowflake = ch.ID()
 			}
 
-			snowflake = ch.ID()
-		}
+			_, err := (*Client).Rest().CreateMessage(snowflake, data.MessageContent)
 
-		_, err := (*Client).Rest().CreateMessage(snowflake, msg.MessageContent)
+			if err != nil {
+				panic(err)
+			}
+		case types.MSG_CHOICE:
+			data := msg.GetData().(types.DiscordChoice)
 
-		if err != nil {
-			panic(err)
+			Choices = append(Choices, data)
 		}
 	}
 }
@@ -157,9 +165,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		if err != nil {
 			fmt.Println("error while sending message")
 		} else {
-			gid := event.GuildID()
-
-			(*Client).Rest().AddMemberRole(*gid, charUser.ID, snowflake.MustParse(config.Config.RoleID))
+			(*Client).Rest().AddMemberRole(*event.GuildID(), charUser.ID, snowflake.MustParse(config.Config.RoleID))
 		}
 		return
 	case "ruch":
@@ -186,12 +192,14 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
+		defaultLocation := World.Floors[floorName].FindLocation(World.Floors[floorName].Default)
+
 		err := World.MovePlayer(playerChar.GetUUID(), floorName, World.Floors[floorName].Default, "")
 
 		if err == nil {
-			event.CreateMessage(MessageContent("Teleportowałeś się na "+floorName, false))
+			event.CreateMessage(MessageContent(fmt.Sprintf("Teleportowałeś się na %s (<#%s>)", floorName, defaultLocation.CID), false))
 		} else {
-			event.CreateMessage(MessageContent("Nie możesz się teleportować"+err.Error(), true))
+			event.CreateMessage(MessageContent("Nie możesz się teleportować", true))
 		}
 
 		return
@@ -310,21 +318,27 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			for key, skill := range playerChar.Inventory.LevelSkills {
 				skillDescription := skill.GetUpgradableDescription(playerChar.Inventory.LevelSkillsUpgrades[skill.GetLevel()])
 
+				skillName := skill.GetName()
+
+				if types.HasFlag(skill.GetTrigger().Flags, types.FLAG_INSTANT_SKILL) {
+					skillName = fmt.Sprintf("**%s**", skillName)
+				}
+
+				if types.HasFlag(skill.GetTrigger().Flags, types.FLAG_INSTANT_SKILL) {
+					skillName = fmt.Sprintf("__%s__", skillName)
+				}
+
+				skillName = fmt.Sprintf("%s CD:%d", skillName, skill.GetCooldown(playerChar.Inventory.LevelSkillsUpgrades[skill.GetLevel()]))
+
 				tempArray = append(tempArray, LevelField{Level: key, Field: discord.EmbedField{
-					Name:   skill.GetName(),
-					Value:  fmt.Sprintf("Ścieżka: %s\n\n%s", types.PathToString[skill.GetPath()], skillDescription),
+					Name:   skillName,
+					Value:  skillDescription,
 					Inline: &notInLine,
 				}})
 			}
 
 			slices.SortFunc(tempArray, func(i, j LevelField) int {
-				if i.Level < j.Level {
-					return -1
-				} else if i.Level > j.Level {
-					return 1
-				}
-
-				return 0
+				return i.Level - j.Level
 			})
 
 			for _, field := range tempArray {
@@ -526,13 +540,14 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			for _, item := range playerChar.Inventory.Items {
-
 				if item.Hidden {
 					continue
 				}
 
 				embed.AddField(item.Name, item.Description, false)
 			}
+
+			embed.AddField("Złoto", fmt.Sprintf("%d", playerChar.Inventory.Gold), false)
 
 			event.CreateMessage(
 				discord.
@@ -557,14 +572,38 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		textChannel := dChannel.(discord.GuildTextChannel)
+		var parentId string
+		var channelId string
+		var threadId string
 
-		textChannel.ParentID()
+		if threadChannel, ok := dChannel.(discord.GuildThread); ok {
+			threadChannel.ParentID()
+
+			textChannel, error := (*Client).Rest().GetChannel(*threadChannel.ParentID())
+
+			if error != nil {
+				event.CreateMessage(
+					discord.
+						NewMessageCreateBuilder().
+						SetContent("Nie można znaleźć kanału").
+						SetEphemeral(true).
+						Build(),
+				)
+				return
+			}
+
+			parentId = textChannel.(discord.GuildTextChannel).ParentID().String()
+			channelId = textChannel.ID().String()
+			threadId = dChannel.ID().String()
+		} else {
+			parentId = dChannel.(discord.GuildTextChannel).ParentID().String()
+			channelId = dChannel.ID().String()
+		}
 
 		var dFloor *location.Floor
 
 		for _, floor := range World.Floors {
-			if floor.CID == textChannel.ParentID().String() {
+			if floor.CID == parentId {
 				dFloor = &floor
 				break
 			}
@@ -581,7 +620,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			return
 		}
 
-		newLocation := dFloor.FindLocation(event.Channel().ID().String())
+		newLocation := dFloor.FindLocation(channelId)
 
 		if newLocation == nil {
 			event.CreateMessage(
@@ -609,7 +648,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			go World.PlayerSearch(playerChar.GetUUID())
+			World.PlayerSearch(playerChar.GetUUID(), threadId, event)
 
 			event.CreateMessage(
 				discord.
@@ -652,7 +691,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			go World.PlayerSearch(playerChar.GetUUID())
+			go World.PlayerSearch(playerChar.GetUUID(), threadId, event)
 
 			event.CreateMessage(
 				discord.
@@ -679,7 +718,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		switch *interactionData.SubCommandName {
 		case "pokaż":
 			embed := discord.NewEmbedBuilder()
-			partyObj := World.Parties[*playerChar.Meta.Party]
+			partyObj := World.Parties[playerChar.Meta.Party.UUID]
 			partyMembersText := ""
 
 			for _, member := range partyObj.Players {
@@ -719,7 +758,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				})
 			}
 
-			if len(World.Parties[*playerChar.Meta.Party].Players) >= 6 {
+			if len(World.Parties[playerChar.Meta.Party.UUID].Players) >= 6 {
 				event.CreateMessage(
 					discord.
 						NewMessageCreateBuilder().
@@ -730,7 +769,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			part := World.Parties[*playerChar.Meta.Party]
+			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
@@ -745,20 +784,20 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			mentionedUser := interactionData.User("gracz")
 
-			// for _, pl := range World.Players {
-			// 	if pl.Meta.UserID == mentionedUser.ID.String() {
-			// 		if pl.Meta.Party != nil {
-			// 			event.CreateMessage(
-			// 				discord.
-			// 					NewMessageCreateBuilder().
-			// 					SetContent("Gracz jest już w party").
-			// 					SetEphemeral(true).
-			// 					Build(),
-			// 			)
-			// 			return
-			// 		}
-			// 	}
-			// }
+			for _, pl := range World.Players {
+				if pl.Meta.UserID == mentionedUser.ID.String() {
+					if pl.Meta.Party != nil {
+						event.CreateMessage(
+							discord.
+								NewMessageCreateBuilder().
+								SetContent("Gracz jest już w party").
+								SetEphemeral(true).
+								Build(),
+						)
+						return
+					}
+				}
+			}
 
 			ch, error := event.Client().Rest().CreateDMChannel(mentionedUser.ID)
 
@@ -777,8 +816,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			_, error = event.Client().Rest().CreateMessage(chID, discord.NewMessageCreateBuilder().
 				SetContent(fmt.Sprintf("<@%s> (%s) zaprasza cię do party", user.ID.String(), playerChar.GetName())).
 				AddActionRow(
-					discord.NewPrimaryButton("Akceptuj", "party/res|"+(*playerChar.Meta.Party).String()),
-					discord.NewDangerButton("Odrzuć", "party/rej|"+(*playerChar.Meta.Party).String()),
+					discord.NewPrimaryButton("Akceptuj", "party/res|"+(playerChar.Meta.Party.UUID).String()),
+					discord.NewDangerButton("Odrzuć", "party/rej|"+(playerChar.Meta.Party.UUID).String()),
 				).
 				Build(),
 			)
@@ -803,7 +842,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "wyrzuć":
-			part := World.Parties[*playerChar.Meta.Party]
+			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
@@ -842,7 +881,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						return
 					}
 
-					if *pl.Meta.Party != *playerChar.Meta.Party {
+					if pl.Meta.Party.UUID != playerChar.Meta.Party.UUID {
 						event.CreateMessage(
 							discord.
 								NewMessageCreateBuilder().
@@ -853,12 +892,14 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						return
 					}
 
-					for i, partyMember := range World.Parties[*playerChar.Meta.Party].Players {
+					for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
 						if partyMember.PlayerUuid == pl.GetUUID() {
 							pl.Meta.Party = nil
 
-							World.Parties[*playerChar.Meta.Party].Players = append(World.Parties[*playerChar.Meta.Party].Players[:i], World.Parties[*playerChar.Meta.Party].Players[i+1:]...)
+							World.Parties[playerChar.Meta.Party.UUID].Players = append(World.Parties[playerChar.Meta.Party.UUID].Players[:i], World.Parties[playerChar.Meta.Party.UUID].Players[i+1:]...)
 							break
+						} else {
+							World.Players[partyMember.PlayerUuid].Meta.Party.MembersCount--
 						}
 					}
 
@@ -867,7 +908,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "opuść":
-			part := World.Parties[*playerChar.Meta.Party]
+			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() == part.Leader {
 				event.CreateMessage(
@@ -880,10 +921,12 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			for i, partyMember := range World.Parties[*playerChar.Meta.Party].Players {
+			for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
 				if partyMember.PlayerUuid == playerChar.GetUUID() {
-					World.Parties[*playerChar.Meta.Party].Players = append(World.Parties[*playerChar.Meta.Party].Players[:i], World.Parties[*playerChar.Meta.Party].Players[i+1:]...)
+					World.Parties[playerChar.Meta.Party.UUID].Players = append(World.Parties[playerChar.Meta.Party.UUID].Players[:i], World.Parties[playerChar.Meta.Party.UUID].Players[i+1:]...)
 					break
+				} else {
+					World.Players[partyMember.PlayerUuid].Meta.Party.MembersCount--
 				}
 			}
 
@@ -899,7 +942,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			return
 		case "zmień":
-			part := World.Parties[*playerChar.Meta.Party]
+			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
@@ -938,7 +981,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 						return
 					}
 
-					if *pl.Meta.Party != *playerChar.Meta.Party {
+					if pl.Meta.Party.UUID != playerChar.Meta.Party.UUID {
 						event.CreateMessage(
 							discord.
 								NewMessageCreateBuilder().
@@ -951,17 +994,17 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 					role := interactionData.String("rola")
 
-					for i, partyMember := range World.Parties[*playerChar.Meta.Party].Players {
+					for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
 						if partyMember.PlayerUuid == pl.GetUUID() {
 							switch role {
 							case "Lider":
-								World.Parties[*playerChar.Meta.Party].Leader = pl.GetUUID()
+								World.Parties[playerChar.Meta.Party.UUID].Leader = pl.GetUUID()
 							case "DPS":
-								World.Parties[*playerChar.Meta.Party].Players[i].Role = party.DPS
+								World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.DPS
 							case "Support":
-								World.Parties[*playerChar.Meta.Party].Players[i].Role = party.Support
+								World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.Support
 							case "Tank":
-								World.Parties[*playerChar.Meta.Party].Players[i].Role = party.Tank
+								World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.Tank
 							}
 							break
 						}
@@ -977,7 +1020,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				}
 			}
 		case "rozwiąż":
-			part := World.Parties[*playerChar.Meta.Party]
+			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
 				event.CreateMessage(
@@ -990,7 +1033,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			uuid := *playerChar.Meta.Party
+			uuid := playerChar.Meta.Party.UUID
 
 			for _, partyMember := range World.Parties[uuid].Players {
 				World.Players[partyMember.PlayerUuid].Meta.Party = nil
@@ -1025,7 +1068,6 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		cid := event.Channel().ID().String()
 
 		for _, fight := range World.Fights {
-
 			if fight.Location.CID != cid {
 				continue
 			} else {
@@ -1281,11 +1323,11 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		case "pokaż":
 			playerLocation := playerChar.Meta.Location
 
-			storesInLocation := make([]*npc.NPCStore, 0)
+			storesInLocation := make([]*types.NPCStore, 0)
 
-			for _, npcObject := range World.NPCs {
-				if playerLocation == npcObject.Location {
-					storesInLocation = append(storesInLocation, npcObject.Store)
+			for _, store := range World.Stores {
+				if playerLocation == store.Location {
+					storesInLocation = append(storesInLocation, store)
 				}
 			}
 
@@ -1313,7 +1355,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			messageBuilder := discord.NewMessageCreateBuilder()
 
 			for i := 0; i < (len(storesInLocation)/5)+1; i++ {
-				var stores []*npc.NPCStore
+				var stores []*types.NPCStore
 
 				if len(storesInLocation) < i*5+5 {
 					stores = storesInLocation[i*5:]

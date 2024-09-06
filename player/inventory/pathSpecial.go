@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"fmt"
-	"sao/battle"
 	"sao/types"
 	"sao/utils"
 
@@ -11,10 +10,6 @@ import (
 )
 
 type SpecialSkill struct{}
-
-func (skill SpecialSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	return nil
-}
 
 func (skill SpecialSkill) GetPath() types.SkillPath {
 	return types.PathSpecial
@@ -28,8 +23,12 @@ func (skill SpecialSkill) IsLevelSkill() bool {
 	return true
 }
 
-func (skill SpecialSkill) CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool {
+func (skill SpecialSkill) CanUse(owner types.PlayerEntity, fightInstance types.FightInstance) bool {
 	return true
+}
+
+func (skill SpecialSkill) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return nil
 }
 
 type SPC_LVL_1 struct {
@@ -51,15 +50,15 @@ func (skill SPC_LVL_1) GetUpgradableTrigger(upgrades int) types.Trigger {
 	return types.Trigger{Type: types.TRIGGER_ACTIVE, Flags: types.FLAG_INSTANT_SKILL}
 }
 
-func (skill SPC_LVL_1) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (skill SPC_LVL_1) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	baseIncrease := 10
 	baseDuration := 1
 
-	if HasUpgrade(upgrades, 2) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2) {
 		baseIncrease = 12
 	}
 
-	if HasUpgrade(upgrades, 3) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) {
 		baseDuration++
 	}
 
@@ -68,29 +67,25 @@ func (skill SPC_LVL_1) UpgradableExecute(owner, target, fightInstance, meta inte
 	)
 
 	{
-		channelId := fightInstance.(*battle.Fight).Location.CID
+		channelId := fightInstance.GetChannelId()
 
-		if fightInstance.(*battle.Fight).Tournament != nil {
-			channelId = fightInstance.(*battle.Fight).Tournament.Location
-		}
-
-		fightInstance.(*battle.Fight).DiscordChannel <- types.DiscordMessageStruct{
+		fightInstance.DiscordSend(types.DiscordMessageStruct{
 			ChannelID:      channelId,
 			MessageContent: discord.NewMessageCreateBuilder().SetContentf("Zwiększono statystykę %s o %d%% na %d tur", types.StatToString[randomStat], baseIncrease, baseDuration).Build(),
 			DM:             false,
-		}
+		})
 	}
 
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Target: target.(battle.Entity).GetUUID(),
-		Source: owner.(battle.PlayerEntity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_STAT_INC,
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: target.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_INC,
 			Value:    baseIncrease,
 			Duration: baseDuration,
-			Caster:   owner.(battle.PlayerEntity).GetUUID(),
-			Meta: battle.ActionEffectStat{
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
 				Stat:      randomStat,
 				Value:     baseIncrease,
 				IsPercent: true,
@@ -257,28 +252,28 @@ func (skill SPC_LVL_3) GetName() string {
 	return "Poziom 3 - Specjalista"
 }
 
-func (skill SPC_LVL_3) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
+func (skill SPC_LVL_3) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	baseDmg := 25
 	baseHeal := 20
 
-	if HasUpgrade(upgrades, 2) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2) {
 		baseDmg = 35
-		baseDmg += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AP), 10)
-		baseDmg += utils.PercentOf(owner.(battle.PlayerEntity).GetStat(types.STAT_AD), 10)
+		baseDmg += utils.PercentOf(owner.GetStat(types.STAT_AP), 10)
+		baseDmg += utils.PercentOf(owner.GetStat(types.STAT_AD), 10)
 	}
 
-	if HasUpgrade(upgrades, 3) {
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) {
 		baseHeal = 25
 	}
 
 	healValue := utils.PercentOf(baseDmg, baseHeal)
 
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_DMG,
-		Target: target.(battle.Entity).GetUUID(),
-		Source: owner.(battle.PlayerEntity).GetUUID(),
-		Meta: battle.ActionDamage{
-			Damage: []battle.Damage{
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_DMG,
+		Target: target.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionDamage{
+			Damage: []types.Damage{
 				{
 					Type:  types.DMG_TRUE,
 					Value: baseDmg,
@@ -287,15 +282,15 @@ func (skill SPC_LVL_3) UpgradableExecute(owner, target, fightInstance, meta inte
 		},
 	})
 
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Target: owner.(battle.PlayerEntity).GetUUID(),
-		Source: owner.(battle.PlayerEntity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_HEAL_SELF,
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_HEAL,
 			Value:    healValue,
 			Duration: 0,
-			Caster:   owner.(battle.PlayerEntity).GetUUID(),
+			Caster:   owner.GetUUID(),
 		},
 	})
 
@@ -367,13 +362,13 @@ func (skill SPC_LVL_4) GetName() string {
 	return "Poziom 4 - Specjalista"
 }
 
-func (skill SPC_LVL_4) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	tempSkill := target.(battle.PlayerEntity).GetLvlSkill(meta.(types.SkillChoice).Choice)
+func (skill SPC_LVL_4) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	tempSkill := target.(types.PlayerEntity).GetLvlSkill(meta.(types.SkillChoice).Choice)
 
-	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
 		Value:      tempSkill,
 		Expire:     1,
-		AfterUsage: HasUpgrade(upgrades, 3),
+		AfterUsage: HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3),
 	})
 
 	return nil
@@ -492,7 +487,7 @@ type SPC_LVL_5_EFFECT struct {
 	NoEvents
 }
 
-func (skill SPC_LVL_5_EFFECT) Execute(owner, target, fightInstance, meta interface{}) interface{} {
+func (skill SPC_LVL_5_EFFECT) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	tempMeta := meta.(types.AttackTriggerMeta)
 
 	for _, effect := range tempMeta.Effects {
@@ -514,19 +509,19 @@ func (skill SPC_LVL_5_EFFECT) GetTrigger() types.Trigger {
 	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
 }
 
-func (skill SPC_LVL_5) UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{} {
-	spdReduction := owner.(battle.PlayerEntity).GetStat(types.STAT_SPD) - owner.(battle.PlayerEntity).GetDefaultStat(types.STAT_SPD)
+func (skill SPC_LVL_5) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	spdReduction := owner.GetStat(types.STAT_SPD) - owner.GetDefaultStat(types.STAT_SPD)
 
-	fightInstance.(*battle.Fight).HandleAction(battle.Action{
-		Event:  battle.ACTION_EFFECT,
-		Target: owner.(battle.PlayerEntity).GetUUID(),
-		Source: owner.(battle.PlayerEntity).GetUUID(),
-		Meta: battle.ActionEffect{
-			Effect:   battle.EFFECT_STAT_DEC,
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_DEC,
 			Value:    spdReduction,
 			Duration: 1,
-			Caster:   owner.(battle.PlayerEntity).GetUUID(),
-			Meta: battle.ActionEffectStat{
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
 				Stat:      types.STAT_SPD,
 				Value:     spdReduction,
 				IsPercent: false,
@@ -534,31 +529,32 @@ func (skill SPC_LVL_5) UpgradableExecute(owner, target, fightInstance, meta inte
 		},
 	})
 
-	fightInstance.(*battle.Fight).DiscordChannel <- types.DiscordMessageStruct{
-		ChannelID:      fightInstance.(*battle.Fight).Location.CID,
+	fightInstance.DiscordSend(types.DiscordMessageStruct{
+		ChannelID:      fightInstance.GetChannelId(),
 		MessageContent: discord.NewMessageCreateBuilder().SetContentf("Zwiększenie obrażeń wynosi %d", spdReduction).Build(),
 		DM:             false,
-	}
-
-	owner.(battle.PlayerEntity).AppendTempSkill(types.WithExpire[types.PlayerSkill]{
-		Value:      SPC_LVL_5_EFFECT{},
-		Expire:     1,
-		AfterUsage: HasUpgrade(upgrades, 2),
 	})
 
-	if HasUpgrade(upgrades, 3) {
-		fightInstance.(*battle.Fight).HandleAction(battle.Action{
-			Event:  battle.ACTION_EFFECT,
-			Target: owner.(battle.PlayerEntity).GetUUID(),
-			Source: owner.(battle.PlayerEntity).GetUUID(),
-			Meta: battle.ActionEffect{
-				Effect:   battle.EFFECT_RESIST,
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value:      SPC_LVL_5_EFFECT{},
+		Expire:     1,
+		AfterUsage: HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2),
+	})
+
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_EFFECT,
+			Target: owner.GetUUID(),
+			Source: owner.GetUUID(),
+			Meta: types.ActionEffect{
+				Effect:   types.EFFECT_RESIST,
 				Value:    10,
 				Duration: 1,
-				Caster:   owner.(battle.PlayerEntity).GetUUID(),
-				Meta: battle.ActionEffectResist{
+				Caster:   owner.GetUUID(),
+				Meta: types.ActionEffectResist{
 					Value:     10,
 					IsPercent: true,
+					DmgType:   4,
 				},
 			},
 		})
@@ -593,4 +589,493 @@ func (skill SPC_LVL_5) GetUpgradableDescription(upgrades int) string {
 	}
 
 	return fmt.Sprintf("Zmniejsza SPD do początkowej wartości na jedną turę. Zwiększa%s atak%s o zabraną wartość.%s", effectDuration, trigger, resist)
+}
+
+type SPC_LVL_6 struct {
+	SpecialSkill
+	NoStats
+	NoEvents
+	DefaultCost
+}
+
+func (skill SPC_LVL_6) GetName() string {
+	return "Poziom 6 - Specjalista"
+}
+
+func (skill SPC_LVL_6) GetDescription() string {
+	return "Zmniejsza leczenie i tarcze przeciwnika o 10%"
+}
+
+func (skill SPC_LVL_6) GetLevel() int {
+	return 6
+}
+
+func (skill SPC_LVL_6) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{
+		{
+			Id:          "Duration",
+			Description: "Efekt trwa przez dwie tury",
+		},
+		{
+			Id:          "EffectIncrease",
+			Description: "Zwiększa redukcje do 20%",
+		},
+		{
+			Id:          "Damage",
+			Description: "Zadaje obrażenia równe 1% maks HP celu",
+		},
+	}
+}
+
+func (skill SPC_LVL_6) GetUpgradableDescription(upgrades int) string {
+	duration := "jedną turę"
+
+	if HasUpgrade(upgrades, 1) {
+		duration = "dwie tury"
+	}
+
+	effectIncrease := 10
+	if HasUpgrade(upgrades, 2) {
+		effectIncrease = 20
+	}
+
+	damage := ""
+	if HasUpgrade(upgrades, 3) {
+		damage = "\nZadaje obrażenia równe 1% maks HP celu"
+	}
+
+	return fmt.Sprintf("Zmniejsza leczenie i tarcze przeciwnika o %d%% na %s.%s", effectIncrease, duration, damage)
+}
+
+func (skill SPC_LVL_6) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	effectValue := 10
+
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 2) {
+		effectValue = 20
+	}
+
+	duration := 1
+
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 1) {
+		duration++
+	}
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: target.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_DEC,
+			Value:    effectValue,
+			Duration: 1,
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
+				Stat:      types.STAT_HEAL_SELF,
+				Value:     effectValue,
+				IsPercent: false,
+			},
+			Uuid:   uuid.New(),
+			Target: target.GetUUID(),
+			Source: types.SOURCE_ND,
+		},
+	})
+
+	if HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3) {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_DMG,
+			Target: target.GetUUID(),
+			Source: owner.GetUUID(),
+			Meta: types.ActionDamage{
+				Damage: []types.Damage{
+					{
+						Type:  types.DMG_TRUE,
+						Value: target.GetStat(types.STAT_HP) / 100,
+					},
+				},
+			},
+		})
+	}
+
+	return nil
+}
+
+func (skill SPC_LVL_6) GetCD() int {
+	return BaseCooldowns[skill.GetLevel()]
+}
+
+func (skill SPC_LVL_6) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill SPC_LVL_6) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Target: &types.TargetTrigger{Target: types.TARGET_ENEMY, MaxTargets: 1}}
+}
+
+func (skill SPC_LVL_6) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return skill.GetTrigger()
+}
+
+type SPC_ULT_1 struct {
+	SpecialSkill
+	NoStats
+	NoEvents
+	DefaultActiveTrigger
+}
+
+func (skill SPC_ULT_1) GetName() string {
+	return "Poziom 10 - Specjalista"
+}
+
+func (skill SPC_ULT_1) GetDescription() string {
+	return "Jesteś niemożliwy do trafienia przez 10 tur. Spowalniasz do bazowej wartości SPD, wszyscy sojusznicy otrzymują połowe dodatkowej prędkości.\nGdy jesteś niemożliwy do trafienia twoje ataki zadają 50% mniej obrażeń ale za to przywracają 1many i dają ci 10 SPD i 5 DGD do końca walki."
+}
+
+func (skill SPC_ULT_1) GetLevel() int {
+	return 10
+}
+
+func (skill SPC_ULT_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{}
+}
+
+func (skill SPC_ULT_1) GetUpgradableDescription(upgrades int) string {
+	return skill.GetDescription()
+}
+
+func (skill SPC_ULT_1) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return skill.Execute(owner, target, fightInstance, meta)
+}
+
+func (skill SPC_ULT_1) GetCD() int {
+	return 10
+}
+
+func (skill SPC_ULT_1) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill SPC_ULT_1) GetCost() int {
+	return 1
+}
+
+func (skill SPC_ULT_1) GetUpgradableCost(upgrades int) int {
+	return skill.GetCost()
+}
+
+type SPC_ULT_1_EFFECT_1 struct {
+	NoCooldown
+	NoCost
+	NoStats
+	NoLevel
+	NoEvents
+}
+
+func (skill SPC_ULT_1_EFFECT_1) GetName() string {
+	return "Poziom 10 - Specjalista - Efekt 1"
+}
+
+func (skill SPC_ULT_1_EFFECT_1) GetDescription() string {
+	return ""
+}
+
+func (skill SPC_ULT_1_EFFECT_1) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
+}
+
+func (skill SPC_ULT_1_EFFECT_1) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	owner.RestoreMana(1)
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_INC,
+			Value:    10,
+			Duration: -1,
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
+				Stat:      types.STAT_SPD,
+				Value:     10,
+				IsPercent: false,
+			},
+			Uuid:   uuid.New(),
+			Target: owner.GetUUID(),
+			Source: types.SOURCE_ND,
+		},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_INC,
+			Value:    5,
+			Duration: -1,
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
+				Stat:      types.STAT_AGL,
+				Value:     5,
+				IsPercent: false,
+			},
+			Uuid:   uuid.New(),
+			Target: owner.GetUUID(),
+			Source: types.SOURCE_ND,
+		},
+	})
+
+	return types.AttackTriggerMeta{
+		Effects: []types.DamagePartial{{
+			Percent: true,
+			Value:   -50,
+			Type:    types.DMG_PHYSICAL,
+		}},
+	}
+}
+
+type SPC_ULT_1_EFFECT_2 struct {
+	NoCooldown
+	NoCost
+	NoStats
+	NoLevel
+	NoEvents
+}
+
+func (skill SPC_ULT_1_EFFECT_2) GetName() string {
+	return "Poziom 10 - Specjalista - Efekt 2"
+}
+
+func (skill SPC_ULT_1_EFFECT_2) GetDescription() string {
+	return ""
+}
+
+func (skill SPC_ULT_1_EFFECT_2) GetTrigger() types.Trigger {
+	// TODO Trigger effect for before getting hit
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
+}
+func (skill SPC_ULT_1_EFFECT_2) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return types.AttackTriggerMeta{
+		Effects:    []types.DamagePartial{},
+		ShouldMiss: true,
+	}
+}
+
+func (skill SPC_ULT_1) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	valueIncrease := owner.GetStat(types.STAT_SPD) - owner.GetDefaultStat(types.STAT_SPD)
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_DEC,
+			Value:    -valueIncrease,
+			Duration: 10,
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
+				Stat:      types.STAT_SPD,
+				Value:     -valueIncrease,
+				IsPercent: false,
+			},
+			Uuid:   uuid.New(),
+			Target: owner.GetUUID(),
+			Source: types.SOURCE_ND,
+		},
+	})
+
+	for _, entity := range fightInstance.GetAlliesFor(owner.GetUUID()) {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_EFFECT,
+			Target: entity.GetUUID(),
+			Source: owner.GetUUID(),
+			Meta: types.ActionEffect{
+				Effect:   types.EFFECT_STAT_INC,
+				Value:    valueIncrease,
+				Duration: 10,
+				Caster:   owner.GetUUID(),
+				Meta: types.ActionEffectStat{
+					Stat:      types.STAT_SPD,
+					Value:     valueIncrease,
+					IsPercent: false,
+				},
+				Uuid:   uuid.New(),
+				Target: entity.GetUUID(),
+				Source: types.SOURCE_ND,
+			},
+		})
+	}
+
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value:      SPC_ULT_1_EFFECT_1{},
+		Expire:     10,
+		AfterUsage: false,
+		Either:     false,
+	})
+
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value:      SPC_ULT_1_EFFECT_2{},
+		Expire:     10,
+		AfterUsage: false,
+		Either:     false,
+	})
+
+	return nil
+}
+
+type SPC_ULT_2 struct {
+	SpecialSkill
+	NoStats
+	NoEvents
+	DefaultActiveTrigger
+}
+
+func (skill SPC_ULT_2) GetName() string {
+	return "Poziom 10 - Specjalista"
+}
+
+func (skill SPC_ULT_2) GetDescription() string {
+	return "Usuwasz negatywne efekty sojuszników.\nLeczysz wszystkich sojuszników o 25% ich maksymalnego zdrowia, otrzymują tarczę w wysokości 20% twojego HP.\nZa każdego sojusznika otrzymujesz 10 SPD do końca walki.\nEfekt pasywny: za każde 10 dodatkowego SPD twoje obrażenia są zwiększone o 5%"
+}
+
+func (skill SPC_ULT_2) GetLevel() int {
+	return 10
+}
+
+func (skill SPC_ULT_2) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{}
+}
+
+func (skill SPC_ULT_2) GetUpgradableDescription(upgrades int) string {
+	return skill.GetDescription()
+}
+
+func (skill SPC_ULT_2) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return skill.Execute(owner, target, fightInstance, meta)
+}
+
+type SPC_ULT_2_EFFECT struct {
+	NoCooldown
+	NoCost
+	NoStats
+	NoLevel
+	NoEvents
+}
+
+func (skill SPC_ULT_2_EFFECT) GetName() string {
+	return "Poziom 10 - Specjalista - Efekt"
+}
+
+func (skill SPC_ULT_2_EFFECT) GetDescription() string {
+	return ""
+}
+
+func (skill SPC_ULT_2_EFFECT) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
+}
+
+func (skill SPC_ULT_2_EFFECT) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	statDiff := owner.GetStat(types.STAT_SPD) - owner.GetDefaultStat(types.STAT_SPD)
+
+	percentChange := 0
+
+	for statDiff > 10 {
+		percentChange++
+		statDiff -= 10
+	}
+
+	return types.AttackTriggerMeta{
+		Effects: []types.DamagePartial{{
+			Percent: true,
+			Value:   percentChange * 5,
+			Type:    types.DMG_PHYSICAL,
+		}},
+	}
+}
+
+func (skill SPC_ULT_2) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	allies := fightInstance.GetAlliesFor(owner.GetUUID())
+
+	for _, entity := range allies {
+		entity.Cleanse()
+
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_EFFECT,
+			Target: entity.GetUUID(),
+			Source: owner.GetUUID(),
+			Meta: types.ActionEffect{
+				Effect:   types.EFFECT_HEAL,
+				Value:    utils.PercentOf(entity.GetStat(types.STAT_HP), 25),
+				Duration: 0,
+				Caster:   owner.GetUUID(),
+				Uuid:     uuid.New(),
+				Meta: types.ActionEffectHeal{
+					Value: utils.PercentOf(entity.GetStat(types.STAT_HP), 25),
+				},
+				Target: entity.GetUUID(),
+				Source: types.SOURCE_ND,
+			},
+		})
+
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_EFFECT,
+			Target: entity.GetUUID(),
+			Source: owner.GetUUID(),
+			Meta: types.ActionEffect{
+				Effect:   types.EFFECT_SHIELD,
+				Value:    utils.PercentOf(owner.GetStat(types.STAT_HP), 20),
+				Duration: 0,
+				Caster:   owner.GetUUID(),
+				Uuid:     uuid.New(),
+				Meta:     nil,
+				Target:   entity.GetUUID(),
+				Source:   types.SOURCE_ND,
+			},
+		})
+	}
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Target: owner.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_INC,
+			Value:    10 * len(allies),
+			Duration: -1,
+			Caster:   owner.GetUUID(),
+			Meta: types.ActionEffectStat{
+				Stat:      types.STAT_SPD,
+				Value:     10 * len(allies),
+				IsPercent: false,
+			},
+			Uuid:   uuid.New(),
+			Target: owner.GetUUID(),
+			Source: types.SOURCE_ND,
+		},
+	})
+
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value:      SPC_ULT_2_EFFECT{},
+		Expire:     -1,
+		AfterUsage: false,
+		Either:     false,
+	})
+
+	return nil
+}
+
+func (skill SPC_ULT_2) GetCD() int {
+	return 10
+}
+
+func (skill SPC_ULT_2) GetCooldown(upgrades int) int {
+	return skill.GetCD()
+}
+
+func (skill SPC_ULT_2) GetCost() int {
+	return 1
+}
+
+func (skill SPC_ULT_2) GetUpgradableCost(upgrades int) int {
+	return skill.GetCost()
 }

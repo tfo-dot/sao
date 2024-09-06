@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000001A"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000001A"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000001A",
+  "00000000-0000-0001-0000-00000000001A",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "PŁomień Shiki"
 Description = "Obrażenia magiczne są zwiększone w zależności od zdrowia wroga"
 TakesSlot = true
@@ -21,30 +21,25 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Pasek Kyoki" end,
-  GetDescription = function() return "Obrażenia magiczne są zwiększone w zależności od zdrowia wroga" end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "DAMAGE_BEFORE"
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "DAMAGE_BEFORE"
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    local targetPercent = utils.percentOf(target.GetStat("STAT_HP"), 5)
+    ---@diagnostic disable-next-line: undefined-global
+    local targetPercent = utils.percentOf(GetStat(target, StatsConst.STATS_HP), 5)
 
     return {
       Effects = {
         {
-          Value = targetPercent + utils.percentOf(owner.GetStat("STAT_AP"), 10),
-          Type = "DMG_MAGICAL",
+          ---@diagnostic disable-next-line: undefined-global
+          Value = targetPercent + utils.percentOf(GetStat(owner, StatsConst.STAT_AP), 10),
+          Type = 1,
           Percent = false,
         },
       },
     }
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

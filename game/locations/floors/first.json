@@ -40,19 +40,19 @@
     },
     {
       "Name": "dev",
-      "CID": "1275915287677632512",
+      "CID": "1276235901944463554",
       "TP": true,
       "CityPart": false,
       "Unlocked": true,
       "Enemies": [
         {
-          "MinNum": 2,
-          "MaxNum": 2,
-          "Enemy": "LV0_Wilk"
+          "MinNum": 1,
+          "MaxNum": 1,
+          "Enemy": "LV0_Error"
         }
       ],
       "Effects": [],
-      "Flags": []
+      "Flags": ["private"]
     },
     {
       "Name": "Polana",
@@ -92,14 +92,12 @@
       "TP": true,
       "CityPart": false,
       "Unlocked": true,
-      "Flags": [
-        "boss"
-      ],
+      "Flags": [],
       "Enemies": [
         {
           "MinNum": 1,
           "MaxNum": 1,
-          "Enemy": "LV0_Boss"
+          "Enemy": "LV0_Dragon"
         }
       ],
       "Effects": []

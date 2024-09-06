@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000000D"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000000D"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000000D",
+  "00000000-0000-0001-0000-00000000000D",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Pancerz zwady"
 Description = "Zadaje obrażenia wrogom, którzy cię uderzają i zmniejsza ich leczenie."
 TakesSlot = true
@@ -21,26 +21,24 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Pancerz zwady" end,
-  GetDescription = function() return "Zadaje obrażenia wrogom, którzy cię uderzają i zmniejsza ich leczenie." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_GOT_HIT",
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_GOT_HIT",
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
-    fightInstance:HandleAction({
+    ---@diagnostic disable-next-line: undefined-global
+    HandleAction(fightInstance, {
       Event = "ACTION_DMG",
-      Source = owner:GetUUID(),
-      Target = target:GetUUID(),
+      Source = GetUUID(owner),
+      Target = GetUUID(target),
       Meta = {
         Damage = {
           {
-            Value = utils.PercentOf(owner:GetStat("STAT_DEF"), 10),
-            Type = "DMG_TRUE",
+            ---@diagnostic disable-next-line: undefined-global
+            Value = utils.PercentOf(GetStat(owner, StatsConst.STAT_DEF), 10),
+            Type = 2,
             CanDodge = false,
           },
         },
@@ -49,21 +47,18 @@ Effects[0] = {
 
     fightInstance:HandleAction({
       Event = "ACTION_EFFECT",
-      Source = owner:GetUUID(),
-      Target = target:GetUUID(),
+      Source = GetUUID(owner),
+      Target = GetUUID(target),
       Meta = {
         Effect = "EFFECT_STAT_DEC",
         Value = -20,
         Duration = 1,
-        Uuid = "New uuid",    --@TODO uuid.New(),
-        Meta = { Stat = "STAT_HEAL_POWER", Value = -20, IsPercent = false },
-        Caster = owner:GetUUID(),
+        Uuid = utils.GenerateUUID(),
+        Meta = { Stat = StatsConst.STAT_HEAL_POWER, Value = -20, IsPercent = false },
+        Caster = GetUUID(owner),
         Source = "SOURCE_ITEM",
       },
     })
     return nil
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }

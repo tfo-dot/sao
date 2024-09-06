@@ -17,8 +17,8 @@ type PlayerSkill interface {
 
 	IsLevelSkill() bool
 
-	Execute(owner, target, fightInstance, meta interface{}) interface{}
-	GetEvents() map[CustomTrigger]func(owner interface{})
+	Execute(owner PlayerEntity, target Entity, fightInstance FightInstance, meta interface{}) interface{}
+	GetEvents() map[CustomTrigger]func(owner PlayerEntity)
 }
 
 type PlayerSkillLevel interface {
@@ -33,12 +33,12 @@ type PlayerSkillUpgradable interface {
 
 	GetUpgradableDescription(upgrades int) string
 
-	CanUse(owner interface{}, fightInstance interface{}, upgrades int) bool
+	CanUse(owner PlayerEntity, fightInstance FightInstance) bool
 	GetLevel() int
 	GetPath() SkillPath
 	GetUpgrades() []PlayerSkillUpgrade
 	GetCooldown(upgrades int) int
-	UpgradableExecute(owner, target, fightInstance, meta interface{}, upgrades int) interface{}
+	UpgradableExecute(owner PlayerEntity, target Entity, fightInstance FightInstance, meta interface{}) interface{}
 	GetUpgradableTrigger(upgrades int) Trigger
 	GetStats(upgrades int) map[Stat]int
 	GetUpgradableCost(upgrades int) int
@@ -47,7 +47,7 @@ type PlayerSkillUpgradable interface {
 type PlayerSkillUpgrade struct {
 	Description string
 	Id          string
-	Events      *map[CustomTrigger]func(owner interface{})
+	Events      *map[CustomTrigger]func(owner PlayerEntity)
 }
 
 type SkillTriggerType int
@@ -76,8 +76,6 @@ type CooldownMeta struct {
 	PassEvent SkillTrigger
 }
 
-//TODO Attack trigger (TRIGGER_ATTACK_GOT_HIT) should TRIGGER_DAMAGE effects too
-
 type SkillTrigger int
 
 const (
@@ -91,6 +89,7 @@ const (
 	TRIGGER_CAST_ULT
 	TRIGGER_DAMAGE_BEFORE
 	TRIGGER_DAMAGE
+	TRIGGER_DAMAGE_GOT_HIT
 	TRIGGER_HEAL_SELF
 	TRIGGER_HEAL_OTHER
 	TRIGGER_APPLY_CROWD_CONTROL
@@ -165,8 +164,7 @@ const (
 	PathSpecial
 )
 
-func (item *PlayerItem) UseItem(owner interface{}, target interface{}, fight *interface{}) {
-
+func (item *PlayerItem) UseItem(owner PlayerEntity, target Entity, fight FightInstance) {
 	if item.Count < 0 {
 		return
 	}
@@ -222,7 +220,8 @@ type WithExpire[v any] struct {
 	AfterUsage bool
 	Expire     int
 	//After usage or after turns
-	Either bool
+	Either   bool
+	OnExpire func(owner PlayerEntity, fight FightInstance)
 }
 
 type WithTarget[v any] struct {
@@ -254,50 +253,25 @@ type DiscordChoice struct {
 }
 
 type EventData struct {
-	Source interface{}
-	Target interface{}
-	Fight  interface{}
+	Source Entity
+	Target Entity
+	Fight  FightInstance
 }
 
-type BaseAttackIncreaseSkill struct {
-	Calculate func(meta AttackTriggerMeta) AttackTriggerMeta
-}
+type FightInstance interface {
+	GetEnemiesFor(uuid.UUID) []Entity
+	GetAlliesFor(uuid.UUID) []Entity
+	GetChannelId() string
 
-func (base BaseAttackIncreaseSkill) Execute(owner, target, fightInstance, meta interface{}) interface{} {
-	return base.Calculate(meta.(AttackTriggerMeta))
-}
+	AddAdditionalLoot(Loot, uuid.UUID, bool)
+	AppendEventHandler(uuid.UUID, SkillTrigger, func(owner, target Entity, fightInstance FightInstance, meta interface{}) interface{}) uuid.UUID
+	RemoveEventHandler(uuid.UUID)
 
-func (base BaseAttackIncreaseSkill) GetCD() int {
-	return 0
-}
+	HandleAction(Action)
 
-func (base BaseAttackIncreaseSkill) GetCost() int {
-	return 0
-}
+	GetEntity(uuid.UUID) Entity
 
-func (base BaseAttackIncreaseSkill) GetDescription() string {
-	return "Zwiększa obrażenia ataku"
-}
+	DiscordSend(DiscordMessageStruct)
 
-func (base BaseAttackIncreaseSkill) GetEvents() map[CustomTrigger]func(interface{}) {
-	return map[CustomTrigger]func(interface{}){}
-}
-
-func (base BaseAttackIncreaseSkill) GetName() string {
-	return "Template Skill"
-}
-
-func (base BaseAttackIncreaseSkill) GetTrigger() Trigger {
-	return Trigger{
-		Type:  TRIGGER_PASSIVE,
-		Event: TRIGGER_ATTACK_BEFORE,
-	}
-}
-
-func (base BaseAttackIncreaseSkill) GetUUID() uuid.UUID {
-	return uuid.New()
-}
-
-func (base BaseAttackIncreaseSkill) IsLevelSkill() bool {
-	return false
+	CanSummon(uuid.UUID, int) bool
 }

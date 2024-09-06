@@ -1,10 +1,10 @@
---ItemID
-ReservedUIDs[0] = "00000000-0000-0000-0000-00000000001B"
---SkillID
-ReservedUIDs[2] = "00000000-0000-0001-0000-00000000001B"
+ReservedUIDs = {
+  "00000000-0000-0000-0000-00000000001B",
+  "00000000-0000-0001-0000-00000000001B",
+}
 
 -- Meta
-UUID = ReservedUIDs[0]
+UUID = ReservedUIDs[1]
 Name = "Zwiastun burzy"
 Description = "Ataki zadają dodatkowe obrażenia w zależności od AP."
 TakesSlot = true
@@ -21,28 +21,22 @@ Stats = {
 }
 
 -- Effects
-Effects[0] = {
-  GetName = function() return "Zwiastun burzy" end,
-  GetDescription = function() return "Ataki zadają dodatkowe obrażenia w zależności od AP." end,
-  GetTrigger = function()
-    return {
-      Type = "PASSIVE",
-      Event = "ATTACK_BEFORE"
-    }
-  end,
-  GetUUID = function() return ReservedUIDs[1] end,
+Effects = { {
+  Trigger = {
+    Type = "PASSIVE",
+    Event = "ATTACK_BEFORE"
+  },
+  UUID = ReservedUIDs[2],
   Execute = function(owner, target, fightInstance, meta)
     return {
       Effects = {
         {
-          Value = utils.PercentOf(owner:GetStat("STAT_AP"), 20),
+          ---@diagnostic disable-next-line: undefined-global
+          Value = utils.PercentOf(GetStat(owner, StatsConst.STAT_AP), 20),
           Type = "DMG_MAGICAL",
           Percent = false,
         },
       },
     }
   end,
-  GetEvents = function() return nil end,
-  GetCD = function() return 0 end,
-  GetCost = function() return 0 end
-}
+} }
