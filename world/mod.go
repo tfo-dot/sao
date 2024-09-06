@@ -1041,8 +1041,7 @@ func (w *World) ListenForFight(fightUuid uuid.UUID) {
 			panic("Unhandled event")
 		}
 
-		//Fallback for when the channel is closed
-		if fight.IsFinished() {
+		if len(fight.ExternalChannel) == 0 && fight.IsFinished() {
 			w.DeregisterFight(fightUuid)
 			break
 		}

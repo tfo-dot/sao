@@ -839,6 +839,10 @@ func (f *Fight) Run() {
 				entity = temp.Entity
 			}
 
+			if f.IsFinished() {
+				continue
+			}
+
 			entity.TriggerEvent(types.TRIGGER_TURN, types.EventData{
 				Source: entity,
 				Target: entity,
