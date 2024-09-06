@@ -1,8 +1,9 @@
 --Base
 Id = "LV0_Error"
-HP = 90
-SPD = 40
-ATK = 40
+HP = 250
+SPD = 45
+ATK = 50
+
 Name = "Błąd"
 
 Const = {
