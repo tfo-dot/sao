@@ -105,7 +105,7 @@ func (f *Fight) TriggerEvent(source types.Entity, target types.Entity, event typ
 	}, meta)
 
 	if rValue != nil {
-		returnValue = append(returnValue, rValue)
+		returnValue = append(returnValue, rValue...)
 	}
 
 	if event == types.TRIGGER_ATTACK_GOT_HIT {
@@ -253,13 +253,31 @@ func (f *Fight) HandleActionAttack(act types.Action) {
 		return
 	}
 
-	constDamage, percentageDamage := OverallDamage(meta.Damage)
+	attackEffects := f.TriggerEvent(f.Entities[act.Source].Entity, f.Entities[act.Target].Entity, types.TRIGGER_ATTACK_BEFORE, meta)
+
+	tempEffects := make([]types.Damage, 0)
+
+	tempEffects = append(tempEffects, meta.Damage...)
+
+	for _, effect := range attackEffects {
+		if attackTriggerMeta, ok := effect.(types.AttackTriggerMeta); ok {
+			for _, tempEffect := range attackTriggerMeta.Effects {
+				tempEffects = append(tempEffects, types.Damage{
+					Value:     tempEffect.Value,
+					Type:      tempEffect.Type,
+					IsPercent: tempEffect.Percent,
+				})
+			}
+		}
+	}
+
+	constDamage := OverallDamage(tempEffects)
 
 	dmgDealt, dodged := targetEntity.TakeDMGOrDodge(
-		types.ActionDamage{Damage: append(constDamage, percentageDamage...), CanDodge: meta.CanDodge},
+		types.ActionDamage{Damage: constDamage, CanDodge: meta.CanDodge},
 	)
 
-	f.TriggerAttackEffect(dodged, dmgDealt, meta.Damage, AttackEmbedMeta{
+	f.TriggerAttackEffect(dodged, dmgDealt, tempEffects, AttackEmbedMeta{
 		Title:      "Atak!",
 		TextIfHit:  "%s zaatakował %s.",
 		TextIfMiss: "%s chciał zaatakować %s, ale nie trafił.",
@@ -423,13 +441,31 @@ func (f *Fight) HandleActionDamage(act types.Action) {
 		return
 	}
 
-	constDamage, percentageDamage := OverallDamage(meta.Damage)
+	damageEffects := f.TriggerEvent(f.Entities[act.Source].Entity, f.Entities[act.Target].Entity, types.TRIGGER_DAMAGE_BEFORE, meta)
+
+	tempEffects := make([]types.Damage, 0)
+
+	tempEffects = append(tempEffects, meta.Damage...)
+
+	for _, effect := range damageEffects {
+		if damageTriggerMeta, ok := effect.(types.DamageTriggerMeta); ok {
+			for _, tempEffect := range damageTriggerMeta.Effects {
+				tempEffects = append(tempEffects, types.Damage{
+					Value:     tempEffect.Value,
+					Type:      tempEffect.Type,
+					IsPercent: tempEffect.Percent,
+				})
+			}
+		}
+	}
+
+	constDamage := OverallDamage(tempEffects)
 
 	dmgDealt, dodged := f.Entities[act.Target].Entity.TakeDMGOrDodge(
-		types.ActionDamage{Damage: append(constDamage, percentageDamage...), CanDodge: meta.CanDodge},
+		types.ActionDamage{Damage: constDamage, CanDodge: meta.CanDodge},
 	)
 
-	f.TriggerAttackEffect(dodged, dmgDealt, meta.Damage, AttackEmbedMeta{
+	f.TriggerAttackEffect(dodged, dmgDealt, tempEffects, AttackEmbedMeta{
 		Title:      "Obrażenia!",
 		TextIfHit:  "%s zadał obrażenia %s.",
 		TextIfMiss: "%s chciał zadać obrażenia %s, ale nie trafił.",
@@ -441,7 +477,7 @@ func (f *Fight) HandleActionDamage(act types.Action) {
 	})
 }
 
-func OverallDamage(damage []types.Damage) ([]types.Damage, []types.Damage) {
+func OverallDamage(damage []types.Damage) []types.Damage {
 	constDamage := []types.Damage{
 		{Value: 0, Type: types.DMG_PHYSICAL},
 		{Value: 0, Type: types.DMG_MAGICAL},
@@ -462,7 +498,11 @@ func OverallDamage(damage []types.Damage) ([]types.Damage, []types.Damage) {
 		}
 	}
 
-	return constDamage, percentageDamage
+	for _, elt := range percentageDamage {
+		constDamage[elt.Type].Value = utils.PercentOf(constDamage[elt.Type].Value, 100+elt.Value)
+	}
+
+	return constDamage
 }
 
 func (f *Fight) HandleActionCounter(act types.Action) {
@@ -470,13 +510,31 @@ func (f *Fight) HandleActionCounter(act types.Action) {
 
 	meta := act.Meta.(types.ActionDamage)
 
-	constDamage, percentageDamage := OverallDamage(meta.Damage)
+	attackEffects := f.TriggerEvent(f.Entities[act.Source].Entity, f.Entities[act.Target].Entity, types.TRIGGER_ATTACK_BEFORE, meta)
+
+	tempEffects := make([]types.Damage, 0)
+
+	tempEffects = append(tempEffects, meta.Damage...)
+
+	for _, effect := range attackEffects {
+		if attackTriggerMeta, ok := effect.(types.AttackTriggerMeta); ok {
+			for _, tempEffect := range attackTriggerMeta.Effects {
+				tempEffects = append(tempEffects, types.Damage{
+					Value:     tempEffect.Value,
+					Type:      tempEffect.Type,
+					IsPercent: tempEffect.Percent,
+				})
+			}
+		}
+	}
+
+	constDamage := OverallDamage(tempEffects)
 
 	dmgDealt, dodged := f.Entities[act.Target].Entity.TakeDMGOrDodge(
-		types.ActionDamage{Damage: append(constDamage, percentageDamage...), CanDodge: true},
+		types.ActionDamage{Damage: constDamage, CanDodge: true},
 	)
 
-	f.TriggerAttackEffect(dodged, dmgDealt, meta.Damage, AttackEmbedMeta{
+	f.TriggerAttackEffect(dodged, dmgDealt, tempEffects, AttackEmbedMeta{
 		Title:      "Kontra!",
 		TextIfHit:  "%s zaatakował %s.",
 		TextIfMiss: "%s nie trafił.",

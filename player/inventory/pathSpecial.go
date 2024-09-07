@@ -288,8 +288,12 @@ func (skill SPC_LVL_3) UpgradableExecute(owner types.PlayerEntity, target types.
 		Source: owner.GetUUID(),
 		Meta: types.ActionEffect{
 			Effect:   types.EFFECT_HEAL,
-			Value:    healValue,
+			Value:    0,
 			Duration: 0,
+			Meta:     types.ActionEffectHeal{Value: healValue},
+			Uuid:     uuid.New(),
+			Target:   owner.GetUUID(),
+			Source:   types.SOURCE_ND,
 			Caster:   owner.GetUUID(),
 		},
 	})

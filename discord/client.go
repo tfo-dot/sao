@@ -324,7 +324,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 					skillName = fmt.Sprintf("**%s**", skillName)
 				}
 
-				if types.HasFlag(skill.GetTrigger().Flags, types.FLAG_INSTANT_SKILL) {
+				if types.HasFlag(skill.GetTrigger().Flags, types.FLAG_IGNORE_CC) {
 					skillName = fmt.Sprintf("__%s__", skillName)
 				}
 
@@ -1357,7 +1357,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			for i := 0; i < (len(storesInLocation)/5)+1; i++ {
 				var stores []*types.NPCStore
 
-				if len(storesInLocation) < i*5+5 {
+				if len(storesInLocation) <= i*5+5 {
 					stores = storesInLocation[i*5:]
 				} else {
 					stores = storesInLocation[i*5 : i*5+5]
@@ -1367,6 +1367,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 				for _, store := range stores {
 					buttonArray = append(buttonArray, discord.NewPrimaryButton(store.Name, "shop/show/1/"+store.Uuid.String()))
+				}
+
+				if len(buttonArray) == 0 {
+					continue
 				}
 
 				messageBuilder.AddActionRow(buttonArray...)

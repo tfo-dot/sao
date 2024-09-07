@@ -1223,7 +1223,7 @@ func ComponentHandler(event *events.ComponentInteractionCreate) {
 
 			nextPageButton := discord.NewPrimaryButton("Następna strona", "shop/show/"+fmt.Sprint(page+1)+"/"+segments[3])
 
-			if pageEnd > len(store.Stock) {
+			if pageEnd-1 > len(store.Stock) {
 				nextPageButton = nextPageButton.AsDisabled()
 			}
 
