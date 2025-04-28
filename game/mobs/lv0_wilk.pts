@@ -1,0 +1,10 @@
+let Id = "LV0_Wilk"
+let HP = 90
+let SPD = 40
+let ATK = 40
+let Name = "Wilk"
+
+let Loot = [
+  |> Type: LOOT_EXP,  Count: 80 <|,
+  |> Type: LOOT_GOLD, Count: 85 <|
+]

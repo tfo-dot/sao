@@ -1,0 +1,18 @@
+let ReservedUIDs = ["00000000-0000-0000-0000-000000000007"]
+
+let UUID = ReservedUIDs[0]
+let Name = "Oblicze ataku"
+let Description = "Dostajesz HP w zależności od ATK."
+
+let Stats = |>
+  AD: 20,
+  DEF: 15,
+  MR: 15,
+  Derived: [
+    |>
+      Base: STAT_AD,
+      Derived: STAT_HP,
+      Percent: 10
+    <|
+  ]
+<|

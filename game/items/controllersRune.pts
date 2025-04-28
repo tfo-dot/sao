@@ -1,0 +1,31 @@
+let ReservedUIDs = [
+  "00000000-0000-0000-0000-000000000011",
+  "00000000-0000-0001-0000-000000000011",
+  "00000000-0000-0001-0001-000000000011"
+]
+
+let UUID = ReservedUIDs[0]
+let Name = "Runa kontrolera"
+let Description = "Zabicie wroga objętego CC przywraca manę."
+
+let Stats = |> AP: 20, AD: 20 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_EXECUTE <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun (owner, target, fightInstance, meta) {
+      HandleAction(fightInstance, |>
+        Event: ACTION_EFFECT,
+        Source: GetUUID(owner),
+        Target: GetUUID(owner),
+        Meta: |>
+          Effect: "EFFECT_MANA_RESTORE",
+          Value: 1,
+          Duration: 0,
+          Uuid: ReservedUIDs[2]
+        <|
+      <|)
+    }
+  <|
+]

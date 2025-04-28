@@ -1,0 +1,14 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000002", "00000000-0000-0001-0000-000000000002" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Zabójca gigantów"
+let Description = "Zadaje dodatkowe obrażenia w zależności od pancerza przeciwnika."
+
+let Stats = |> AD: 25, LETHAL: 10 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_BEFORE <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun (owner, target, fightInstance, meta) =
+    |> Effects: [ |> Value: PercentOf(GetStat(target, STAT_HP), 2), Type: 0, Percent: false <| ] <|
+<| ]

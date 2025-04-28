@@ -1,0 +1,30 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000004", "00000000-0000-0001-0000-000000000004"]
+
+let UUID = ReservedUIDs[0]
+let Name = "Piaskowe ostrze"
+let Description = "Zadawanie obrażeń zmniejsza leczenie wroga."
+
+let Stats = |> AD: 30, SPD: 5 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_DAMAGE <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun(owner, target, fightInstance, meta) {
+      HandleAction(fightInstance,
+        |>
+          Event: ACTION_EFFECT,
+          Source: GetUUID(owner),
+          Target: GetUUID(target),
+          Meta: |>
+            Effect: EFFECT_STAT_DEC,
+            Value: (0-20),
+            Duration: 1,
+            Uuid: GenerateUUID(),
+            Meta: |> Stat: STAT_HEAL_POWER, Value: (0-20), IsPercent: false <|
+          <|
+        <|
+      )
+    }
+  <|
+]

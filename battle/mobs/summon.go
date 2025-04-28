@@ -3,7 +3,6 @@ package mobs
 import (
 	"sao/base"
 	"sao/types"
-	"sao/utils"
 
 	"github.com/google/uuid"
 )
@@ -20,10 +19,6 @@ type SummonEntity struct {
 	OnSummon     func(f types.FightInstance, s *SummonEntity)
 }
 
-func (s *SummonEntity) HasOnDefeat() bool {
-	return false
-}
-
 func (s *SummonEntity) GetName() string {
 	return s.Name
 }
@@ -34,20 +29,22 @@ func (s *SummonEntity) GetFlags() types.EntityFlag {
 	return types.ENTITY_AUTO | types.ENTITY_SUMMON
 }
 
-func (s *SummonEntity) TriggerEvent(trigger types.SkillTrigger, evt types.EventData, target interface{}) []interface{} {
-	return []interface{}{}
+func (s *SummonEntity) TriggerEvent(trigger types.SkillTrigger, evt types.EventData, target any) []any {
+	return []any{}
 }
 
-func (s *SummonEntity) TakeDMGOrDodge(dmg types.ActionDamage) ([]types.Damage, bool) {
+func (s *SummonEntity) TakeDMGOrDodge(dmg types.ActionDamage) (map[types.DamageType]int, bool) {
 	return base.TakeDMGOrDodge(dmg, s)
 }
 
-func (s *SummonEntity) TakeDMG(dmg types.ActionDamage) []types.Damage {
+func (s *SummonEntity) TakeDMG(dmg types.ActionDamage) map[types.DamageType]int {
 	return base.TakeDMG(dmg, s)
 }
 
 func (s *SummonEntity) DamageShields(dmg int) int {
-	_, _, damageLeft := base.DamageShields(dmg, s)
+	effects, damageLeft := base.DamageShields(dmg, s)
+
+	s.Effects = effects
 
 	return damageLeft
 }
@@ -85,17 +82,11 @@ func (s *SummonEntity) GetAllEffects() []types.ActionEffect {
 }
 
 func (s *SummonEntity) Heal(value int) {
-	if s.GetStat(types.STAT_HEAL_POWER) != 0 {
-		value = utils.PercentOf(value, 100+s.GetStat(types.STAT_HEAL_POWER))
-	}
-
-	s.CurrentHP += value
+	base.Heal(s, value)
 }
 
 func (s *SummonEntity) Cleanse() {
-	keepList, _ := base.Cleanse(s)
-
-	s.Effects = keepList
+	s.Effects = base.Cleanse(s)
 }
 
 func (s *SummonEntity) GetTempSkills() []*types.WithExpire[types.PlayerSkill] {
@@ -132,12 +123,8 @@ func (s *SummonEntity) RemoveTempByUUID(uuid uuid.UUID) {
 	s.TempSkill = tempList
 }
 
-func (s *SummonEntity) TriggerAllEffects() []types.ActionEffect {
-	effects, expiredEffects := base.TriggerAllEffects(s)
-
-	s.Effects = effects
-
-	return expiredEffects
+func (s *SummonEntity) TriggerAllEffects() {
+	s.Effects = base.TriggerAllEffects(s)
 }
 
 func (m *SummonEntity) GetSkill(uuid uuid.UUID) types.PlayerSkill {
@@ -178,9 +165,9 @@ func (s *SummonEntity) GetStat(stat types.Stat) int {
 				}
 
 				if value.IsPercent {
-					percentValue += value.Value
+					percentValue += effect.Value
 				} else {
-					statValue += value.Value
+					statValue += effect.Value
 				}
 			}
 		}
@@ -193,9 +180,9 @@ func (s *SummonEntity) GetStat(stat types.Stat) int {
 				}
 
 				if value.IsPercent {
-					percentValue -= value.Value
+					percentValue -= effect.Value
 				} else {
-					statValue -= value.Value
+					statValue -= effect.Value
 				}
 			}
 		}

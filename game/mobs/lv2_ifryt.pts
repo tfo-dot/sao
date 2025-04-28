@@ -1,0 +1,33 @@
+let Id = "LV2_Ifryt"
+let HP = 300
+let SPD = 60
+let ATK = 80
+let Name = "Ifryt"
+
+let Loot = [
+    |> Type: LOOT_EXP,  Count: 200 <|,
+    |> Type: LOOT_GOLD, Count: 380 <|
+]
+
+let Action(mob, fight) {
+    let turn = GetTurnFor(fight, GetUUID(mob))
+
+    return if ((Modulo(turn, 3)) == 0) * ((turn == 1) == false) {
+        let target = GetRandomEnemy(fight, GetUUID(mob))
+
+        return
+            (DefaultAction(fight, mob)) +
+            |>
+                Event: ACTION_EFFECT,
+                Source: GetUUID(mob),
+                Target: target,
+                Meta: |>
+                    Effect: EFFECT_DOT,
+                    Value: 25,
+                    Duration: 3
+                <|
+            <|
+    } else {
+        return DefaultAction(fight, mob)
+    }
+}

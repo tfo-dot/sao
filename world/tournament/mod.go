@@ -1,11 +1,12 @@
 package tournament
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type Tournament struct {
 	Uuid uuid.UUID
 	Name string
-	Type TournamentType
 	//-1 for unlimited
 	MaxPlayers      int
 	Channel         string
@@ -34,12 +35,6 @@ const (
 	FinishedMatch
 )
 
-type TournamentType int
-
-const (
-	SingleElimination TournamentType = iota
-)
-
 type TournamentState int
 
 const (
@@ -47,6 +42,58 @@ const (
 	Running
 	Finished
 )
+
+func (t *Tournament) NextStage() {
+	if t.State != Running {
+		return
+	}
+
+	stage := t.Stages[len(t.Stages)-1]
+
+	for _, match := range stage.Matches {
+		if match.State != FinishedMatch {
+			return
+		}
+	}
+
+	if len(stage.Matches) == 1 {
+		return
+	}
+
+	newMatches := make([]*TournamentMatch, 0)
+
+	for i := 0; i < len(stage.Matches); i += 2 {
+		newMatches = append(newMatches, &TournamentMatch{
+			Players: []uuid.UUID{*stage.Matches[i].Winner, *stage.Matches[i+1].Winner},
+			Winner:  nil,
+			State:   BeforeMatch,
+		})
+	}
+
+	t.Stages = append(t.Stages, &TournamentStage{Matches: newMatches})
+}
+
+func (t *Tournament) FinishMatch(winner uuid.UUID) {
+	if t.State != Running {
+		return
+	}
+
+	stage := t.Stages[len(t.Stages)-1]
+
+	for _, match := range stage.Matches {
+		for _, player := range match.Players {
+			if player == winner {
+				match.Winner = &winner
+
+				match.State = FinishedMatch
+			}
+		}
+	}
+
+	if len(stage.Matches) == 1 {
+		t.State = Finished
+	}
+}
 
 func (t *Tournament) Serialize() map[string]interface{} {
 
@@ -59,7 +106,6 @@ func (t *Tournament) Serialize() map[string]interface{} {
 	return map[string]interface{}{
 		"uuid":         t.Uuid,
 		"name":         t.Name,
-		"type":         t.Type,
 		"max_players":  t.MaxPlayers,
 		"participants": t.Participants,
 		"state":        t.State,
@@ -86,7 +132,6 @@ func Deserialize(rawData map[string]interface{}) Tournament {
 	t := Tournament{
 		Uuid:         uuid.MustParse(rawData["uuid"].(string)),
 		Name:         rawData["name"].(string),
-		Type:         TournamentType(rawData["type"].(float64)),
 		MaxPlayers:   int(rawData["max_players"].(float64)),
 		Participants: participants,
 		State:        TournamentState(rawData["state"].(float64)),

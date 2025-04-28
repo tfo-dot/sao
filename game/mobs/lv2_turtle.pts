@@ -1,0 +1,32 @@
+let Id = "LV2_Turtle"
+let HP = 600
+let SPD = 25
+let ATK = 55
+let Name = "Kamienny Żółw"
+
+let Loot = [
+    |> Type: LOOT_EXP,  Count: 250 <|,
+    |> Type: LOOT_GOLD, Count: 280 <|
+]
+
+let Action(mob, fight) {
+    let turn = GetTurnFor(fight, GetUUID(mob))
+
+    return if ((Modulo(turn, 5)) == 0) {
+        return
+            (DefaultAction(fight, mob)) +
+            |>
+                Event: ACTION_EFFECT,
+                Source: GetUUID(mob),
+                Target: GetUUID(mob),
+                Meta: |>
+                    Effect: EFFECT_STAT_INC,
+                    Value: 30,
+                    Duration: 2,
+                    Meta: |> Stat: STAT_DEF <|
+                <|
+            <|
+    } else {
+        return DefaultAction(fight, mob)
+    }
+}

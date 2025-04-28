@@ -2,20 +2,20 @@ package mobs
 
 import (
 	"os"
-	"sao/battle"
-	"sao/config"
-	saoLua "sao/lua"
+	"sao/data"
 	"sao/types"
-	"sao/utils"
+	"strings"
 
-	"github.com/Shopify/go-lua"
+	saoParts "sao/parts"
+
 	"github.com/google/uuid"
+	"github.com/tfo-dot/parts"
 )
 
 var Mobs map[string]MobEntity = GetMobs()
 
 func GetMobs() map[string]MobEntity {
-	dirData, err := os.ReadDir(config.Config.GameDataLocation + "/mobs")
+	dirData, err := os.ReadDir(data.Config.GameDataLocation + "/mobs")
 
 	if err != nil {
 		panic(err)
@@ -28,118 +28,64 @@ func GetMobs() map[string]MobEntity {
 			continue
 		}
 
-		state := lua.NewState()
-
-		lua.OpenLibraries(state)
-
-		saoLua.AddFightFunctions(state)
-		saoLua.AddEntityFunctions(state)
-		saoLua.AddPlayerFunctions(state)
-		saoLua.AddStatTypes(state)
+		if !strings.HasSuffix(file.Name(), ".pts") {
+			continue
+		}
 
 		println("Loading mob: " + file.Name())
 
-		err := lua.DoFile(state, config.Config.GameDataLocation+"/mobs/"+file.Name())
+		code, err := os.ReadFile(data.Config.GameDataLocation + "/mobs/" + file.Name())
 
 		if err != nil {
 			panic(err)
 		}
 
-		MobId := utils.GetLuaString(state, "Id")
-		MobName := utils.GetLuaString(state, "Name")
-		MobHP := utils.GetLuaInt(state, "HP")
-		MobATK := utils.GetLuaInt(state, "ATK")
-		MobSPD := utils.GetLuaInt(state, "SPD")
-
-		loot := make([]types.Loot, 0)
-
-		state.Global("Loot")
-
-		tab, err := utils.GetTableAsArray(state)
+		vm, err := parts.GetVMWithSource(string(code))
 
 		if err != nil {
 			panic(err)
 		}
 
-		for _, lootItem := range tab {
-			lootItem := lootItem.(map[string]interface{})
+		saoParts.AddConsts(vm)
+		saoParts.AddFunctions(vm)
 
-			loot = append(loot, types.Loot{
-				Type:  types.LootType(lootItem["Type"].(float64)),
-				Count: int(lootItem["Count"].(float64)),
-			})
+		err = vm.Run()
+
+		if err != nil {
+			panic(err)
 		}
 
-		var onDefeat func(types.PlayerEntity)
+		mobEntity := MobEntity{
+			Effects:   make([]types.ActionEffect, 0),
+			UUID:      uuid.New(),
+			Props:     make(map[string]interface{}),
+			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
+			Stats:     make(map[types.Stat]int),
+			Loot:      make([]types.Loot, 0),
+		}
 
-		state.Global("OnDefeat")
+		parts.ReadFromParts(vm, &mobEntity)
 
-		if state.IsFunction(-1) {
-			state.Pop(1)
-
-			onDefeat = func(player types.PlayerEntity) {
-				state.Global("OnDefeat")
-
-				state.PushUserData(player)
-
-				state.Call(1, 0)
-			}
+		if val, err := saoParts.FetchVal(vm, "SPD"); err != nil {
+			panic(err)
 		} else {
-			state.Pop(1)
+			mobEntity.Stats[types.STAT_SPD] = val.(int)
 		}
 
-		var onAction func(*MobEntity, *battle.Fight) []types.Action
-
-		state.Global("Action")
-
-		if state.IsFunction(-1) {
-			state.Pop(1)
-
-			onAction = func(mob *MobEntity, fightInstance *battle.Fight) []types.Action {
-				state.Global("Action")
-
-				state.PushUserData(mob)
-				state.PushUserData(fightInstance)
-
-				state.Call(2, 1)
-
-				temp, err := utils.GetTableAsArray(state)
-
-				if err != nil {
-					panic(err)
-				}
-
-				actions := make([]types.Action, len(temp))
-
-				for idx, action := range temp {
-					action := action.(map[string]interface{})
-
-					actions[idx] = saoLua.ParseActionReturn(action, state)
-				}
-
-				return actions
-			}
+		if val, err := saoParts.FetchVal(vm, "ATK"); err != nil {
+			panic(err)
 		} else {
-			state.Pop(1)
+			mobEntity.Stats[types.STAT_AD] = val.(int)
 		}
 
-		mobs[MobId] = MobEntity{
-			Id:           MobId,
-			HP:           MobHP,
-			Effects:      make([]types.ActionEffect, 0),
-			UUID:         uuid.New(),
-			Name:         MobName,
-			Props:        make(map[string]interface{}),
-			Loot:         loot,
-			TempSkill:    make([]*types.WithExpire[types.PlayerSkill], 0),
-			OnDefeatFunc: onDefeat,
-			ActionFunc:   onAction,
-			Stats: map[types.Stat]int{
-				types.STAT_AD:  MobATK,
-				types.STAT_SPD: MobSPD,
-				types.STAT_HP:  MobHP,
-			},
+		if val, err := saoParts.FetchVal(vm, "HP"); err != nil {
+			panic(err)
+		} else {
+			mobEntity.Stats[types.STAT_HP] = val.(int)
+			mobEntity.HP = val.(int)
 		}
+
+		mobs[mobEntity.Id] = mobEntity
 	}
 
 	return mobs

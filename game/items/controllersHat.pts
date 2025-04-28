@@ -1,0 +1,7 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000014" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Kapelusz kontrolera"
+let Description = "Daje ATK oraz AP w zależności od many."
+
+let Stats = |> MANA: 5, Derived: [ |> Base: STAT_MANA_PLUS, Derived: STAT_AD, Percent: 100 <|, |> Base: STAT_MANA_PLUS, Derived: STAT_AP, Percent: 100 <| ] <|

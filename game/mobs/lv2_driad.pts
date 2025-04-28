@@ -1,0 +1,32 @@
+let Id = "LV2_Driad"
+let HP = 450
+let SPD = 35
+let ATK = 75
+let Name = "Driada"
+
+let Loot = [
+    |> Type: LOOT_EXP,  Count: 210 <|,
+    |> Type: LOOT_GOLD, Count: 350 <|
+]
+
+let Action(mob, fight) {
+    let turn = GetTurnFor(fight, GetUUID(mob))
+
+    return if ((Modulo(turn, 4)) == 0) * ((turn == 1) == false) {
+        let target = GetRandomEnemy(fight, GetUUID(mob))
+
+        return
+            (DefaultAction(fight, mob)) +
+            |>
+                Event: ACTION_EFFECT,
+                Source: GetUUID(mob),
+                Target: target,
+                Meta: |>
+                    Effect: EFFECT_STUN,
+                    Duration: 1
+                <|
+            <|
+    } else {
+        return DefaultAction(fight, mob)
+    }
+}

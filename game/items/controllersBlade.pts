@@ -1,0 +1,37 @@
+let ReservedUIDs = [
+  "00000000-0000-0000-0000-000000000013",
+  "00000000-0000-0001-0000-000000000013",
+  "00000000-0000-0001-0001-000000000013"
+]
+
+let UUID = ReservedUIDs[0]
+let Name = "Ostrze kontrolera"
+let Description = "Atakowanie zmniejsza prędkość wrogów."
+
+let Stats = |> AD: 15, SPD: 10 <|
+
+let Effects = [
+  |>
+    Trigger: |>
+      Type: TRIGGER_PASSIVE,
+      Event: TRIGGER_ATTACK_HIT,
+      Cooldown: |> PassEvent: TRIGGER_ATTACK_HIT <|
+    <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun (owner, target, fightInstance, meta) {
+      HandleAction(fightInstance, |>
+        Event: ACTION_EFFECT,
+        Source: GetUUID(owner),
+        Target: GetUUID(target),
+        Meta: |>
+          Effect: EFFECT_STAT_DEC,
+          Value: 0,
+          Duration: 1,
+          Uuid: ReservedUIDs[2],
+          Meta: |> Stat: STAT_SPD, Value: 10, IsPercent: false <|
+        <|
+      <|)
+    },
+    CD: 3
+  <|
+]

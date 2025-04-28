@@ -1,0 +1,19 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000003", "00000000-0000-0001-0000-000000000003" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Zabójca magów"
+let Description = "Atakowanie celi osłoniętych tarczą zwiększa obrażenia twojego ataku."
+
+let Stats = |> AD: 25, LETHAL: 10 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_BEFORE <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun(owner, target, fightInstance, meta) {
+    if (GetEffectByType(target, EFFECT_SHIELD)) == (0-1) {
+      return |> <|
+    }
+
+    return |> Effects: [ |> Value: 10, Type: 0, Percent: true <| ] <|
+  }
+<| ]

@@ -14,9 +14,10 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		4: []types.PlayerSkillUpgradable{DMG_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{DMG_LVL_5{}},
 		6: []types.PlayerSkillUpgradable{DMG_LVL_6{}},
-		// 10: []types.PlayerSkillUpgradable{
-		// 	DMG_ULT_1{},
-		// },
+		10: []types.PlayerSkillUpgradable{
+			DMG_ULT_1{},
+			DMG_LVL_2{},
+		},
 	},
 	types.PathEndurance: {
 		1: []types.PlayerSkillUpgradable{END_LVL_1{}},
@@ -25,6 +26,10 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		4: []types.PlayerSkillUpgradable{END_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{END_LVL_5{}},
 		6: []types.PlayerSkillUpgradable{END_LVL_6{}},
+		10: []types.PlayerSkillUpgradable{
+			END_ULT_1{},
+			END_ULT_2{},
+		},
 	},
 	types.PathControl: {
 		1: []types.PlayerSkillUpgradable{CON_LVL_1{}},
@@ -33,10 +38,10 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		4: []types.PlayerSkillUpgradable{CON_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{CON_LVL_5{}},
 		6: []types.PlayerSkillUpgradable{CON_LVL_6{}},
-		// 10: []types.PlayerSkillUpgradable{
-		// 	CON_ULT_1{},
-		// 	CON_ULT_2{},
-		// },
+		10: []types.PlayerSkillUpgradable{
+			CON_ULT_1{},
+			CON_ULT_2{},
+		},
 	},
 	types.PathSpecial: {
 		1: []types.PlayerSkillUpgradable{SPC_LVL_1{}},
@@ -45,10 +50,10 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		4: []types.PlayerSkillUpgradable{SPC_LVL_4{}},
 		5: []types.PlayerSkillUpgradable{SPC_LVL_5{}},
 		6: []types.PlayerSkillUpgradable{SPC_LVL_6{}},
-		// 10: []types.PlayerSkillUpgradable{
-		// 	SPC_ULT_1{},
-		// 	SPC_ULT_2{},
-		// },
+		10: []types.PlayerSkillUpgradable{
+			SPC_ULT_1{},
+			SPC_ULT_2{},
+		},
 	},
 }
 
@@ -75,6 +80,10 @@ type NoStats struct{}
 
 func (n NoStats) GetStats(upgrades int) map[types.Stat]int {
 	return map[types.Stat]int{}
+}
+
+func (n NoStats) GetDerivedStats(upgrades int) []types.DerivedStat {
+	return []types.DerivedStat{}
 }
 
 type DefaultCost struct{}
@@ -157,4 +166,28 @@ func (n NoCooldown) GetCD() int {
 
 func (n NoCooldown) GetCooldown(upgrades int) int {
 	return 0
+}
+
+type Counter struct {
+	NoExecute
+	NoEvents
+	NoStats
+	NoTrigger
+	NoLevel
+}
+
+func (c Counter) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
+	return nil
+}
+
+func (c Counter) GetDescription() string {
+	return ""
+}
+
+func (c Counter) GetName() string {
+	return ""
+}
+
+func (c Counter) GetUUID() uuid.UUID {
+	return uuid.New()
 }

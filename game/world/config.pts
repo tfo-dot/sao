@@ -1,0 +1,3 @@
+let HARDCORE_MODE = false
+
+let SPEED_GAUGE = 100

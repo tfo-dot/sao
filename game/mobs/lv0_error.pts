@@ -1,0 +1,5 @@
+let Id = "LV0_Error"
+let HP = 90
+let SPD = 40
+let ATK = 40
+let Name = "Błąd"

@@ -1,0 +1,34 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000103", "00000000-0000-0001-0000-000000000103" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Adaptacyjna mikstura"
+let Description = "Leczy 50+20% max HP"
+
+let TakesSlot = false
+let Stacks = true
+let Consume = true
+let Count = 1
+let MaxCount = 5
+
+let Stats = |> <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_ACTIVE, Event: TRIGGER_NONE <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun(owner, target, fightInstance, meta) {
+    let healValue = 50 + PercentOf(GetStat(owner, STAT_HP), 20)
+
+    HandleAction(fightInstance, |>
+      Event: ACTION_EFFECT,
+      Source: GetUUID(owner),
+      Target: GetUUID(owner),
+      Meta: 
+      |>
+        Effect: EFFECT_HEAL,
+        Value: healValue,
+        Duration: 0,
+        Uuid: GenerateUUID()
+      <|
+    <|)
+  }
+<| ]

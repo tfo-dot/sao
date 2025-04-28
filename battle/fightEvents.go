@@ -45,10 +45,22 @@ type SummonExpired struct {
 	Entity uuid.UUID
 }
 
-func (fsm SummonExpired) GetEvent() FightMessage {
+func (se SummonExpired) GetEvent() FightMessage {
 	return MSG_SUMMON_EXPIRED
 }
 
-func (fsm SummonExpired) GetData() any {
-	return fsm.Entity
+func (se SummonExpired) GetData() any {
+	return se.Entity
+}
+
+type SummonDied struct {
+	Entity uuid.UUID
+}
+
+func (sd SummonDied) GetEvent() FightMessage {
+	return MSG_SUMMON_DIED
+}
+
+func (sd SummonDied) GetData() any {
+	return sd.Entity
 }

@@ -1,26 +1,27 @@
 package mobs
 
 import (
+	"fmt"
 	"sao/base"
 	"sao/battle"
 	"sao/types"
+	"sao/utils"
+	"slices"
 
 	"github.com/google/uuid"
 )
 
 type MobEntity struct {
-	//ID as mob type
-	Id           string
-	HP           int
-	Effects      []types.ActionEffect
-	UUID         uuid.UUID
-	Stats        map[types.Stat]int
-	Name         string
-	Props        map[string]interface{}
-	Loot         []types.Loot
-	TempSkill    []*types.WithExpire[types.PlayerSkill]
-	OnDefeatFunc func(types.PlayerEntity)
-	ActionFunc   func(*MobEntity, *battle.Fight) []types.Action
+	Id              string
+	HP              int
+	Effects         []types.ActionEffect
+	UUID            uuid.UUID
+	Stats           map[types.Stat]int
+	Name            string
+	Props           map[string]any
+	Loot            []types.Loot
+	TempSkill       []*types.WithExpire[types.PlayerSkill]
+	PartsActionFunc func(...any) (any, error) `parts:"Action,ignoreEmpty"`
 }
 
 func (m *MobEntity) ChangeHP(value int) {
@@ -49,27 +50,69 @@ func (m *MobEntity) GetFlags() types.EntityFlag {
 	return types.ENTITY_AUTO
 }
 
-func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, evt types.EventData, target interface{}) []interface{} {
-	return []interface{}{}
+func (m *MobEntity) TriggerEvent(trigger types.SkillTrigger, evt types.EventData, target any) []any {
+	return []any{}
 }
 
-func (m *MobEntity) TakeDMG(dmg types.ActionDamage) []types.Damage {
+func (m *MobEntity) TakeDMG(dmg types.ActionDamage) map[types.DamageType]int {
 	return base.TakeDMG(dmg, m)
 }
 
-func (m *MobEntity) TakeDMGOrDodge(dmg types.ActionDamage) ([]types.Damage, bool) {
+func (m *MobEntity) TakeDMGOrDodge(dmg types.ActionDamage) (map[types.DamageType]int, bool) {
 	return base.TakeDMGOrDodge(dmg, m)
 }
 
 func (m *MobEntity) DamageShields(dmg int) int {
-	_, _, dmgLeft := base.DamageShields(dmg, m)
+	leftOverEffects, dmgLeft := base.DamageShields(dmg, m)
+
+	m.Effects = leftOverEffects
 
 	return dmgLeft
 }
 
 func (m *MobEntity) Action(f types.FightInstance) []types.Action {
-	if m.ActionFunc != nil {
-		return m.ActionFunc(m, f.(*battle.Fight))
+	if m.PartsActionFunc != nil {
+		ret, err := m.PartsActionFunc(m, f.(*battle.Fight))
+
+		if err != nil {
+			panic(err)
+		}
+
+		temp := make([]types.Action, len(ret.([]any)))
+
+		for idx, val := range ret.([]any) {
+			if casted, ok := val.(types.Action); !ok {
+				mapData := val.(map[string]any)
+
+				act := types.Action{
+					Event:  types.ActionEnum(mapData["RTEvent"].(int)),
+					Target: *mapData["RTTarget"].(*uuid.UUID),
+					Source: *mapData["RTSource"].(*uuid.UUID),
+				}
+
+				switch act.Event {
+				case types.ACTION_EFFECT:
+					metaData := mapData["RTMeta"].(map[string]any)
+
+					effectType := types.Effect(metaData["RTEffect"].(int))
+
+					if effectType != types.EFFECT_DOT {
+						panic(fmt.Errorf("unsuported event type %d", effectType))
+					}
+
+					act.Meta = types.ActionEffect{
+						Effect: effectType, Value: metaData["RTValue"].(int), Duration: metaData["RTDuration"].(int),
+					}
+				}
+
+				temp[idx] = act
+			} else {
+				temp[idx] = casted
+			}
+
+		}
+
+		return temp
 	}
 
 	return m.GetDefaultAction(f.(*battle.Fight))
@@ -84,6 +127,14 @@ func (m *MobEntity) GetUUID() uuid.UUID {
 }
 
 func (m *MobEntity) GetLoot() []types.Loot {
+	if effect := m.GetEffectByType(types.EFFECT_LOOT_INCREASE); effect != nil {
+		for i := range m.Loot {
+			m.Loot[i].Count = utils.PercentOf(m.Loot[i].Count, 100+effect.Value)
+		}
+
+		return m.Loot
+	}
+
 	return m.Loot
 }
 
@@ -108,17 +159,13 @@ func (m *MobEntity) Heal(value int) {
 }
 
 func (m *MobEntity) Cleanse() {
-	keepList, _ := base.Cleanse(m)
-
-	m.Effects = keepList
+	m.Effects = base.Cleanse(m)
 }
 
-func (m *MobEntity) TriggerAllEffects() []types.ActionEffect {
-	effects, expiredEffects := base.TriggerAllEffects(m)
+func (m *MobEntity) TriggerAllEffects() {
+	effects := base.TriggerAllEffects(m)
 
 	m.Effects = effects
-
-	return expiredEffects
 }
 
 func (m *MobEntity) GetSkill(uuid uuid.UUID) types.PlayerSkill {
@@ -150,15 +197,11 @@ func (m *MobEntity) TriggerTempSkills() {
 }
 
 func (m *MobEntity) RemoveTempByUUID(uuid uuid.UUID) {
-	tempList := make([]*types.WithExpire[types.PlayerSkill], 0)
-
-	for _, skill := range m.TempSkill {
+	for idx, skill := range m.TempSkill {
 		if skill.Value.GetUUID() != uuid {
-			tempList = append(tempList, skill)
+			slices.Delete(m.TempSkill, idx, idx+1)
 		}
 	}
-
-	m.TempSkill = tempList
 }
 
 func (m *MobEntity) RemoveEffect(uuid uuid.UUID) {
@@ -182,16 +225,15 @@ func (m *MobEntity) GetStat(stat types.Stat) int {
 
 	for _, effect := range m.Effects {
 		if effect.Effect == types.EFFECT_STAT_INC {
-
 			if value, ok := effect.Meta.(types.ActionEffectStat); ok {
 				if value.Stat != stat {
 					continue
 				}
 
 				if value.IsPercent {
-					percentValue += value.Value
+					percentValue += effect.Value
 				} else {
-					statValue += value.Value
+					statValue += effect.Value
 				}
 			}
 		}
@@ -203,9 +245,9 @@ func (m *MobEntity) GetStat(stat types.Stat) int {
 				}
 
 				if value.IsPercent {
-					percentValue -= value.Value
+					percentValue -= effect.Value
 				} else {
-					statValue -= value.Value
+					statValue -= effect.Value
 				}
 			}
 		}
@@ -226,16 +268,6 @@ func (m *MobEntity) AppendTempSkill(skill types.WithExpire[types.PlayerSkill]) {
 
 func (m *MobEntity) GetTempSkills() []*types.WithExpire[types.PlayerSkill] {
 	return m.TempSkill
-}
-
-func (m *MobEntity) HasOnDefeat() bool {
-	return m.OnDefeatFunc != nil
-}
-
-func (m *MobEntity) OnDefeat(player types.PlayerEntity) {
-	if m.OnDefeatFunc != nil {
-		m.OnDefeatFunc(player)
-	}
 }
 
 func Spawn(id string) *MobEntity {

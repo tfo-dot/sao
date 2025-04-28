@@ -1,0 +1,24 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-00000000000A", "00000000-0000-0001-0000-00000000000A" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Gniew Lilith"
+let Description = "Co ture zadaje obrażenia w zależności od zdrowia użytkownika."
+
+let Stats = |> HP: 200, DEF: 30 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_TURN <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun(owner, target, fightInstance, meta) {
+    ForEach(GetEnemies(fightInstance, owner), fun(idx, enemy) {
+      HandleAction(fightInstance,
+        |>
+          Event: ACTION_DMG,
+          Source: GetUUID(owner),
+          Target: GetUUID(enemy),
+          Meta: [ |> Value: PercentOf(GetStat(owner, STAT_HP), 5), Type: 0, CanDodge: false <| ]
+        <|
+      )
+    })
+  }
+<| ]

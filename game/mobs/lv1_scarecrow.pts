@@ -1,0 +1,10 @@
+let Id = "LV1_Scarecrow"
+let HP = 415
+let SPD = 15
+let ATK = 20
+let Name = "Strach na wróble"
+
+let Loot = [
+  |> Type: LOOT_EXP,  Count: 130 <|,
+  |> Type: LOOT_GOLD, Count: 225 <|
+]

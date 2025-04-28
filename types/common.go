@@ -1,51 +1,6 @@
 package types
 
-import (
-	"github.com/disgoorg/disgo/discord"
-	"github.com/google/uuid"
-)
-
-type DiscordMessageStruct struct {
-	ChannelID      string
-	MessageContent discord.MessageCreate
-	DM             bool
-}
-
-type DiscordEvent interface {
-	GetEvent() DiscordMessage
-	GetData() any
-}
-
-type DiscordMessage int
-
-const (
-	MSG_SEND DiscordMessage = iota
-	MSG_CHOICE
-)
-
-type DiscordSendMsg struct {
-	Data DiscordMessageStruct
-}
-
-func (fsm DiscordSendMsg) GetEvent() DiscordMessage {
-	return MSG_SEND
-}
-
-func (fsm DiscordSendMsg) GetData() any {
-	return fsm.Data
-}
-
-type DiscordChoiceMsg struct {
-	Data DiscordChoice
-}
-
-func (fsm DiscordChoiceMsg) GetEvent() DiscordMessage {
-	return MSG_CHOICE
-}
-
-func (fsm DiscordChoiceMsg) GetData() any {
-	return fsm.Data
-}
+import "github.com/google/uuid"
 
 type Stat int
 
@@ -67,8 +22,6 @@ const (
 	STAT_LETHAL_PERCENT
 	STAT_MAGIC_PEN
 	STAT_MAGIC_PEN_PERCENT
-	STAT_ADAPTIVE
-	STAT_ADAPTIVE_PERCENT
 	STAT_OMNI_VAMP
 	STAT_ATK_VAMP
 )
@@ -88,31 +41,7 @@ var StatToString = map[Stat]string{
 	STAT_LETHAL_PERCENT:    "Przebicie procentowe pancerza",
 	STAT_MAGIC_PEN:         "Przebicie odporności na magię",
 	STAT_MAGIC_PEN_PERCENT: "Przebicie procentowe odporności na magię",
-	STAT_ADAPTIVE:          "Siła adaptacyjna",
 }
-
-type AdaptiveAttackType int
-
-const (
-	ADAPTIVE_ATK AdaptiveAttackType = iota
-	ADAPTIVE_AP
-)
-
-type AdaptiveDefenseType int
-
-const (
-	ADAPTIVE_DEF AdaptiveDefenseType = iota
-	ADAPTIVE_RES
-)
-
-type EffectSource int
-
-const (
-	SOURCE_ND EffectSource = iota
-	SOURCE_PARTY
-	SOURCE_LOCATION
-	SOURCE_ITEM
-)
 
 type EntityFlag int
 
@@ -151,7 +80,6 @@ type Damage struct {
 	Type  DamageType
 	//Its ignored when []Damage is of 1
 	IsPercent bool
-	CanDodge  bool
 }
 
 type ActionEffect struct {
@@ -160,9 +88,6 @@ type ActionEffect struct {
 	Duration int
 	Uuid     uuid.UUID
 	Meta     any
-	Caster   uuid.UUID
-	Target   uuid.UUID
-	Source   EffectSource
 	OnExpire func(owner Entity, fightInstance FightInstance, meta ActionEffect)
 }
 
@@ -179,26 +104,19 @@ const (
 	EFFECT_RESIST
 	EFFECT_TAUNT
 	EFFECT_TAUNTED
+	EFFECT_LOOT_INCREASE
 )
 
 type LootType int
 
 const (
-	LOOT_ITEM LootType = iota
-	LOOT_EXP
+	LOOT_EXP LootType = iota
 	LOOT_GOLD
 )
 
 type Loot struct {
 	Type  LootType
 	Count int
-	Meta  *LootMeta
-}
-
-// Only for items
-type LootMeta struct {
-	Type ItemType
-	Uuid uuid.UUID
 }
 
 type ActionEnum int
@@ -244,19 +162,13 @@ func HasFlag[T ~int](flags T, flag T) bool {
 	return flags&flag != 0
 }
 
-type ActionEffectHeal struct {
-	Value int
-}
-
 type ActionEffectStat struct {
 	Stat      Stat
-	Value     int
 	IsPercent bool
 }
 
 type ActionEffectResist struct {
 	All       bool
-	Value     int
 	IsPercent bool
 	//4 stands for all
 	DmgType int
@@ -281,7 +193,7 @@ type Entity interface {
 	GetStat(Stat) int
 
 	Action(FightInstance) []Action
-	TakeDMG(ActionDamage) []Damage
+	TakeDMG(ActionDamage) map[DamageType]int
 	DamageShields(int) int
 
 	Heal(int)
@@ -299,33 +211,22 @@ type Entity interface {
 	ApplyEffect(ActionEffect)
 	GetEffectByType(Effect) *ActionEffect
 	GetEffectByUUID(uuid.UUID) *ActionEffect
-	GetSkill(uuid.UUID) PlayerSkill
 	GetAllEffects() []ActionEffect
 	RemoveEffect(uuid.UUID)
-	TriggerAllEffects() []ActionEffect
+	TriggerAllEffects()
 
 	AppendTempSkill(WithExpire[PlayerSkill])
-	GetTempSkills() []*WithExpire[PlayerSkill]
-	RemoveTempByUUID(uuid.UUID)
 	TriggerTempSkills()
-	TriggerEvent(SkillTrigger, EventData, interface{}) []interface{}
-
-	HasOnDefeat() bool
+	TriggerEvent(SkillTrigger, EventData, any) []any
 
 	ChangeHP(int)
-	TakeDMGOrDodge(ActionDamage) ([]Damage, bool)
+	TakeDMGOrDodge(ActionDamage) (map[DamageType]int, bool)
 }
 
 type MobEntity interface {
 	Entity
 
 	GetDefaultAction(FightInstance) []Action
-}
-
-type DefeatableEntity interface {
-	Entity
-
-	OnDefeat(PlayerEntity)
 }
 
 type PlayerEntity interface {
@@ -343,34 +244,24 @@ type PlayerEntity interface {
 	GetDefendingState() bool
 
 	GetAllItems() []*PlayerItem
-	AddItem(*PlayerItem)
-	RemoveItem(int)
 
 	GetLvl() int
 	GetSkills() []PlayerSkill
 
-	AppendDerivedStat(DerivedStat)
 	SetLevelStat(Stat, int)
 	GetLevelStat(Stat) int
 	GetDefaultStat(Stat) int
 	ReduceCooldowns(SkillTrigger)
 
-	SetLevelSkillMeta(int, interface{})
-	GetLevelSkillMeta(int) interface{}
+	SetLevelSkillMeta(int, any)
+	GetLevelSkillMeta(int) any
 
-	UnlockFloor(string)
 	UseItem(uuid.UUID, Entity, FightInstance)
 }
 
 type NPCStore struct {
 	Uuid     uuid.UUID
 	Name     string
-	Location EntityLocation
-	Stock    []*Stock
-}
-
-type Stock struct {
-	ItemType ItemType
-	ItemUUID uuid.UUID
-	Price    int
+	Location *Location
+	Stock    []*WithCount[uuid.UUID]
 }

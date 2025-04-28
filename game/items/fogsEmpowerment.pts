@@ -1,0 +1,7 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000017" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Mgliste wzmocenienie"
+let Description = "Otrzymujesz AP w zależności od siły leczenia i tarcz."
+
+let Stats = |> HEAL_POWER: 15, AP: 30, Derived: [ |> Base: STAT_HEAL_POWER, Derived: STAT_AP, Percent: 1000 <| ] <|

@@ -1,0 +1,32 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000005", "00000000-0000-0001-0000-000000000005" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Wodne ostrze"
+let Description = "Zadawanie obrażeń leczy o brakujące zdrowie."
+
+let Stats = |> AD: 25, OMNI_VAMP: 10, HP: 50 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_HIT <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun(owner, target, fightInstance, meta) {
+      let missingHealth = (GetStat(owner, STAT_HP)) - (GetCurrentHP(owner))
+
+      HandleAction(fightInstance,
+        |>
+          Event: ACTION_EFFECT,
+          Source: GetUUID(owner),
+          Target: GetUUID(owner),
+          Meta:
+            |>
+              Effect: EFFECT_HEAL,
+              Value: PercentOf(missingHealth, 10 + (PercentOf(GetStat(owner, STAT_AD), 1))),
+              Duration: 0
+            <|
+        <|
+      )
+    },
+    CD: 10
+  <|
+]

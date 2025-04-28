@@ -1,0 +1,66 @@
+"Like no way in hell I'm adding another layer to parts just to handle loops, fck me"
+
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000016", "00000000-0000-0001-0000-000000000016" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Syreni śpiew"
+let Description = "Leczenie i tarcze przeskakują na sojusznika"
+
+let Stats = |> HEAL_POWER: 10, AP: 40, HP: 50 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_HEAL_OTHER <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun(owner, target, fightInstance, meta) {
+      local validTargets = GetAlliesFor(fightInstance, GetUUID(owner))
+
+      if #validTargets < 1 {
+        return |> <|
+      }
+
+      local idx = -1
+
+      for index = 1, #validTargets do
+        if GetUUID(validTargets[idx]) == GetUUID(target) then
+          idx = index
+          break
+        end
+      end
+
+      if idx ~= -1 then
+        table.remove(validTargets, idx)
+      end
+
+      if #validTargets < 1 {
+        return |> <|
+      }
+
+      local healValue = utils.PercentOf(meta.Value, 10)
+      local healTarget = validTargets[math.random(#validTargets)]
+
+      ---@diagnostic disable-next-line: undefined-global
+      HandleAction(fightInstance, {
+        Event = "ACTION_EFFECT",
+        ---@diagnostic disable-next-line: undefined-global
+        Source = GetUUID(owner),
+        ---@diagnostic disable-next-line: undefined-global
+        Target = GetUUID(healTarget),
+        Meta = {
+          Effect = "EFFECT_HEAL",
+          Value = 0,
+          Duration = 0,
+          ---@diagnostic disable-next-line: undefined-global
+          Target = GetUUID(healTarget),
+          ---@diagnostic disable-next-line: undefined-global
+          Caster = GetUUID(owner),
+          Source = "SOURCE_ITEM",
+          Meta = {
+            ---@diagnostic disable-next-line: undefined-global
+            Value = healValue
+          }
+        },
+      })
+    }
+  <|
+]

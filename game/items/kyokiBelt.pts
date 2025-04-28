@@ -1,0 +1,14 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000019", "00000000-0000-0001-0000-000000000019" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Pasek Kyoki"
+let Description = "Obrażenia magiczne są zwiększone przez losowy mnożnik (0.8-1.8)."
+
+let Stats = |> AD: 20, AP: 40 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_DAMAGE_BEFORE <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun(owner, target, fightInstance, meta) = 
+    |> Effects: [ |> Value: (RandomInt(0, 100)) - 20, Type: 1, Percent: true <| ] <|
+<| ]

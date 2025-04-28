@@ -1,0 +1,16 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-00000000001B", "00000000-0000-0001-0000-00000000001B" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Zwiastun burzy"
+let Description = "Ataki zadają dodatkowe obrażenia w zależności od AP."
+
+let Stats = |> AD: 100, SPD: 5 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_BEFORE <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun(owner, target, fightInstance, meta) = 
+      |> Effects: [ |> Value: PercentOf(GetStat(owner, STAT_AP), 20), Type: DMG_MAGICAL, Percent: false <| ] <|
+  <|
+]

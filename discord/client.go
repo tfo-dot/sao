@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sao/config"
+	"sao/battle/mobs"
 	"sao/data"
 	"sao/player"
 	"sao/player/inventory"
 	"sao/types"
 	"sao/utils"
 	"sao/world"
-	"sao/world/location"
 	"sao/world/party"
 	"sao/world/tournament"
 	"slices"
@@ -30,35 +29,41 @@ var Client *bot.Client
 var Choices = make([]types.DiscordChoice, 0)
 
 func StartClient() {
-	client, err := disgo.New(config.Config.Token,
+	client, err := disgo.New(data.Config.Token,
 		bot.WithEventListenerFunc(func(e *events.Ready) {
 			println("Discord connection is here!")
 			e.Client().SetPresence(context.Background(), gateway.WithWatchingActivity("SAO"))
 		}),
 		bot.WithEventListenerFunc(func(e *events.MessageCreate) {
-			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == config.Config.Owner {
-				data := World.CreateBackup()
+			if e.Message.Content == "sao:dump" && e.Message.Author.ID.String() == data.Config.Owner {
+				rawBackup := World.CreateBackup()
 
-				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, config.Config.Emote)
+				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, data.Config.Emote)
 
-				chanel, err := e.Client().Rest().CreateDMChannel(snowflake.MustParse(config.Config.Owner))
-
-				if err != nil {
-					return
-				}
-
-				_, err = e.Client().Rest().CreateMessage(chanel.ID(), discord.MessageCreate{
-					Files: []*discord.File{
-						{
-							Name:   "backup.json",
-							Reader: bytes.NewReader(data),
-						},
-					},
-				})
+				chanel, err := e.Client().Rest().CreateDMChannel(snowflake.MustParse(data.Config.Owner))
 
 				if err != nil {
 					return
 				}
+
+				_, err = e.Client().Rest().CreateMessage(
+					chanel.ID(),
+					discord.MessageCreate{Files: []*discord.File{{Name: "backup.json", Reader: bytes.NewReader(rawBackup)}}})
+
+				if err != nil {
+					return
+				}
+			}
+
+			if e.Message.Content == "sao:reload" && e.Message.Author.ID.String() == data.Config.Owner {
+				mobs.Mobs = mobs.GetMobs()
+				data.FloorMap = data.GetFloors()
+				data.PlayerDefaults = data.GetPlayerDefaults()
+				data.Shops = data.GetShops()
+				data.WorldConfig = data.GetWorldConfig()
+				data.Items = data.GetItems()
+
+				e.Client().Rest().AddReaction(e.Message.ChannelID, e.Message.ID, data.Config.Emote)
 			}
 		}),
 		bot.WithEventListenerFunc(commandListener),
@@ -74,7 +79,7 @@ func StartClient() {
 
 	Client = &client
 
-	if _, err = (*Client).Rest().SetGuildCommands((*Client).ApplicationID(), snowflake.MustParse(config.Config.GuildID), DISCORD_COMMANDS); err != nil {
+	if _, err = (*Client).Rest().SetGuildCommands((*Client).ApplicationID(), snowflake.MustParse(data.Config.GuildID), DISCORD_COMMANDS); err != nil {
 		fmt.Println("error while registering commands")
 	}
 
@@ -83,43 +88,6 @@ func StartClient() {
 	}
 
 	go worldMessageListener()
-}
-
-func worldMessageListener() {
-	for {
-		msg, ok := <-World.DiscordChannel
-
-		if !ok {
-			return
-		}
-
-		switch msg.GetEvent() {
-		case types.MSG_SEND:
-			data := msg.GetData().(types.DiscordMessageStruct)
-
-			snowflake := snowflake.MustParse(data.ChannelID)
-
-			if data.DM {
-				ch, err := (*Client).Rest().CreateDMChannel(snowflake)
-
-				if err != nil {
-					return
-				}
-
-				snowflake = ch.ID()
-			}
-
-			_, err := (*Client).Rest().CreateMessage(snowflake, data.MessageContent)
-
-			if err != nil {
-				panic(err)
-			}
-		case types.MSG_CHOICE:
-			data := msg.GetData().(types.DiscordChoice)
-
-			Choices = append(Choices, data)
-		}
-	}
 }
 
 func commandListener(event *events.ApplicationCommandInteractionCreate) {
@@ -164,44 +132,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		if err != nil {
 			fmt.Println("error while sending message")
-		} else {
-			(*Client).Rest().AddMemberRole(*event.GuildID(), charUser.ID, snowflake.MustParse(config.Config.RoleID))
-		}
-		return
-	case "ruch":
-		locationName := interactionData.String("nazwa")
-
-		err := World.MovePlayer(playerChar.GetUUID(), playerChar.Meta.Location.Floor, locationName, "")
-
-		if err == nil {
-			event.CreateMessage(MessageContent("Przeszedłeś do "+locationName, false))
-		} else {
-			event.CreateMessage(MessageContent("Nie możesz przejść do "+locationName, true))
-		}
-
-		return
-	case "tp":
-		floorName := interactionData.String("nazwa")
-
-		currentLocation := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
-
-		if !currentLocation.TP {
-			event.CreateMessage(
-				MessageContent("Nie możesz się stąd teleportować (idź do miasta lub lokacji z tp)", true),
-			)
 			return
 		}
 
-		defaultLocation := World.Floors[floorName].FindLocation(World.Floors[floorName].Default)
-
-		err := World.MovePlayer(playerChar.GetUUID(), floorName, World.Floors[floorName].Default, "")
-
-		if err == nil {
-			event.CreateMessage(MessageContent(fmt.Sprintf("Teleportowałeś się na %s (<#%s>)", floorName, defaultLocation.CID), false))
-		} else {
-			event.CreateMessage(MessageContent("Nie możesz się teleportować", true))
-		}
-
+		(*Client).Rest().AddMemberRole(*event.GuildID(), charUser.ID, snowflake.MustParse(data.Config.RoleID))
 		return
 	case "info":
 		if mentionedUser, exists := interactionData.OptUser("gracz"); exists {
@@ -211,35 +145,31 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			playerChar = World.GetPlayer(user.ID.String())
 
 			if playerChar == nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Użytkownik nie ma postaci").
-						SetEphemeral(true).
-						Build(),
-				)
-
+				event.CreateMessage(MessageContent("Użytkownik nie ma postaci", true))
 				return
 			}
 		}
 
 		if playerChar == nil {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Nie znaleziono postaci").
-					SetEphemeral(true).
-					Build(),
-			)
+			event.CreateMessage(noCharMessage)
 			return
 		}
 
-		inFightText := utils.BoolToText(playerChar.Meta.FightInstance != nil, "Tak", "Nie")
-		inPartyText := utils.BoolToText(playerChar.Meta.Party != nil, "Tak", "Nie")
+		inFightText := "Tak"
+
+		if playerChar.Meta.FightInstance == nil {
+			inFightText = "Nie"
+		}
+
+		inPartyText := "Tak"
+
+		if playerChar.Meta.Party == nil {
+			inPartyText = "Nie"
+		}
 
 		lvlText := fmt.Sprint(playerChar.XP.Level)
 
-		if playerChar.XP.Level >= World.GetUnlockedFloorCount()*5 {
+		if playerChar.XP.Level >= data.FloorMap.GetUnlockedFloorCount()*5 {
 			lvlText += " MAX"
 		} else {
 			lvlText += fmt.Sprintf(" %d/%d", playerChar.XP.Exp, (playerChar.XP.Level*100)+100)
@@ -247,8 +177,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		derivedStatsText := ""
 
-		for _, stat := range playerChar.DynamicStats {
-
+		for _, stat := range playerChar.GetDerivedStats() {
 			statValue := utils.PercentOf(playerChar.GetStat(stat.Base), stat.Percent)
 
 			derivedStatsText += fmt.Sprintf("- %d %s (%d%% %s => %s)\n", statValue, types.StatToString[stat.Derived], stat.Percent, types.StatToString[stat.Base], types.StatToString[stat.Derived])
@@ -258,14 +187,11 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			derivedStatsText = "Brak"
 		}
 
-		rawLocation := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
-
 		messageBuilder := discord.NewMessageCreateBuilder().
 			AddEmbeds(
 				discord.NewEmbedBuilder().
 					AddField("Nazwa", playerChar.GetName(), true).
 					AddField("Gracz", fmt.Sprintf("<@%s>", playerChar.Meta.UserID), true).
-					AddField("Lokacja", fmt.Sprintf("<#%s>", rawLocation.CID), true).
 					AddField("HP", fmt.Sprintf("%d/%d", playerChar.Stats.HP, playerChar.GetStat(types.STAT_HP)), true).
 					AddField("Mana", fmt.Sprintf("%d/%d", playerChar.GetCurrentMana(), playerChar.GetStat(types.STAT_MANA)), true).
 					AddField("Atak", fmt.Sprintf("%d", playerChar.GetStat(types.STAT_AD)), true).
@@ -294,13 +220,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				playerChar = World.GetPlayer(user.ID.String())
 
 				if playerChar == nil {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Użytkownik nie ma postaci").
-							SetEphemeral(true).
-							Build(),
-					)
+					event.CreateMessage(MessageContent("Użytkownik nie ma postaci", true))
 					return
 				}
 			}
@@ -315,20 +235,23 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			notInLine := false
 
-			for key, skill := range playerChar.Inventory.LevelSkills {
-				skillDescription := skill.GetUpgradableDescription(playerChar.Inventory.LevelSkillsUpgrades[skill.GetLevel()])
+			for key, skillInfo := range playerChar.Inventory.LevelSkills {
 
-				skillName := skill.GetName()
+				skillDescription := skillInfo.Skill.GetUpgradableDescription(skillInfo.Upgrades)
 
-				if types.HasFlag(skill.GetTrigger().Flags, types.FLAG_INSTANT_SKILL) {
+				skillName := skillInfo.Skill.GetName()
+
+				if types.HasFlag(skillInfo.Skill.GetTrigger().Flags, types.FLAG_INSTANT_SKILL) {
 					skillName = fmt.Sprintf("**%s**", skillName)
 				}
 
-				if types.HasFlag(skill.GetTrigger().Flags, types.FLAG_IGNORE_CC) {
+				if types.HasFlag(skillInfo.Skill.GetTrigger().Flags, types.FLAG_IGNORE_CC) {
 					skillName = fmt.Sprintf("__%s__", skillName)
 				}
 
-				skillName = fmt.Sprintf("%s CD:%d", skillName, skill.GetCooldown(playerChar.Inventory.LevelSkillsUpgrades[skill.GetLevel()]))
+				if skillCd := skillInfo.Skill.GetCooldown(skillInfo.Upgrades); skillCd != 0 {
+					skillName = fmt.Sprintf("%s CD:%d", skillName, skillCd)
+				}
 
 				tempArray = append(tempArray, LevelField{Level: key, Field: discord.EmbedField{
 					Name:   skillName,
@@ -381,26 +304,17 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 					}
 
 					embed.AddField(
-						skill.GetName(),
-						fmt.Sprintf("%s\nUlepszenia:%s", skill.GetDescription(), upgradeMsg),
-						false,
+						skill.GetName(), fmt.Sprintf("%s\nUlepszenia:%s", skill.GetDescription(), upgradeMsg), false,
 					)
 
 					buttons = append(buttons, discord.NewPrimaryButton(
-						skill.GetName(),
-						fmt.Sprintf("su|%d|%d|%d", skill.GetPath(), skill.GetLevel(), idx),
-					))
+						skill.GetName(), fmt.Sprintf("su|%d|%d|%d", skill.GetPath(), skill.GetLevel(), idx)),
+					)
 				}
 			}
 
 			if len(buttons) == 0 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie znaleziono umiejętności dla tego poziomu").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie znaleziono umiejętności dla tego poziomu", true))
 				return
 			}
 
@@ -424,60 +338,41 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			if len(containers) > 5 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Za dużo umiejętności na tym poziomie.").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Za dużo umiejętności na tym poziomie.", true))
 				return
 			}
 
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					AddEmbeds(embed.Build()).
-					AddContainerComponents(containers...).
-					Build(),
-			)
+			event.CreateMessage(discord.MessageCreate{
+				Embeds: []discord.Embed{embed.Build()}, Components: containers,
+			})
 
 			return
 		case "ulepsz":
 			lvl := interactionData.Int("lvl")
 
-			skill, exists := playerChar.Inventory.LevelSkills[lvl]
+			skillInfo, exists := playerChar.Inventory.LevelSkills[lvl]
 
 			if !exists {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie masz takiej umiejętności").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie masz takiej umiejętności", true))
 				return
 			}
 
-			upgrades := skill.GetUpgrades()
+			upgrades := skillInfo.Skill.GetUpgrades()
 
 			if len(upgrades) == 0 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Ten skill nie ma ulepszeń").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Ta umiejętność nie ma ulepszeń", true))
 				return
 			}
 
-			unlockedUpgrades := playerChar.Inventory.LevelSkillsUpgrades[lvl]
+			if playerChar.GetAvailableSkillActions() <= 0 {
+				event.CreateMessage(MessageContent("Posiadasz za mało punktów akcji", true))
+				return
+			}
 
 			availableUpgrades := make([]types.PlayerSkillUpgrade, 0)
 
 			for idx, upgrade := range upgrades {
-				if inventory.HasUpgrade(unlockedUpgrades, idx+1) {
+				if inventory.HasUpgrade(skillInfo.Upgrades, idx+1) {
 					continue
 				}
 
@@ -485,13 +380,7 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			if len(availableUpgrades) == 0 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie masz dostępnych ulepszeń").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie masz dostępnych ulepszeń", true))
 				return
 			}
 
@@ -499,24 +388,15 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			embed := discord.NewEmbedBuilder()
 
 			for idx, upgrade := range availableUpgrades {
-				embed.AddField(
-					fmt.Sprintf("Ulepszenie %v", idx+1),
-					upgrade.Description,
-					false,
-				)
+				embed.AddField(fmt.Sprintf("Ulepszenie %v", idx+1), upgrade.Description, false)
 
 				buttons = append(buttons, discord.NewPrimaryButton(
-					fmt.Sprintf("Ulepsz %v", idx+1),
-					fmt.Sprintf("sup|%d|%d", skill.GetLevel(), idx),
+					fmt.Sprintf("Ulepsz %v", idx+1), fmt.Sprintf("sup|%d|%d", lvl, idx),
 				))
 			}
 
 			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					AddEmbeds(embed.Build()).
-					AddActionRow(buttons...).
-					Build(),
+				discord.NewMessageCreateBuilder().AddEmbeds(embed.Build()).AddActionRow(buttons...).Build(),
 			)
 
 		}
@@ -547,13 +427,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				embed.AddField(item.Name, item.Description, false)
 			}
 
-			embed.AddField("Złoto", fmt.Sprintf("%d", playerChar.Inventory.Gold), false)
-
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					AddEmbeds(embed.Build()).
-					Build(),
+			event.CreateMessage(MessageEmbed(
+				embed.AddField("Złoto", fmt.Sprintf("%d", playerChar.Inventory.Gold), false).Build()),
 			)
 
 			return
@@ -562,17 +437,10 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		dChannel, error := (*Client).Rest().GetChannel(event.Channel().ID())
 
 		if error != nil {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Nie można znaleźć kanału").
-					SetEphemeral(true).
-					Build(),
-			)
+			event.CreateMessage(MessageContent("Nie można znaleźć kanału", true))
 			return
 		}
 
-		var parentId string
 		var channelId string
 		var threadId string
 
@@ -582,125 +450,45 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			textChannel, error := (*Client).Rest().GetChannel(*threadChannel.ParentID())
 
 			if error != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie można znaleźć kanału").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie można znaleźć kanału", true))
 				return
 			}
 
-			parentId = textChannel.(discord.GuildTextChannel).ParentID().String()
 			channelId = textChannel.ID().String()
 			threadId = dChannel.ID().String()
 		} else {
-			parentId = dChannel.(discord.GuildTextChannel).ParentID().String()
 			channelId = dChannel.ID().String()
 		}
 
-		var dFloor *location.Floor
+		loc := data.FloorMap.FindLocation(func(l types.Location) bool { return l.CID == channelId })
 
-		for _, floor := range World.Floors {
-			if floor.CID == parentId {
-				dFloor = &floor
-				break
-			}
-		}
+		println(channelId)
 
-		if dFloor == nil {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Ta kategoria nie wygląda jak z SAO...").
-					SetEphemeral(true).
-					Build(),
+		if loc == nil {
+			event.CreateMessage(discord.
+				NewMessageCreateBuilder().
+				SetContent("Nie rozpoznaje tego kanału...").
+				SetEphemeral(true).
+				Build(),
 			)
 			return
 		}
 
-		newLocation := dFloor.FindLocation(channelId)
-
-		if newLocation == nil {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Nie mam tej lokacji w bazie...").
-					SetEphemeral(true).
-					Build(),
+		if loc.CityPart {
+			event.CreateMessage(discord.
+				NewMessageCreateBuilder().
+				SetContent("Nie ma czego tu szukać...").
+				SetEphemeral(true).
+				Build(),
 			)
 			return
 		}
 
-		if playerChar.Meta.Location.Location == newLocation.Name && playerChar.Meta.Location.Floor == dFloor.Name {
+		World.PlayerSearch(playerChar.GetUUID(), threadId, event)
 
-			loc := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
+		event.CreateMessage(MessageContent("Szukanie...", true))
 
-			if loc.CityPart {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie ma czego tu szukać...").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			World.PlayerSearch(playerChar.GetUUID(), threadId, event)
-
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Szukanie...").
-					SetEphemeral(true).
-					Build(),
-			)
-		} else {
-			pFloor := playerChar.Meta.Location.Floor
-
-			if playerChar.Meta.Location.Floor != dFloor.Name {
-				pFloor = dFloor.Name
-			}
-
-			err := World.MovePlayer(playerChar.GetUUID(), pFloor, newLocation.Name, "")
-
-			if err != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie możesz tam iść").
-						SetEphemeral(true).
-						Build(),
-				)
-
-				return
-			}
-
-			loc := World.Floors[playerChar.Meta.Location.Floor].FindLocation(playerChar.Meta.Location.Location)
-
-			if loc.CityPart {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie ma czego tu szukać...").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			go World.PlayerSearch(playerChar.GetUUID(), threadId, event)
-
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Szukanie (automatycznie przeniosłam cię do lokacji)...").
-					SetEphemeral(true).
-					Build(),
-			)
-		}
+		go World.PlayerSearch(playerChar.GetUUID(), threadId, event)
 
 		return
 	case "party":
@@ -717,8 +505,8 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 		switch *interactionData.SubCommandName {
 		case "pokaż":
-			embed := discord.NewEmbedBuilder()
 			partyObj := World.Parties[playerChar.Meta.Party.UUID]
+			partyLeader := World.Players[partyObj.Leader]
 			partyMembersText := ""
 
 			for _, member := range partyObj.Players {
@@ -731,17 +519,13 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				partyMembersText = partyMembersText[:len(partyMembersText)-1]
 			}
 
-			embed.AddField("Członkowie", partyMembersText, false)
-
-			partyLeader := World.Players[partyObj.Leader]
-
-			embed.AddField("Lider", fmt.Sprintf("<@%s> - %s\n", partyLeader.Meta.UserID, partyLeader.GetName()), false)
-
 			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					AddEmbeds(embed.Build()).
-					Build(),
+				MessageEmbed(
+					discord.NewEmbedBuilder().
+						AddField("Członkowie", partyMembersText, false).
+						AddField("Lider", fmt.Sprintf("<@%s> - %s\n", partyLeader.Meta.UserID, partyLeader.GetName()), false).
+						Build(),
+				),
 			)
 
 			return
@@ -759,56 +543,31 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			if len(World.Parties[playerChar.Meta.Party.UUID].Players) >= 6 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Party jest pełne").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Party jest pełne", true))
 				return
 			}
 
 			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie jesteś liderem").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie jesteś liderem", true))
 				return
 			}
 
 			mentionedUser := interactionData.User("gracz")
 
-			for _, pl := range World.Players {
-				if pl.Meta.UserID == mentionedUser.ID.String() {
-					if pl.Meta.Party != nil {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Gracz jest już w party").
-								SetEphemeral(true).
-								Build(),
-						)
-						return
-					}
-				}
+			pl := World.GetPlayer(mentionedUser.ID.String())
+
+			if pl.Meta.Party != nil {
+				event.CreateMessage(MessageContent("Gracz jest już w party", true))
+				return
 			}
 
 			ch, error := event.Client().Rest().CreateDMChannel(mentionedUser.ID)
 
 			if error != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie można wysłać wiadomości do gracza").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie można wysłać wiadomości do gracza", true))
+				return
 			}
 
 			chID := ch.ID()
@@ -823,86 +582,46 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			)
 
 			if error != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie można wysłać wiadomości do gracza").
-						SetEphemeral(true).
-						Build(),
-				)
-			} else {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Wysłano zaproszenie do party").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie można wysłać wiadomości do gracza", true))
+				return
 			}
 
+			event.CreateMessage(MessageContent("Wysłano zaproszenie do party", true))
 			return
 		case "wyrzuć":
 			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie jesteś liderem").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie jesteś liderem", true))
 				return
 			}
 
 			mentionedUser := interactionData.User("gracz")
 
 			if mentionedUser.ID == user.ID {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie możesz wyrzucić samego siebie").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie możesz wyrzucić samego siebie", true))
 				return
 			}
 
-			for _, pl := range World.Players {
-				if pl.Meta.UserID == mentionedUser.ID.String() {
-					if pl.Meta.Party == nil {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Gracz nie jest w party").
-								SetEphemeral(true).
-								Build(),
-						)
-						return
-					}
+			pl := World.GetPlayer(mentionedUser.ID.String())
 
-					if pl.Meta.Party.UUID != playerChar.Meta.Party.UUID {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Gracz nie jest w twoim party").
-								SetEphemeral(true).
-								Build(),
-						)
-						return
-					}
+			if pl.Meta.Party == nil {
+				event.CreateMessage(MessageContent("Gracz nie jest w party", true))
+				return
+			}
 
-					for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
-						if partyMember.PlayerUuid == pl.GetUUID() {
-							pl.Meta.Party = nil
+			if pl.Meta.Party.UUID != playerChar.Meta.Party.UUID {
+				event.CreateMessage(MessageContent("Gracz nie jest w twoim party", true))
+				return
+			}
 
-							World.Parties[playerChar.Meta.Party.UUID].Players = append(World.Parties[playerChar.Meta.Party.UUID].Players[:i], World.Parties[playerChar.Meta.Party.UUID].Players[i+1:]...)
-							break
-						} else {
-							World.Players[partyMember.PlayerUuid].Meta.Party.MembersCount--
-						}
-					}
+			for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
+				if partyMember.PlayerUuid == pl.GetUUID() {
+					pl.Meta.Party = nil
 
+					World.Parties[playerChar.Meta.Party.UUID].Players = slices.Delete(World.Parties[playerChar.Meta.Party.UUID].Players, i, i+1)
+				} else {
+					World.Players[partyMember.PlayerUuid].Meta.Party.MembersCount--
 				}
 			}
 
@@ -911,20 +630,14 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() == part.Leader {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Jesteś liderem...").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Jesteś liderem...", true))
 				return
 			}
 
+			//TODO fix this XDDD
 			for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
 				if partyMember.PlayerUuid == playerChar.GetUUID() {
-					World.Parties[playerChar.Meta.Party.UUID].Players = append(World.Parties[playerChar.Meta.Party.UUID].Players[:i], World.Parties[playerChar.Meta.Party.UUID].Players[i+1:]...)
-					break
+					World.Parties[playerChar.Meta.Party.UUID].Players = slices.Delete(World.Parties[playerChar.Meta.Party.UUID].Players, i, i+1)
 				} else {
 					World.Players[partyMember.PlayerUuid].Meta.Party.MembersCount--
 				}
@@ -932,26 +645,13 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			playerChar.Meta.Party = nil
 
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Opuściłeś party").
-					SetEphemeral(true).
-					Build(),
-			)
-
+			event.CreateMessage(MessageContent("Opuściłeś party", true))
 			return
 		case "zmień":
 			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie jesteś liderem").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie jesteś liderem", true))
 				return
 			}
 
@@ -968,68 +668,43 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
-			for _, pl := range World.Players {
-				if pl.Meta.UserID == mentionedUser.ID.String() {
-					if pl.Meta.Party == nil {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Gracz nie jest w party").
-								SetEphemeral(true).
-								Build(),
-						)
-						return
+			pl := World.GetPlayer(mentionedUser.ID.String())
+
+			if pl.Meta.Party == nil {
+				event.CreateMessage(MessageContent("Gracz nie jest w party", true))
+				return
+			}
+
+			if pl.Meta.Party.UUID != playerChar.Meta.Party.UUID {
+				event.CreateMessage(MessageContent("Gracz nie jest w twoim party", true))
+				return
+			}
+
+			role := interactionData.String("rola")
+
+			for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
+				if partyMember.PlayerUuid == pl.GetUUID() {
+					switch role {
+					case "Lider":
+						World.Parties[playerChar.Meta.Party.UUID].Leader = pl.GetUUID()
+					case "DPS":
+						World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.DPS
+					case "Support":
+						World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.Support
+					case "Tank":
+						World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.Tank
 					}
-
-					if pl.Meta.Party.UUID != playerChar.Meta.Party.UUID {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Gracz nie jest w twoim party").
-								SetEphemeral(true).
-								Build(),
-						)
-						return
-					}
-
-					role := interactionData.String("rola")
-
-					for i, partyMember := range World.Parties[playerChar.Meta.Party.UUID].Players {
-						if partyMember.PlayerUuid == pl.GetUUID() {
-							switch role {
-							case "Lider":
-								World.Parties[playerChar.Meta.Party.UUID].Leader = pl.GetUUID()
-							case "DPS":
-								World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.DPS
-							case "Support":
-								World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.Support
-							case "Tank":
-								World.Parties[playerChar.Meta.Party.UUID].Players[i].Role = party.Tank
-							}
-							break
-						}
-					}
-
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Zmieniono rolę").
-							SetEphemeral(true).
-							Build(),
-					)
+					break
 				}
 			}
+
+			event.CreateMessage(MessageContent("Zmieniono rolę", true))
+			return
 		case "rozwiąż":
 			part := World.Parties[playerChar.Meta.Party.UUID]
 
 			if playerChar.GetUUID() != part.Leader {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie jesteś liderem").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie jesteś liderem", true))
 				return
 			}
 
@@ -1041,320 +716,43 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			delete(World.Parties, uuid)
 
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Rozwiązano party").
-					SetEphemeral(true).
-					Build(),
-			)
-
+			event.CreateMessage(MessageContent("Rozwiązano party", true))
 			return
-		}
-	case "ratuj":
-		if playerChar.Meta.FightInstance != nil {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Już jesteś w walce!").
-					SetEphemeral(true).
-					Build(),
-			)
-			return
-		}
-
-		options := make([]discord.StringSelectMenuOption, 0)
-
-		cid := event.Channel().ID().String()
-
-		for _, fight := range World.Fights {
-			if fight.Location.CID != cid {
-				continue
-			} else {
-				for entityUuid, entityEntry := range fight.Entities {
-					if entityEntry.Entity.GetFlags()&types.ENTITY_AUTO != 0 {
-						options = append(options, discord.NewStringSelectMenuOption(entityEntry.Entity.GetName(), entityUuid.String()))
-					}
-				}
-			}
-
-		}
-
-		if len(options) == 0 {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Nie ma nikogo do ratowania").
-					SetEphemeral(true).
-					Build(),
-			)
-			return
-		}
-
-		event.CreateMessage(
-			discord.
-				NewMessageCreateBuilder().
-				SetContent("Wybierz kogo chcesz ratować").
-				AddActionRow(
-					discord.NewStringSelectMenu("f/save", "Wybierz", options...),
-				).
-				Build(),
-		)
-		return
-	case "stwórz":
-		itemUuid, valid := uuid.Parse(interactionData.String("nazwa"))
-
-		if valid != nil {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Nie znaleziono receptury? (XD)").
-					SetEphemeral(true).
-					Build(),
-			)
-			return
-		}
-
-		recipe, exists := data.Recipes[itemUuid]
-
-		if !exists {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Nie znaleziono receptury? (XD)").
-					SetEphemeral(true).
-					Build(),
-			)
-			return
-		}
-
-		err := playerChar.Inventory.Craft(recipe)
-
-		if err.Error() == "MISSING_INGREDIENT" {
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Brakuje składników").
-					SetEphemeral(true).
-					Build(),
-			)
-			return
-		}
-
-		event.CreateMessage(
-			discord.
-				NewMessageCreateBuilder().
-				SetContentf("Stworzono przedmiot\n%s x%d", recipe.Name, recipe.Product.Count).
-				SetEphemeral(true).
-				Build(),
-		)
-	case "furia":
-		switch *interactionData.SubCommandName {
-		case "pokaż":
-			if playerChar.Meta.Fury == nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie masz furii").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			fury := playerChar.Meta.Fury
-
-			message := discord.NewMessageCreateBuilder()
-
-			embed := discord.NewEmbedBuilder()
-
-			embed.AddField("Nazwa", fury.Name, true)
-
-			levelTxt := fmt.Sprint(fury.XP.LVL)
-
-			if fury.XP.LVL == 10 {
-				levelTxt += " - czas na kolejny tier!"
-			} else {
-				levelTxt += fmt.Sprintf(" %d/%d", fury.XP.XP, fury.NextLvlXPGauge())
-			}
-
-			embed.AddField("Poziom", levelTxt, true)
-			embed.AddField("Umiejętności", "Brak", false)
-
-			statsText := ""
-
-			furyStats := fury.GetStats()
-
-			if len(furyStats) == 0 {
-				statsText = "Brak"
-			} else {
-				for stat, value := range furyStats {
-					statsText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
-				}
-			}
-
-			embed.AddField("Statystyki", statsText, false)
-
-			embed.AddField("Aktualny tier", fmt.Sprint(fury.CurrentTier), true)
-
-			if fury.CurrentTier == len(fury.Tiers) {
-				embed.AddField("Kolejny tier?", "Brak", true)
-			} else {
-				nextTier := fury.Tiers[fury.CurrentTier]
-
-				nextTierText := "Tier: " + fmt.Sprint(fury.CurrentTier+1) + "\nPotrzebne składniki: "
-
-				if len(nextTier.Ingredients) == 0 {
-					nextTierText += "Brak"
-				} else {
-					for _, ingredient := range nextTier.Ingredients {
-						nextTierText += fmt.Sprintf("\n- %s x%d", ingredient.Name, ingredient.Count)
-					}
-				}
-
-				nextTierText += "\n"
-
-				if len(nextTier.Skills) == 0 {
-					nextTierText += "Brak nowych umiejętności\n"
-				} else {
-					nextTierText += "Nowe umiejętności: \n"
-
-					for _, skill := range nextTier.Skills {
-						nextTierText += "-" + skill.GetName() + "\n"
-					}
-				}
-
-				if len(nextTier.Stats) == 0 {
-					nextTierText += "Brak nowych statystyk\n"
-				} else {
-					nextTierText += "Nowe statystyki: \n"
-
-					for stat, value := range nextTier.Stats {
-						nextTierText += fmt.Sprintf("- %d %s\n", value, types.StatToString[stat])
-					}
-				}
-
-				embed.AddField("Kolejny tier?", nextTierText, false)
-
-				message.AddEmbeds(embed.Build())
-			}
-
-			event.CreateMessage(message.Build())
-		case "ulepsz":
-			if playerChar.Meta.Fury == nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie masz furii").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			if playerChar.Meta.Fury != nil {
-				playerFury := playerChar.Meta.Fury
-
-				if playerFury.CurrentTier == len(playerFury.Tiers) {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Osiągnięto maksymalny tier").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
-
-				if playerFury.XP.LVL < 10 {
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Nie osiągnięto maksymalnego poziomu na danym tierze").
-							SetEphemeral(true).
-							Build(),
-					)
-					return
-				}
-
-				nextTier := playerFury.Tiers[playerFury.CurrentTier]
-
-				if len(nextTier.Ingredients) == 0 {
-					playerFury.CurrentTier++
-					playerFury.XP.LVL = 1
-					playerFury.XP.XP = 0
-
-					event.CreateMessage(
-						discord.
-							NewMessageCreateBuilder().
-							SetContent("Ulepszono furie na kolejny tier!").
-							SetEphemeral(true).
-							Build(),
-					)
-				} else {
-					if playerChar.Inventory.HasIngredients(nextTier.Ingredients) {
-						playerChar.Inventory.RemoveIngredients(nextTier.Ingredients)
-
-						playerFury.CurrentTier++
-						playerFury.XP.LVL = 1
-						playerFury.XP.XP = 0
-
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Ulepszono furie na kolejny tier!").
-								SetEphemeral(true).
-								Build(),
-						)
-					} else {
-						event.CreateMessage(
-							discord.
-								NewMessageCreateBuilder().
-								SetContent("Brakuje składników").
-								SetEphemeral(true).
-								Build(),
-						)
-					}
-				}
-			}
 		}
 	case "sklep":
 		switch *interactionData.SubCommandName {
 		case "pokaż":
-			playerLocation := playerChar.Meta.Location
+
+			channelId := event.Channel().ID()
+
+			loc := data.FloorMap.FindLocation(func(l types.Location) bool { return l.CID == channelId.String() })
+
+			if loc == nil {
+				event.CreateMessage(MessageContent("Nie rozponaje tego kanału...", true))
+				return
+			}
 
 			storesInLocation := make([]*types.NPCStore, 0)
 
-			for _, store := range World.Stores {
-				if playerLocation == store.Location {
+			for _, store := range data.Shops {
+				if loc == store.Location {
 					storesInLocation = append(storesInLocation, store)
 				}
 			}
 
 			if len(storesInLocation) == 0 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie ma sklepów w tej lokalizacji").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie ma sklepów w tej lokalizacji", true))
 				return
 			}
 
 			if len(storesInLocation) > 25 {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("<@344048874656366592> incydent sklepowy").
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Znaleziono więcej niż 25 sklepów w danej lokacji", true))
 				return
 			}
 
 			messageBuilder := discord.NewMessageCreateBuilder()
 
-			for i := 0; i < (len(storesInLocation)/5)+1; i++ {
+			for i := range (len(storesInLocation) / 5) + 1 {
 				var stores []*types.NPCStore
 
 				if len(storesInLocation) <= i*5+5 {
@@ -1382,19 +780,11 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 		switch *interactionData.SubCommandName {
 		case "stwórz":
 			if !isAdmin(member) {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie masz uprawnień do tej komendy").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie masz uprawnień do tej komendy", true))
 				return
 			}
 
-			tournamentName := interactionData.String("nazwa")
 			maxCount, isMaxCountPresent := interactionData.OptInt("max")
-			tournamentType := tournament.TournamentType(interactionData.Int("typ"))
 
 			if !isMaxCountPresent {
 				maxCount = -1
@@ -1402,31 +792,19 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 
 			tournament := tournament.Tournament{
 				Uuid:         uuid.New(),
-				Name:         tournamentName,
-				Type:         tournamentType,
+				Name:         interactionData.String("nazwa"),
 				MaxPlayers:   maxCount,
 				Participants: make([]uuid.UUID, 0),
-				State:        tournament.Waiting,
 			}
 
 			World.RegisterTournament(tournament)
 
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Turniej stworzony").
-					SetEphemeral(true).
-					Build(),
-			)
+			event.CreateMessage(MessageContent("Turniej stworzony", true))
+			return
+
 		case "rozpocznij":
 			if !isAdmin(member) {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie masz uprawnień do tej komendy").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie masz uprawnień do tej komendy", true))
 				return
 			}
 
@@ -1442,109 +820,17 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 			}
 
 			if actualTournament == nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie znaleziono turnieju").
-						SetEphemeral(true).
-						Build(),
-				)
+				event.CreateMessage(MessageContent("Nie znaleziono turnieju", true))
 				return
 			}
 
-			World.StartTournament(actualTournament.Uuid)
+			if err := World.StartTournament(actualTournament.Uuid); err != nil {
+				event.CreateMessage(MessageContent("Napotkano błąd podczas rozpozczynania turnieju", true))
+				return
+			}
 
-			event.CreateMessage(
-				discord.
-					NewMessageCreateBuilder().
-					SetContent("Rozpoczynam turniej!").
-					SetEphemeral(true).
-					Build(),
-			)
+			event.CreateMessage(MessageContent("Rozpoczynam turniej", true))
 			return
-		}
-	case "handel":
-		switch *interactionData.SubCommandName {
-		case "nowy":
-			if playerChar.Meta.Transaction != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Już masz otwartą ofertę!").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			secondUser := interactionData.User("gracz")
-
-			secondPlayer := World.GetPlayer(secondUser.ID.String())
-
-			if secondPlayer == nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Gracz nie ma postaci").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			if secondPlayer.Meta.Transaction != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Gracz ma otwartą ofertę").
-						SetEphemeral(true).
-						Build(),
-				)
-				return
-			}
-
-			ch, error := event.Client().Rest().CreateDMChannel(secondUser.ID)
-
-			if error != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie można wysłać wiadomości do gracza").
-						SetEphemeral(true).
-						Build(),
-				)
-			}
-
-			chID := ch.ID()
-
-			tempTrans := World.CreatePendingTransaction(playerChar.GetUUID(), secondPlayer.GetUUID())
-
-			_, error = event.Client().Rest().CreateMessage(chID, discord.NewMessageCreateBuilder().
-				SetContent(fmt.Sprintf("<@%s> (%s) zaprasza cię handlu!", user.ID.String(), playerChar.GetName())).
-				AddActionRow(
-					discord.NewPrimaryButton("Akceptuj", "trade/res|"+tempTrans.Uuid.String()),
-					discord.NewDangerButton("Odrzuć", "trade/rej|"+tempTrans.Uuid.String()),
-				).
-				Build(),
-			)
-
-			if error != nil {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Nie można wysłać wiadomości do gracza").
-						SetEphemeral(true).
-						Build(),
-				)
-			} else {
-				event.CreateMessage(
-					discord.
-						NewMessageCreateBuilder().
-						SetContent("Wysłano zaproszenie do handlu").
-						SetEphemeral(true).
-						Build(),
-				)
-			}
 		}
 	}
 }

@@ -1,0 +1,22 @@
+let ReservedUIDs = [
+  "00000000-0000-0000-0000-000000000010",
+  "00000000-0000-0001-0000-000000000010"
+]
+
+let UUID = ReservedUIDs[0]
+let Name = "Przeklęty lód"
+let Description = "Efekty spowolnienia są mocniejsze"
+
+let Stats = |> AP: 20, AD: 20 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_APPLY_CROWD_CONTROL <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun (owner, target, fightInstance, meta) {
+    if meta.Effect == EFFECT_STAT_DEC {
+      if meta.Meta.Stat == STAT_SPD {
+        return |> Effects: [ |> Value: 20, Percent: true <| ] <|
+      }
+    }
+  }
+<| ]

@@ -18,7 +18,6 @@ type Fury struct {
 type FuryTier struct {
 	Stats       map[types.Stat]int
 	Skills      []types.PlayerSkill
-	Ingredients []types.Ingredient
 }
 
 type FuryXP struct {
@@ -50,7 +49,7 @@ func (f *Fury) AddXP(xp int) {
 func (f *Fury) GetStats() map[types.Stat]int {
 	baseStats := f.LvlStats(f.XP.LVL, f.CurrentTier)
 
-	for i := 0; i < f.CurrentTier; i++ {
+	for i := range f.CurrentTier {
 		for k, v := range f.Tiers[i].Stats {
 
 			if _, ok := baseStats[k]; !ok {
@@ -75,15 +74,15 @@ func (f *Fury) GetStat(stat types.Stat) int {
 func (f *Fury) GetSkills() []types.PlayerSkill {
 	skills := []types.PlayerSkill{}
 
-	for i := 0; i < f.CurrentTier; i++ {
+	for i := range f.CurrentTier {
 		skills = append(skills, f.Tiers[i].Skills...)
 	}
 
 	return skills
 }
 
-func (f *Fury) Serialize() map[string]interface{} {
-	return map[string]interface{}{
+func (f *Fury) Serialize() map[string]any {
+	return map[string]any{
 		"name":        f.Name,
 		"master":      f.Master,
 		"tiers":       f.Tiers,
@@ -92,7 +91,7 @@ func (f *Fury) Serialize() map[string]interface{} {
 	}
 }
 
-func Deserialize(data map[string]interface{}) *Fury {
+func Deserialize(data map[string]any) *Fury {
 	return &Fury{
 		Name:        data["name"].(string),
 		Master:      data["master"].(*uuid.UUID),

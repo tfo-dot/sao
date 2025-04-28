@@ -1,0 +1,38 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-00000000000D", "00000000-0000-0001-0000-00000000000D" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Pancerz zwady"
+let Description = "Zadaje obrażenia wrogom, którzy cię uderzają i zmniejsza ich leczenie."
+
+let Stats = |> HP: 150, DEF: 30 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_GOT_HIT <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun(owner, target, fightInstance, meta) {
+    HandleAction(fightInstance,
+      |>
+        Event: ACTION_DMG,
+        Source: GetUUID(owner),
+        Target: GetUUID(target),
+        Meta: |> Damage: [ |> Value: PercentOf(GetStat(owner, STAT_DEF), 10), Type: 2, CanDodge: false <| ] <|
+      <|
+    )
+
+    HandleAction(fightInstance, 
+      |>
+        Event: ACTION_EFFECT,
+        Source: GetUUID(owner),
+        Target: GetUUID(target),
+        Meta:
+          |>
+            Effect: EFFECT_STAT_DEC,
+            Value: (0-20),
+            Duration: 1,
+            Uuid: GenerateUUID(),
+            Meta: |> Stat: STAT_HEAL_POWER, Value: (0-20), IsPercent: false <|
+          <|
+      <|
+    )
+  }
+<| ]

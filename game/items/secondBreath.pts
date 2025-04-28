@@ -1,0 +1,7 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-000000000009" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Drugi oddech"
+let Description = "Zwiększa otrzymywane leczenie."
+
+let Stats = |> HP: 200, DEF: 10, MR: 10, HEAL_SELF: 20 <|

@@ -1,0 +1,64 @@
+"This file is broken somehow and never loads, thx my parts spaghetti"
+
+let ReservedUIDs = [
+  "00000000-0000-0000-0000-000000000000",
+  "00000000-0000-0001-0000-000000000001",
+  "00000000-0000-0001-0001-000000000001"
+]
+
+let UUID = ReservedUIDs[0]
+let Name = "Błogosławieństwo Reimi"
+let Description = "Przeleczenie daje tarczę."
+
+let Stats = |> AD: 25, HP: 100, ATK_VAMP: 10 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_HEAL_SELF <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun(owner, target, fightInstance, meta) {
+    let oldEffect = GetEffectByUUID(owner, ReservedUIDs[2])
+    let maxShield = (PercentOf(GetStat(owner, STAT_HP), 25)) + (PercentOf(GetStat(owner, STAT_AD), 25))
+
+    if oldEffect != (0-1) {
+      RemoveEffect(owner, ReservedUIDs[2])
+    } else {
+      oldEffect = |>
+        Effect: EFFECT_SHIELD,
+        Value: 0,
+        Duration: (0-1),
+        Uuid: ReservedUIDs[2],
+        Caster: GetUUID(owner),
+        Target: GetUUID(owner),
+        Source: SOURCE_ITEM
+      <|
+    }
+
+    if (oldEffect.Value) < 0 {
+      (oldEffect.Value) = 0
+    }
+
+    (oldEffect.Value) = (oldEffect.Value) + (meta.Value)
+
+    if (oldEffect.Value) > maxShield {
+      (oldEffect.Value) = (oldEffect.Value) + maxShield
+    }
+
+    ApplyEffect(owner, oldEffect)
+  },
+  GetEvents: fun() = |>
+    TRIGGER_UNLOCK: fun(owner, target, fightInstance, meta) {
+      ApplyEffect(owner,
+        |>
+          Effect: EFFECT_SHIELD,
+          Value: 0,
+          Duration: (0-1),
+          Uuid: ReservedUIDs[2],
+          Caster: GetUUID(owner),
+          Source: SOURCE_ITEM
+        <|
+      )
+    }
+  <|,
+  GetCD: fun() = 0,
+  GetCost: fun() = 0
+<| ]

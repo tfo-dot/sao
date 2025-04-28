@@ -1,17 +1,6 @@
 package discord
 
-import (
-	"sao/world/party"
-
-	"github.com/disgoorg/disgo/discord"
-)
-
-var RoleToString = map[party.PartyRole]string{
-	party.DPS:     "DPS",
-	party.Support: "Support",
-	party.Tank:    "Tank",
-	party.None:    "Brak",
-}
+import "github.com/disgoorg/disgo/discord"
 
 var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 	discord.SlashCommandCreate{
@@ -31,37 +20,12 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 		},
 	},
 	discord.SlashCommandCreate{
-		Name:        "ruch",
-		Description: "Przenieś się do innej lokacji",
-		Options: []discord.ApplicationCommandOption{
-			discord.ApplicationCommandOptionString{
-				Autocomplete: true,
-				Name:         "nazwa",
-				Description:  "Nazwa lokacji",
-				Required:     true,
-			},
-		},
-	},
-	discord.SlashCommandCreate{
-		Name:        "tp",
-		Description: "Teleportuj się na inne piętro",
-		Options: []discord.ApplicationCommandOption{
-			discord.ApplicationCommandOptionString{
-				Name:         "nazwa",
-				Description:  "Nazwa piętra",
-				Required:     true,
-				Autocomplete: true,
-			},
-		},
-	},
-	discord.SlashCommandCreate{
 		Name:        "info",
 		Description: "Informacje o postaci",
 		Options: []discord.ApplicationCommandOption{
 			discord.ApplicationCommandOptionUser{
 				Name:        "gracz",
 				Description: "Gracz",
-				Required:    false,
 			},
 		},
 	},
@@ -76,7 +40,6 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 					discord.ApplicationCommandOptionUser{
 						Name:        "gracz",
 						Description: "Gracz",
-						Required:    false,
 					},
 				},
 			},
@@ -193,36 +156,6 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 		},
 	},
 	discord.SlashCommandCreate{
-		Name:        "stwórz",
-		Description: "Stwórz przedmiot",
-		Options: []discord.ApplicationCommandOption{
-			discord.ApplicationCommandOptionString{
-				Name:         "nazwa",
-				Description:  "Nazwa przedmiotu",
-				Required:     true,
-				Autocomplete: true,
-			},
-			discord.ApplicationCommandOptionInt{
-				Name:        "ilość",
-				Description: "Ilość przedmiotów",
-			},
-		},
-	},
-	discord.SlashCommandCreate{
-		Name:        "furia",
-		Description: "Zarządzaj furiami",
-		Options: []discord.ApplicationCommandOption{
-			discord.ApplicationCommandOptionSubCommand{
-				Name:        "pokaż",
-				Description: "Pokaż swoje furie",
-			},
-			discord.ApplicationCommandOptionSubCommand{
-				Name:        "ulepsz",
-				Description: "Ulepsz furie kolejny tier",
-			},
-		},
-	},
-	discord.SlashCommandCreate{
 		Name:        "sklep",
 		Description: "Zarządzaj sklepami",
 		Options: []discord.ApplicationCommandOption{
@@ -246,17 +179,6 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 						Required:    true,
 					},
 					discord.ApplicationCommandOptionInt{
-						Name:        "typ",
-						Description: "Typ turnieju",
-						Required:    true,
-						Choices: []discord.ApplicationCommandOptionChoiceInt{
-							{
-								Name:  "Zwykły",
-								Value: 0,
-							},
-						},
-					},
-					discord.ApplicationCommandOptionInt{
 						Name:        "max",
 						Description: "Maksymalna ilość graczy",
 					},
@@ -271,23 +193,6 @@ var DISCORD_COMMANDS = []discord.ApplicationCommandCreate{
 						Description:  "Nazwa turnieju",
 						Required:     true,
 						Autocomplete: true,
-					},
-				},
-			},
-		},
-	},
-	discord.SlashCommandCreate{
-		Name:        "handel",
-		Description: "Zarządzaj handlem",
-		Options: []discord.ApplicationCommandOption{
-			discord.ApplicationCommandOptionSubCommand{
-				Name:        "nowy",
-				Description: "Zaproś do handlu",
-				Options: []discord.ApplicationCommandOption{
-					discord.ApplicationCommandOptionUser{
-						Name:        "gracz",
-						Description: "Kogo?",
-						Required:    true,
 					},
 				},
 			},

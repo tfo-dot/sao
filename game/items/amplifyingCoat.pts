@@ -1,0 +1,12 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-00000000000E" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Płaszcz wzmacniający"
+let Description = "Zwiększa maksymalne zdrowie o 20%."
+
+let Stats = |>
+  HP: 300,
+  DEF: 10,
+  MR: 10,
+  Derived: [ |> Base: STAT_HP, Derived: STAT_HP, Percent: 20 <| ]
+<|

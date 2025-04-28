@@ -1,0 +1,33 @@
+let Id = "LV1_Toxic_Spider"
+let HP = 170
+let SPD = 45
+let ATK = 50
+let Name = "Jadowity Pająk"
+
+let Loot = [
+  |> Type: LOOT_EXP,  Count: 90 <|,
+  |> Type: LOOT_GOLD, Count: 120 <|
+]
+
+let Action(mob, fight) {
+  let turn = GetTurnFor(fight, GetUUID(mob))
+
+  return if ((Modulo(turn, 3)) == 0) * ((turn == 1) == false) {
+    let target = GetRandomEnemy(fight, GetUUID(mob))
+
+    return 
+      (DefaultAction(fight, mob)) + 
+      |>
+        Event: ACTION_EFFECT,
+        Source: GetUUID(mob),
+        Target: target,
+        Meta: |>
+          Effect: EFFECT_DOT,
+          Value: 20,
+          Duration: 2
+        <|
+      <|
+  } else {
+    return DefaultAction(fight, mob)    
+  }
+}

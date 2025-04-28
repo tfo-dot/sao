@@ -1,0 +1,12 @@
+let LevelStats = |>
+  HP: 10,
+  AD: 15
+<|
+
+let StartingStats = |>
+  HP: 100,
+  AD: 40,
+  SPD: 40,
+  AGL: 50,
+  MANA: 10
+<|

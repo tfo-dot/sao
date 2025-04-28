@@ -60,12 +60,7 @@ func (skill END_LVL_1) UpgradableExecute(owner types.PlayerEntity, target types.
 		Event:  types.ACTION_EFFECT,
 		Target: owner.GetUUID(),
 		Source: owner.GetUUID(),
-		Meta: types.ActionEffect{
-			Effect:   types.EFFECT_SHIELD,
-			Value:    baseIncrease,
-			Duration: baseDuration,
-			Caster:   owner.GetUUID(),
-		},
+		Meta:   types.ActionEffect{Effect: types.EFFECT_SHIELD, Value: baseIncrease, Duration: baseDuration},
 	})
 
 	return nil
@@ -95,18 +90,9 @@ func (skill END_LVL_1) GetLevel() int {
 
 func (skill END_LVL_1) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
-		{
-			Id:          "Cooldown",
-			Description: "Zmniejsza czas odnowienia o 1 turę",
-		},
-		{
-			Id:          "Damage",
-			Description: "Zwiększa wartość tarczy do 20 + 3%HP + 2%ATK",
-		},
-		{
-			Id:          "Duration",
-			Description: "Zwiększa czas trwania o 1 turę",
-		},
+		{Id: "Cooldown", Description: "Zmniejsza czas odnowienia o 1 turę"},
+		{Id: "Damage", Description: "Zwiększa wartość tarczy do 20 + 3%HP + 2%ATK"},
+		{Id: "Duration", Description: "Zwiększa czas trwania o 1 turę"},
 	}
 }
 
@@ -128,7 +114,6 @@ func (skill END_LVL_1) GetUpgradableDescription(upgrades int) string {
 type END_LVL_2 struct {
 	EnduranceSkill
 	NoExecute
-	NoStats
 	NoTrigger
 }
 
@@ -144,40 +129,34 @@ func (skill END_LVL_2) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
 		{
 			Id: "Increase",
-			Events: &map[types.CustomTrigger]func(owner types.PlayerEntity){
+			Events: map[types.CustomTrigger]func(owner types.PlayerEntity){
 				types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
 					owner.SetLevelStat(types.STAT_HP, owner.GetLevelStat(types.STAT_HP)+5)
 				},
 			},
 			Description: "Zwiększa zdrowie otrzymywane co poziom o dodatkowe 5 (łączenie 10)",
 		},
-		{
-			Id: "DEFIncrease",
-			Events: &map[types.CustomTrigger]func(owner types.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
-						Base:    types.STAT_HP_PLUS,
-						Derived: types.STAT_DEF,
-						Percent: 1,
-					})
-				},
-			},
-			Description: "Otrzymujesz 1% dodatkowego HP jako pancerz",
-		},
-		{
-			Id: "RESIncrease",
-			Events: &map[types.CustomTrigger]func(owner types.PlayerEntity){
-				types.CUSTOM_TRIGGER_UNLOCK: func(owner types.PlayerEntity) {
-					owner.AppendDerivedStat(types.DerivedStat{
-						Base:    types.STAT_HP_PLUS,
-						Derived: types.STAT_MR,
-						Percent: 1,
-					})
-				},
-			},
-			Description: "Otrzymujesz 1% dodatkowego HP jako odporność na magię",
-		},
+		{Id: "DEFIncrease", Description: "Otrzymujesz 1% dodatkowego HP jako pancerz"},
+		{Id: "RESIncrease", Description: "Otrzymujesz 1% dodatkowego HP jako odporność na magię"},
 	}
+}
+
+func (skill END_LVL_2) GetStats(upgrades int) map[types.Stat]int {
+	return map[types.Stat]int{}
+}
+
+func (skill END_LVL_2) GetDerivedStats(upgrades int) []types.DerivedStat {
+	statList := make([]types.DerivedStat, 0)
+
+	if HasUpgrade(upgrades, 2) {
+		statList = append(statList, types.DerivedStat{Base: types.STAT_HP_PLUS, Derived: types.STAT_DEF, Percent: 1})
+	}
+
+	if HasUpgrade(upgrades, 3) {
+		statList = append(statList, types.DerivedStat{Base: types.STAT_HP_PLUS, Derived: types.STAT_MR, Percent: 1})
+	}
+
+	return statList
 }
 
 func (skill END_LVL_2) GetDescription() string {
@@ -211,7 +190,7 @@ func (skill END_LVL_2) GetUpgradableDescription(upgrades int) string {
 		mrUpgrade = "\nOtrzymujesz odporność na magię równą 1% dodatkowego HP."
 	}
 
-	return fmt.Sprintf("Zwiększa zdrowie zyskiwane co poziom do %d.%s%s", baseIncrease, defUpgrade, mrUpgrade)
+	return fmt.Sprintf("Zwiększa zdrowie zyskiwane co poziom o %d.%s%s", baseIncrease, defUpgrade, mrUpgrade)
 }
 
 type END_LVL_3 struct {
@@ -268,10 +247,7 @@ func (effect END_LVL_3_EFFECT) GetName() string {
 }
 
 func (effect END_LVL_3_EFFECT) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type:  types.TRIGGER_PASSIVE,
-		Event: types.TRIGGER_ATTACK_GOT_HIT,
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_GOT_HIT}
 }
 
 func (skill END_LVL_3) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
@@ -287,8 +263,7 @@ func (skill END_LVL_3) UpgradableExecute(owner types.PlayerEntity, target types.
 			HealFactor: healFactor,
 			OnlyOwner:  HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 1),
 		},
-		AfterUsage: false,
-		Expire:     1,
+		Expire: 1,
 	})
 
 	return nil
@@ -322,18 +297,9 @@ func (skill END_LVL_3) GetDescription() string {
 
 func (skill END_LVL_3) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
-		{
-			Id:          "Ally",
-			Description: "Sojusznik może rozbić oznaczenie",
-		},
-		{
-			Id:          "Cooldown",
-			Description: "Zmniejsza czas odnowienia o 1 turę",
-		},
-		{
-			Id:          "Increase",
-			Description: "Zwiększa leczenie o dodatkowe 5%",
-		},
+		{Id: "Ally", Description: "Sojusznik może rozbić oznaczenie"},
+		{Id: "Cooldown", Description: "Zmniejsza czas odnowienia o 1 turę"},
+		{Id: "Increase", Description: "Zwiększa leczenie o dodatkowe 5%"},
 	}
 }
 
@@ -399,10 +365,7 @@ func (skill END_LVL_4_EFFECT) GetName() string {
 }
 
 func (skill END_LVL_4_EFFECT) GetTrigger() types.Trigger {
-	return types.Trigger{
-		Type:  types.TRIGGER_PASSIVE,
-		Event: skill.Event,
-	}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: skill.Event}
 }
 
 func (skill END_LVL_4) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
@@ -419,10 +382,7 @@ func (skill END_LVL_4) UpgradableExecute(owner types.PlayerEntity, target types.
 	}
 
 	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
-		Value: END_LVL_4_EFFECT{
-			Reduce: baseReduce,
-			Event:  baseEvent,
-		},
+		Value:      END_LVL_4_EFFECT{Reduce: baseReduce, Event: baseEvent},
 		AfterUsage: true,
 		Expire:     1,
 		Either:     HasUpgrade(owner.GetUpgrades(skill.GetLevel()), 3),
@@ -453,18 +413,9 @@ func (skill END_LVL_4) GetLevel() int {
 
 func (skill END_LVL_4) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
-		{
-			Id:          "Reduce",
-			Description: "Redukcja obrażeń zwiększona do 25%",
-		},
-		{
-			Id:          "Duration",
-			Description: "Efekt działa przez całą ture",
-		},
-		{
-			Id:          "Type",
-			Description: "Efekt działa na wszystkie obrażenia (wcześniej tylko ataki)",
-		},
+		{Id: "Reduce", Description: "Redukcja obrażeń zwiększona do 25%"},
+		{Id: "Duration", Description: "Efekt działa przez całą ture"},
+		{Id: "Type", Description: "Efekt działa na wszystkie obrażenia (wcześniej tylko ataki)"},
 	}
 }
 
@@ -523,18 +474,9 @@ func (skill END_LVL_5) GetCooldown(upgrades int) int {
 
 func (skill END_LVL_5) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
-		{
-			Id:          "Duration",
-			Description: "Tarcza i prowokacja działają turę dłużej",
-		},
-		{
-			Id:          "Increase",
-			Description: "Zwiększa wartość tarczy o 2% HP + 20% AP",
-		},
-		{
-			Id:          "Heal",
-			Description: "Po wygaśnięciu tarczy leczy o 50% pozostałej wartości",
-		},
+		{Id: "Duration", Description: "Tarcza i prowokacja działają turę dłużej"},
+		{Id: "Increase", Description: "Zwiększa wartość tarczy o 2% HP + 20% AP"},
+		{Id: "Heal", Description: "Po wygaśnięciu tarczy leczy o 50% pozostałej wartości"},
 	}
 }
 
@@ -554,8 +496,6 @@ func (skill END_LVL_5) UpgradableExecute(owner types.PlayerEntity, target types.
 		duration++
 	}
 
-	shieldUuid := uuid.New()
-
 	fightInstance.HandleAction(types.Action{
 		Event:  types.ACTION_EFFECT,
 		Target: owner.GetUUID(),
@@ -564,8 +504,6 @@ func (skill END_LVL_5) UpgradableExecute(owner types.PlayerEntity, target types.
 			Effect:   types.EFFECT_SHIELD,
 			Value:    enemiesCount * baseShield,
 			Duration: duration,
-			Caster:   owner.GetUUID(),
-			Uuid:     shieldUuid,
 			OnExpire: func(owner types.Entity, fight types.FightInstance, meta types.ActionEffect) {
 				if HasUpgrade(owner.(types.PlayerEntity).GetUpgrades(skill.GetLevel()), 3) {
 					if meta.Value > 0 {
@@ -573,13 +511,8 @@ func (skill END_LVL_5) UpgradableExecute(owner types.PlayerEntity, target types.
 
 						fight.HandleAction(types.Action{
 							Event:  types.ACTION_EFFECT,
-							Target: owner.GetUUID(),
 							Source: owner.GetUUID(),
-							Meta: types.ActionEffect{
-								Effect:   types.EFFECT_HEAL,
-								Value:    healValue,
-								Duration: 0,
-							},
+							Meta:   types.ActionEffect{Effect: types.EFFECT_HEAL, Value: healValue},
 						})
 					}
 				}
@@ -589,14 +522,8 @@ func (skill END_LVL_5) UpgradableExecute(owner types.PlayerEntity, target types.
 
 	fightInstance.HandleAction(types.Action{
 		Event:  types.ACTION_EFFECT,
-		Target: owner.GetUUID(),
 		Source: owner.GetUUID(),
-		Meta: types.ActionEffect{
-			Effect:   types.EFFECT_TAUNT,
-			Value:    0,
-			Duration: duration,
-			Caster:   owner.GetUUID(),
-		},
+		Meta:   types.ActionEffect{Effect: types.EFFECT_TAUNT, Duration: duration},
 	})
 
 	return nil
@@ -665,14 +592,8 @@ func (skill END_LVL_6) GetUpgradableCost(upgrades int) int {
 
 func (skill END_LVL_6) GetUpgrades() []types.PlayerSkillUpgrade {
 	return []types.PlayerSkillUpgrade{
-		{
-			Id:          "Cost",
-			Description: "Umiejętność nie kosztuje many",
-		},
-		{
-			Id:          "Increase",
-			Description: "Zwiększa redukcję obrażeń do 15%",
-		},
+		{Id: "Cost", Description: "Umiejętność nie kosztuje many"},
+		{Id: "Increase", Description: "Zwiększa redukcję obrażeń do 15%"},
 	}
 }
 
@@ -704,18 +625,279 @@ func (skill END_LVL_6) UpgradableExecute(owner types.PlayerEntity, target types.
 				Effect:   types.EFFECT_RESIST,
 				Value:    baseReduce,
 				Duration: 1,
-				Caster:   owner.GetUUID(),
-				Uuid:     uuid.New(),
-				Meta: types.ActionEffectResist{
-					Value:     baseReduce,
-					IsPercent: true,
-					DmgType:   4,
-				},
-				Target: target.GetUUID(),
-				Source: types.SOURCE_ND,
+				Meta:     types.ActionEffectResist{IsPercent: true, DmgType: 4},
 			},
 		})
 	}
+
+	return nil
+}
+
+type END_ULT_1 struct {
+	EnduranceSkill
+	NoStats
+	NoEvents
+	DefaultCost
+}
+
+func (s END_ULT_1) GetLevel() int {
+	return 10
+}
+
+func (skill END_ULT_1) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Target: &types.TargetTrigger{Target: types.TARGET_ENEMY, MaxTargets: 1}}
+}
+
+func (skill END_ULT_1) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return skill.GetTrigger()
+}
+
+func (skill END_ULT_1) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{}
+}
+
+func (skill END_ULT_1) GetCD() int {
+	return 10
+}
+
+func (skill END_ULT_1) GetCooldown(upgrades int) int {
+	return 10
+}
+
+func (skill END_ULT_1) GetDescription() string {
+	return "Zadaje przeciwnikowi obrażenia równe 100% ATK, jeśli cel jest pod wpływem efektu kontroli tłumu zada mu dodatkowe obrażenia w wysokości (100% pancerza i 100% obrony przed magią) * (0.5% Dodatkowego HP). Do końca walki traci 75% pancerza, 75% obrony i 75% maksymalnego zdrowia. W zamian dostaje 25% AD, a jego ataki zadają dodatkowe obrażenia w wysokości pozostałego pancerza + obrony przed magią na 10 tur, dodatkowo zyskuje 50% wampiryzmu."
+}
+
+func (skill END_ULT_1) GetUpgradableDescription(upgrades int) string {
+	return skill.GetDescription()
+}
+
+func (skill END_ULT_1) GetName() string {
+	return "Poziom 10 - Wytrzymałość"
+}
+
+func (skill END_ULT_1) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta any) any {
+	dmg := owner.GetStat(types.STAT_AD)
+
+	for _, effect := range target.GetAllEffects() {
+		if effect.Effect == types.EFFECT_STUN || effect.Effect == types.EFFECT_TAUNTED {
+			dmg += (owner.GetStat(types.STAT_DEF) + owner.GetStat(types.STAT_MR)) * (utils.PercentOf(owner.GetStat(types.STAT_HP_PLUS), 5) / 10)
+			break
+		}
+	}
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_DMG,
+		Target: target.GetUUID(),
+		Source: owner.GetUUID(),
+		Meta:   types.ActionDamage{Damage: []types.Damage{{Value: dmg}}},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_DEC,
+			Value:    75,
+			Duration: 10,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_DEF, IsPercent: true},
+		},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_DEC,
+			Value:    75,
+			Duration: 10,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_HP, IsPercent: true},
+		},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_DEC,
+			Value:    75,
+			Duration: 10,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_MR, IsPercent: true},
+		},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_INC,
+			Value:    20,
+			Duration: 10,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_AD, IsPercent: true},
+		},
+	})
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_STAT_INC,
+			Value:    50,
+			Duration: 10,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_OMNI_VAMP},
+		},
+	})
+
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value: END_ULT_1_EFFECT_1{},
+	})
+
+	return nil
+}
+
+type END_ULT_1_EFFECT_1 struct {
+	NoCooldown
+	NoStats
+	NoCost
+	NoEvents
+}
+
+func (skill END_ULT_1_EFFECT_1) GetName() string {
+	return "Wytrzymałość - efekt 1"
+}
+
+func (skill END_ULT_1_EFFECT_1) GetDescription() string {
+	return "Zwiększenie obrażeń od ataku"
+}
+
+func (skill END_ULT_1_EFFECT_1) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
+}
+
+func (skill END_ULT_1_EFFECT_1) IsLevelSkill() bool {
+	return false
+}
+
+func (skill END_ULT_1_EFFECT_1) Execute(owner types.PlayerEntity, _ types.Entity, _ types.FightInstance, _ any) any {
+	return types.AttackTriggerMeta{Effects: []types.DamagePartial{{
+		Value: owner.GetStat(types.STAT_DEF) + owner.GetStat(types.STAT_MR),
+	}}}
+}
+
+func (skill END_ULT_1_EFFECT_1) GetUUID() uuid.UUID {
+	return uuid.New()
+}
+
+type END_ULT_2 struct {
+	EnduranceSkill
+	NoStats
+	NoEvents
+	DefaultCost
+}
+
+func (s END_ULT_2) GetLevel() int {
+	return 10
+}
+
+func (skill END_ULT_2) GetTrigger() types.Trigger {
+	return types.Trigger{Type: types.TRIGGER_ACTIVE, Target: &types.TargetTrigger{Target: types.TARGET_ENEMY, MaxTargets: 1}}
+}
+
+func (skill END_ULT_2) GetUpgradableTrigger(upgrades int) types.Trigger {
+	return skill.GetTrigger()
+}
+
+func (skill END_ULT_2) GetUpgrades() []types.PlayerSkillUpgrade {
+	return []types.PlayerSkillUpgrade{}
+}
+
+func (skill END_ULT_2) GetCD() int {
+	return 10
+}
+
+func (skill END_ULT_2) GetCooldown(upgrades int) int {
+	return 10
+}
+
+func (skill END_ULT_2) GetDescription() string {
+	return "Tauntuje wszystkich wrogów do końca walki. Zadaje wszystkim wrogom 5% jego maksymalnego zdrowia, lecząc się o 200% zadanych obrażeń. Otrzymuje tarczę równą 25% jego maksymalnego zdrowia zwiększoną do 75% przy mniej niż 25% zdrowia. Po 10 turach, zadaje obrażenia wszystkim wrogom równe 10% maksymalnego zdrowia wroga."
+}
+
+func (skill END_ULT_2) GetUpgradableDescription(upgrades int) string {
+	return skill.GetDescription()
+}
+
+func (skill END_ULT_2) GetName() string {
+	return "Poziom 10 - Wytrzymałość"
+}
+
+func (skill END_ULT_2) UpgradableExecute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta any) any {
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta: types.ActionEffect{
+			Effect:   types.EFFECT_TAUNT,
+			Duration: -1,
+		},
+	})
+
+	hpVal := owner.GetStat(types.STAT_HP)
+	baseDmg := utils.PercentOf(hpVal, 5)
+	enemyCount := 0
+
+	for _, enemy := range fightInstance.GetEnemiesFor(owner.GetUUID()) {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_DMG,
+			Target: enemy.GetUUID(),
+			Source: owner.GetUUID(),
+			Meta: types.ActionDamage{
+				Damage: []types.Damage{
+					types.Damage{Value: baseDmg},
+				},
+			},
+		})
+
+		enemyCount++
+	}
+
+	fightInstance.HandleAction(types.Action{
+		Event:  types.ACTION_EFFECT,
+		Source: owner.GetUUID(),
+		Meta:   types.ActionEffect{Effect: types.EFFECT_HEAL, Value: utils.PercentOf(hpVal, 5) * enemyCount * 2},
+	})
+
+	if owner.GetCurrentHP() < utils.PercentOf(hpVal, 25) {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_EFFECT,
+			Source: owner.GetUUID(),
+			Meta:   types.ActionEffect{Effect: types.EFFECT_SHIELD, Value: utils.PercentOf(hpVal, 75), Duration: 10},
+		})
+	} else {
+		fightInstance.HandleAction(types.Action{
+			Event:  types.ACTION_EFFECT,
+			Source: owner.GetUUID(),
+			Meta:   types.ActionEffect{Effect: types.EFFECT_SHIELD, Value: utils.PercentOf(hpVal, 25), Duration: 10},
+		})
+	}
+
+	owner.AppendTempSkill(types.WithExpire[types.PlayerSkill]{
+		Value: Counter{},
+		OnExpire: func(owner types.PlayerEntity, fight types.FightInstance) {
+			for _, enemy := range fightInstance.GetEnemiesFor(owner.GetUUID()) {
+				fightInstance.HandleAction(types.Action{
+					Event:  types.ACTION_DMG,
+					Target: enemy.GetUUID(),
+					Source: owner.GetUUID(),
+					Meta: types.ActionDamage{
+						Damage: []types.Damage{
+							types.Damage{Value: utils.PercentOf(enemy.GetStat(types.STAT_HP), 10)},
+						},
+					},
+				})
+			}
+		},
+		Expire: 10,
+	})
 
 	return nil
 }

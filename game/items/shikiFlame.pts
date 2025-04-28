@@ -1,0 +1,20 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-00000000001A", "00000000-0000-0001-0000-00000000001A" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "PŁomień Shiki"
+let Description = "Obrażenia magiczne są zwiększone w zależności od zdrowia wroga"
+
+let Stats = |> AD: 100, SPD: 5 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_DAMAGE_BEFORE <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun(owner, target, fightInstance, meta) = 
+      |> Effects:
+        [
+          |> Value: (PercentOf(GetStat(target, STATS_HP), 5)) + (PercentOf(GetStat(owner, STAT_AP), 10)), Type: 1, Percent: false <|
+        ]
+      <|
+  <|
+]

@@ -1,0 +1,23 @@
+let ReservedUIDs = [
+  "00000000-0000-0000-0000-00000000000C",
+  "00000000-0000-0001-0000-00000000000C"
+]
+
+let UUID = ReservedUIDs[0]
+let Name = "Ostrze obrońcy"
+let Description = "Zwiększa ataki o twój RES i DEF."
+
+let Stats = |> HP: 150, DEF: 30, MR: 30, AD: 20 <|
+
+let Effects = [ |>
+  Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_BEFORE <|,
+  UUID: ReservedUIDs[1],
+  Execute: fun (owner, target, fightInstance, meta) {
+    let defStat = GetStat(owner, "STAT_DEF")
+    let mrStat = GetStat(owner, "STAT_MR")
+
+    return |>
+      Effects: [ |> Value: (PercentOf(defStat, 2)) + (PercentOf(mrStat, 3)), Type: 0, Percent: false <| ]
+    <|
+  }
+<| ]

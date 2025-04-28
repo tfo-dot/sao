@@ -1,16 +1,12 @@
 package player
 
 import (
-	"encoding/json"
 	"errors"
-	"os"
 	"sao/base"
-	"sao/config"
 	"sao/data"
 	"sao/player/inventory"
 	"sao/types"
 	"sao/utils"
-	"sao/world/fury"
 	"sao/world/party"
 	"strconv"
 
@@ -36,38 +32,25 @@ type PartialParty struct {
 }
 
 type PlayerMeta struct {
-	Location       types.EntityLocation
-	OwnUUID        uuid.UUID
-	UserID         string
-	FightInstance  *uuid.UUID
-	Party          *PartialParty
-	Transaction    *uuid.UUID
-	Fury           *fury.Fury
-	UnlockedFloors []string
-	WaitToHeal     bool
+	OwnUUID       uuid.UUID
+	UserID        string
+	FightInstance *uuid.UUID
+	Party         *PartialParty
+	Transaction   *uuid.UUID
+	WaitToHeal    bool
 }
 
-func (pM *PlayerMeta) SerializeFuries() map[string]interface{} {
-	if pM.Fury == nil {
-		return nil
-	}
-
-	return pM.Fury.Serialize()
-}
-
-func (pM *PlayerMeta) Serialize() map[string]interface{} {
+func (pM *PlayerMeta) Serialize() map[string]any {
 	party := ""
+
 	if pM.Party != nil {
 		party = pM.Party.UUID.String()
 	}
 
-	return map[string]interface{}{
-		"location":        []string{pM.Location.Floor, pM.Location.Location},
-		"uuid":            pM.OwnUUID.String(),
-		"uid":             pM.UserID,
-		"fury":            pM.SerializeFuries(),
-		"party":           party,
-		"unlocked_floors": pM.UnlockedFloors,
+	return map[string]any{
+		"uuid":     pM.OwnUUID.String(),
+		"uid":      pM.UserID,
+		"party":    party,
 	}
 }
 
@@ -77,21 +60,15 @@ type Player struct {
 	Stats        PlayerStats
 	Meta         PlayerMeta
 	Inventory    inventory.PlayerInventory
-	DynamicStats []types.DerivedStat
 	LevelStats   map[types.Stat]int
 	DefaultStats map[types.Stat]int
 }
 
-func (p *Player) Serialize() map[string]interface{} {
-	return map[string]interface{}{
-		"name": p.Name,
-		"xp":   []int{p.XP.Level, p.XP.Exp},
-		"stats": map[string]interface{}{
-			"hp":           p.Stats.HP,
-			"current_mana": p.Stats.CurrentMana,
-			"effects":      p.Stats.Effects,
-		},
-		"dynamic_stats": p.DynamicStats,
+func (p *Player) Serialize() map[string]any {
+	return map[string]any{
+		"name":          p.Name,
+		"xp":            []int{p.XP.Level, p.XP.Exp},
+		"stats":         map[string]any{"hp": p.Stats.HP, "current_mana": p.Stats.CurrentMana, "effects": p.Stats.Effects},
 		"level_stats":   p.LevelStats,
 		"default_stats": p.DefaultStats,
 		"meta":          p.Meta.Serialize(),
@@ -99,26 +76,7 @@ func (p *Player) Serialize() map[string]interface{} {
 	}
 }
 
-func DeserializeDerivedStats(data []interface{}) []types.DerivedStat {
-	tempArray := make([]types.DerivedStat, 0)
-
-	for _, stat := range data {
-		stat := stat.(map[string]interface{})
-
-		temp := types.DerivedStat{
-			Derived: types.Stat(stat["Derived"].(float64)),
-			Base:    types.Stat(stat["Base"].(float64)),
-			Percent: int(stat["Percent"].(float64)),
-			Source:  uuid.MustParse(stat["Source"].(string)),
-		}
-
-		tempArray = append(tempArray, temp)
-	}
-
-	return tempArray
-}
-
-func DeserializeLevelStats(data map[string]interface{}) map[types.Stat]int {
+func DeserializeLevelStats(data map[string]any) map[types.Stat]int {
 	tempMap := make(map[types.Stat]int, 0)
 
 	for key, value := range data {
@@ -130,7 +88,7 @@ func DeserializeLevelStats(data map[string]interface{}) map[types.Stat]int {
 	return tempMap
 }
 
-func DeserializeDefaultStats(data map[string]interface{}) map[types.Stat]int {
+func DeserializeDefaultStats(data map[string]any) map[types.Stat]int {
 	tempMap := make(map[types.Stat]int, 0)
 
 	for key, value := range data {
@@ -142,86 +100,59 @@ func DeserializeDefaultStats(data map[string]interface{}) map[types.Stat]int {
 	return tempMap
 }
 
-func Deserialize(data map[string]interface{}) *Player {
+func Deserialize(data map[string]any) *Player {
 	return &Player{
 		data["name"].(string),
 		PlayerXP{
-			Level: int(data["xp"].([]interface{})[0].(float64)),
-			Exp:   int(data["xp"].([]interface{})[1].(float64)),
+			Level: int(data["xp"].([]any)[0].(float64)),
+			Exp:   int(data["xp"].([]any)[1].(float64)),
 		},
 		PlayerStats{
-			int(data["stats"].(map[string]interface{})["hp"].(float64)),
-			DeserializeEffects(data["stats"].(map[string]interface{})["effects"].([]interface{})),
-			false,
-			int(data["stats"].(map[string]interface{})["current_mana"].(float64)),
+			HP:          int(data["stats"].(map[string]any)["hp"].(float64)),
+			Effects:     DeserializeEffects(data["stats"].(map[string]any)["effects"].([]any)),
+			CurrentMana: int(data["stats"].(map[string]any)["current_mana"].(float64)),
 		},
-		*DeserializeMeta(data["meta"].(map[string]interface{})),
-		inventory.DeserializeInventory(data["inventory"].(map[string]interface{})),
-		DeserializeDerivedStats(data["dynamic_stats"].([]interface{})),
-		DeserializeLevelStats(data["level_stats"].(map[string]interface{})),
-		DeserializeDefaultStats(data["default_stats"].(map[string]interface{})),
+		*DeserializeMeta(data["meta"].(map[string]any)),
+		inventory.DeserializeInventory(data["inventory"].(map[string]any)),
+		DeserializeLevelStats(data["level_stats"].(map[string]any)),
+		DeserializeDefaultStats(data["default_stats"].(map[string]any)),
 	}
 }
 
-func DeserializeEffects(data []interface{}) []types.ActionEffect {
-	temp := make([]types.ActionEffect, 0)
+func DeserializeEffects(data []any) []types.ActionEffect {
+	temp := make([]types.ActionEffect, len(data))
 
 	if len(data) == 0 {
 		return temp
 	}
 
-	for _, effect := range data {
-		effect := effect.(map[string]interface{})
+	for idx, effect := range data {
+		effect := effect.(map[string]any)
 
-		temp = append(temp, types.ActionEffect{
+		temp[idx] = types.ActionEffect{
 			Effect: types.Effect(effect["effect"].(float64)),
 			Value:  int(effect["value"].(float64)),
 			Meta:   effect["meta"],
-		})
+		}
 	}
 
 	return temp
 }
 
-func DeserializeMeta(data map[string]interface{}) *PlayerMeta {
-
-	pLocation := types.EntityLocation{
-		Floor:    data["location"].([]interface{})[0].(string),
-		Location: data["location"].([]interface{})[1].(string),
-	}
-
-	var furyData *fury.Fury
-	if data["fury"] != nil {
-		furyData = fury.Deserialize(data["fury"].(map[string]interface{}))
-	}
-
+func DeserializeMeta(data map[string]any) *PlayerMeta {
 	var partyTemp *PartialParty = nil
 
 	if data["party"] != "" {
+		//TODO fetch party? XDDD
 		partyTemp = &PartialParty{
-			Role:         party.None,
-			UUID:         uuid.MustParse(data["party"].(string)),
-			MembersCount: 0,
-		}
-	}
-
-	unlockedFloors := make([]string, 0)
-	if rawData, exists := data["unlocked_floors"]; exists {
-		for _, floor := range rawData.([]interface{}) {
-			unlockedFloors = append(unlockedFloors, floor.(string))
+			Role: party.None, UUID: uuid.MustParse(data["party"].(string)), MembersCount: 0,
 		}
 	}
 
 	return &PlayerMeta{
-		pLocation,
-		uuid.MustParse(data["uuid"].(string)),
-		data["uid"].(string),
-		nil,
-		partyTemp,
-		nil,
-		furyData,
-		unlockedFloors,
-		false,
+		OwnUUID:  uuid.MustParse(data["uuid"].(string)),
+		UserID:   data["uid"].(string),
+		Party:    partyTemp,
 	}
 }
 
@@ -259,37 +190,31 @@ func (p *Player) GetDefendingState() bool {
 
 func (p *Player) Action(f types.FightInstance) []types.Action { return []types.Action{} }
 
-func (p *Player) TakeDMG(dmgList types.ActionDamage) []types.Damage {
+func (p *Player) TakeDMG(dmgList types.ActionDamage) map[types.DamageType]int {
 	return base.TakeDMG(dmgList, p)
 }
 
-func (p *Player) TakeDMGOrDodge(dmg types.ActionDamage) ([]types.Damage, bool) {
+func (p *Player) TakeDMGOrDodge(dmg types.ActionDamage) (map[types.DamageType]int, bool) {
 	return base.TakeDMGOrDodge(dmg, p)
 }
 
 func (p *Player) DamageShields(dmg int) int {
-	keepEffects, _, leftover := base.DamageShields(dmg, p)
+	keepEffects, leftover := base.DamageShields(dmg, p)
 
 	p.Stats.Effects = keepEffects
 
 	return leftover
 }
 
-func (p *Player) AddEXP(maxFloor, value int) {
+func (p *Player) AddEXP(value int) {
 	p.XP.Exp += value
 
-	maxLevel := maxFloor * 5
-
-	maxLevel--
+	maxLevel := (data.FloorMap.GetUnlockedFloorCount() * 5) - 1
 
 	if p.XP.Level >= maxLevel {
 		p.XP.Level = maxLevel
 		p.XP.Exp = 0
 		return
-	}
-
-	if p.Meta.Fury != nil {
-		p.Meta.Fury.AddXP(utils.PercentOf(value, 20))
 	}
 
 	for p.XP.Exp >= ((p.XP.Level * 100) + 100) {
@@ -352,12 +277,8 @@ func (p *Player) GetEffectByUUID(uuid uuid.UUID) *types.ActionEffect {
 	return base.GetEffectByUUID(uuid, p)
 }
 
-func (p *Player) TriggerAllEffects() []types.ActionEffect {
-	effects, expiredEffects := base.TriggerAllEffects(p)
-
-	p.Stats.Effects = effects
-
-	return expiredEffects
+func (p *Player) TriggerAllEffects() {
+	p.Stats.Effects = base.TriggerAllEffects(p)
 }
 
 func (p *Player) RemoveEffect(uuid uuid.UUID) {
@@ -369,111 +290,71 @@ func (p *Player) GetAllEffects() []types.ActionEffect {
 
 	if p.GetDefendingState() {
 		temporaryEffects = append(temporaryEffects, types.ActionEffect{
-			Effect: types.EFFECT_STAT_INC,
-			Value:  20,
-			Meta: types.ActionEffectStat{
-				Stat:      types.STAT_DEF,
-				Value:     20,
-				IsPercent: true,
-			},
+			Effect:   types.EFFECT_STAT_INC,
+			Value:    20,
+			Duration: -1,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_DEF, IsPercent: true},
 		}, types.ActionEffect{
 			Effect:   types.EFFECT_STAT_INC,
 			Duration: -1,
-			Meta: types.ActionEffectStat{
-				Stat:      types.STAT_MR,
-				Value:     20,
-				IsPercent: true,
-			},
+			Value:    20,
+			Meta:     types.ActionEffectStat{Stat: types.STAT_MR, IsPercent: true},
 		})
 	}
 
 	if p.Meta.Party != nil {
 		switch p.Meta.Party.Role {
 		case party.DPS:
+			increase := 10 + (p.Meta.Party.MembersCount-1)*5
+
 			temporaryEffects = append(temporaryEffects, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_ADAPTIVE,
-					Value:     10 + (p.Meta.Party.MembersCount-1)*5,
-					IsPercent: true,
-				},
+				Value:    increase,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_AD, IsPercent: true},
+			}, types.ActionEffect{
+				Effect:   types.EFFECT_STAT_INC,
+				Duration: -1,
+				Value:    increase,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_AP, IsPercent: true},
 			})
 		case party.Tank:
 			temporaryEffects = append(temporaryEffects, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_DEF,
-					Value:     25,
-					IsPercent: false,
-				},
-			})
-
-			temporaryEffects = append(temporaryEffects, types.ActionEffect{
+				Value:    25,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_DEF},
+			}, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_MR,
-					Value:     25,
-					IsPercent: false,
-				},
-			})
-
-			temporaryEffects = append(temporaryEffects, types.ActionEffect{
+				Value:    25,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_MR},
+			}, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_HP,
-					Value:     (p.Meta.Party.MembersCount - 1) * 5,
-					IsPercent: true,
-				},
-			})
-
-			temporaryEffects = append(temporaryEffects, types.ActionEffect{
+				Value:    (p.Meta.Party.MembersCount - 1) * 5,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_HP, IsPercent: true},
+			}, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_DEF,
-					Value:     (p.Meta.Party.MembersCount - 1) * 5,
-					IsPercent: true,
-				},
-			})
-
-			temporaryEffects = append(temporaryEffects, types.ActionEffect{
+				Value:    (p.Meta.Party.MembersCount - 1) * 5,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_DEF, IsPercent: true},
+			}, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_MR,
-					Value:     (p.Meta.Party.MembersCount - 1) * 5,
-					IsPercent: true,
-				},
+				Value:    (p.Meta.Party.MembersCount - 1) * 5,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_MR, IsPercent: true},
 			})
 
 			if (p.Meta.Party.MembersCount - 1) > 2 {
-				temporaryEffects = append(temporaryEffects, types.ActionEffect{
-					Effect:   types.EFFECT_TAUNT,
-					Source:   types.SOURCE_PARTY,
-					Duration: -1,
-					Meta:     nil,
-				})
+				temporaryEffects = append(temporaryEffects, types.ActionEffect{Effect: types.EFFECT_TAUNT, Duration: -1})
 			}
 		case party.Support:
 			temporaryEffects = append(temporaryEffects, types.ActionEffect{
 				Effect:   types.EFFECT_STAT_INC,
 				Duration: -1,
-				Source:   types.SOURCE_PARTY,
-				Meta: types.ActionEffectStat{
-					Stat:      types.STAT_HEAL_POWER,
-					Value:     15 + (p.Meta.Party.MembersCount-1)*5,
-					IsPercent: true,
-				},
+				Value:    15 + (p.Meta.Party.MembersCount-1)*5,
+				Meta:     types.ActionEffectStat{Stat: types.STAT_HEAL_POWER, IsPercent: true},
 			})
 		}
 	}
@@ -485,35 +366,15 @@ func (p *Player) CanAttack() bool {
 	return p.GetEffectByType(types.EFFECT_STUN) == nil
 }
 
-func (p *Player) CanDodgeNow() bool {
-	return p.GetEffectByType(types.EFFECT_STUN) == nil
-}
-
 func (p *Player) CanDefend() bool {
 	return p.GetEffectByType(types.EFFECT_STUN) == nil
 }
 
-func (p *Player) GetTempSkills() []*types.WithExpire[types.PlayerSkill] {
-	return p.Inventory.TempSkills
-}
-
-func (p *Player) RemoveTempByUUID(uuid uuid.UUID) {
-	tempList := make([]*types.WithExpire[types.PlayerSkill], 0)
-
-	for _, skill := range p.Inventory.TempSkills {
-		if skill.Value.GetUUID() != uuid {
-			tempList = append(tempList, skill)
-		}
-	}
-
-	p.Inventory.TempSkills = tempList
-}
-
 func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 	if skill.IsLevelSkill() {
-		lvl := skill.(types.PlayerSkillLevel).GetLevel()
+		lvl := skill.(types.PlayerSkillUpgradable).GetLevel()
 
-		skillTrigger := skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(p.Inventory.LevelSkillsUpgrades[lvl])
+		skillTrigger := skill.(types.PlayerSkillUpgradable).GetUpgradableTrigger(p.Inventory.LevelSkills[lvl].Upgrades)
 
 		if skillTrigger.Type == types.TRIGGER_PASSIVE || skillTrigger.Type == types.TRIGGER_TYPE_NONE {
 			return false
@@ -523,7 +384,7 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 			return skillTrigger.Flags&types.FLAG_IGNORE_CC != 0
 		}
 
-		if currentCD, onCooldown := p.Inventory.LevelSkillsCDS[lvl]; onCooldown && currentCD != 0 {
+		if info := p.Inventory.LevelSkills[lvl]; info.CD != 0 {
 			return false
 		}
 	} else {
@@ -537,11 +398,7 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 			return skillTrigger.Flags&types.FLAG_IGNORE_CC != 0
 		}
 
-		if currentCD, onCooldown := p.Inventory.ItemSkillCD[skill.GetUUID()]; onCooldown && currentCD != 0 {
-			return false
-		}
-
-		if currentCD, onCooldown := p.Inventory.FurySkillsCD[skill.GetUUID()]; onCooldown && currentCD != 0 {
+		if currentCD, onCooldown := p.Inventory.ItemCD[skill.GetUUID()]; onCooldown && currentCD != 0 {
 			return false
 		}
 	}
@@ -553,18 +410,6 @@ func (p *Player) CanUseSkill(skill types.PlayerSkill) bool {
 	return true
 }
 
-func (p *Player) AddItem(item *types.PlayerItem) {
-	for _, effect := range item.Effects {
-		effectEvents := effect.GetEvents()
-
-		if _, exists := effectEvents[types.CUSTOM_TRIGGER_UNLOCK]; exists {
-			effectEvents[types.CUSTOM_TRIGGER_UNLOCK](p)
-		}
-	}
-
-	p.Inventory.Items = append(p.Inventory.Items, item)
-}
-
 func (p *Player) GetAllItems() []*types.PlayerItem {
 	return p.Inventory.Items
 }
@@ -573,24 +418,10 @@ func (p *Player) GetSkills() []types.PlayerSkill {
 	arr := make([]types.PlayerSkill, 0)
 
 	for _, skill := range p.Inventory.LevelSkills {
-		arr = append(arr, skill)
+		arr = append(arr, skill.Skill)
 	}
 
 	return arr
-}
-
-func (p *Player) GetSkill(uuid uuid.UUID) types.PlayerSkill {
-	for _, skill := range p.Inventory.TempSkills {
-		if skill.Value.GetUUID() == uuid {
-			return skill.Value
-		}
-	}
-
-	return nil
-}
-
-func (p *Player) RemoveItem(item int) {
-	p.Inventory.Items = append(p.Inventory.Items[:item], p.Inventory.Items[item+1:]...)
 }
 
 func (p *Player) RestoreMana(value int) {
@@ -605,7 +436,12 @@ func (p *Player) GetDefaultStat(stat types.Stat) int {
 	if value, ok := p.DefaultStats[stat]; ok {
 		return value
 	}
+
 	return 0
+}
+
+func (p *Player) GetDerivedStats() []types.DerivedStat {
+	return p.Inventory.GetDerivedStats()
 }
 
 func (p *Player) GetStat(stat types.Stat) int {
@@ -628,9 +464,9 @@ func (p *Player) GetStat(stat types.Stat) int {
 				}
 
 				if value.IsPercent {
-					percentValue += value.Value
+					percentValue += effect.Value
 				} else {
-					statValue += value.Value
+					statValue += effect.Value
 				}
 			}
 		}
@@ -643,9 +479,9 @@ func (p *Player) GetStat(stat types.Stat) int {
 				}
 
 				if value.IsPercent {
-					percentValue -= value.Value
+					percentValue -= effect.Value
 				} else {
-					statValue -= value.Value
+					statValue -= effect.Value
 				}
 			}
 		}
@@ -657,11 +493,7 @@ func (p *Player) GetStat(stat types.Stat) int {
 
 	statValue += p.Inventory.GetStat(stat)
 
-	if p.Meta.Fury != nil {
-		statValue += p.Meta.Fury.GetStat(stat)
-	}
-
-	for _, effect := range p.DynamicStats {
+	for _, effect := range p.GetDerivedStats() {
 		if effect.Derived == stat {
 			if effect.Base == effect.Derived {
 				statValue += utils.PercentOf(statValue, effect.Percent)
@@ -671,121 +503,15 @@ func (p *Player) GetStat(stat types.Stat) int {
 		}
 	}
 
-	if stat == types.STAT_AD || stat == types.STAT_AP {
-		adaptive := p.GetStat(types.STAT_ADAPTIVE)
-
-		if adaptive > 0 {
-			adaptiveType := p.GetAdaptiveAttackType()
-
-			if adaptiveType == types.ADAPTIVE_ATK && stat == types.STAT_AD {
-				statValue += adaptive
-			}
-
-			if adaptiveType == types.ADAPTIVE_AP && stat == types.STAT_AP {
-				statValue += adaptive
-			}
-		}
-	}
-
-	baseStat := statValue + (statValue * percentValue / 100)
-
-	if stat == types.STAT_AD || stat == types.STAT_AP {
-		adaptive := p.GetStat(types.STAT_ADAPTIVE_PERCENT)
-
-		if adaptive > 0 {
-			adaptiveType := p.GetAdaptiveAttackType()
-
-			if adaptiveType == types.ADAPTIVE_ATK && stat == types.STAT_AD {
-				baseStat += utils.PercentOf(baseStat, adaptive)
-			}
-
-			if adaptiveType == types.ADAPTIVE_AP && stat == types.STAT_AP {
-				baseStat += utils.PercentOf(baseStat, adaptive)
-			}
-		}
-	}
-	return baseStat
-}
-
-func (p *Player) GetRawStat(stat types.Stat) int {
-	switch stat {
-	case types.STAT_MANA_PLUS:
-		return p.GetDefaultStat(types.STAT_MANA) - p.GetStat(types.STAT_MANA)
-	case types.STAT_HP_PLUS:
-		return p.GetDefaultStat(types.STAT_HP) + ((p.XP.Level - 1) * 10) - p.GetStat(types.STAT_HP)
-	}
-
-	statValue := p.GetDefaultStat(stat)
-	percentValue := 0
-
-	for _, effect := range p.GetAllEffects() {
-		if effect.Effect == types.EFFECT_STAT_INC {
-
-			if value, ok := effect.Meta.(types.ActionEffectStat); ok {
-				if value.Stat != stat {
-					continue
-				}
-
-				if value.IsPercent {
-					percentValue += value.Value
-				} else {
-					statValue += value.Value
-				}
-			}
-		}
-
-		if effect.Effect == types.EFFECT_STAT_DEC {
-
-			if value, ok := effect.Meta.(types.ActionEffectStat); ok {
-				if value.Stat != stat {
-					continue
-				}
-
-				if value.IsPercent {
-					percentValue -= value.Value
-				} else {
-					statValue -= value.Value
-				}
-			}
-		}
-	}
-
-	if value, ok := p.LevelStats[stat]; ok {
-		statValue += ((p.XP.Level - 1) * value)
-	}
-
-	statValue += p.Inventory.GetStat(stat)
-
-	if p.Meta.Fury != nil {
-		statValue += p.Meta.Fury.GetStat(stat)
-	}
-
-	for _, effect := range p.DynamicStats {
-		if effect.Derived == stat {
-			statValue += utils.PercentOf(p.GetStat(effect.Base), effect.Percent)
-		}
-	}
-
 	return statValue + (statValue * percentValue / 100)
 }
 
-func (p *Player) GetAdaptiveAttackType() types.AdaptiveAttackType {
-	adStat := p.GetRawStat(types.STAT_AD)
-	apStat := p.GetRawStat(types.STAT_AP)
-
-	if apStat > adStat {
-		return types.ADAPTIVE_AP
-	}
-
-	return types.ADAPTIVE_ATK
-}
-
 func (p *Player) Cleanse() {
-	p.Stats.Effects, _ = base.Cleanse(p)
+	p.Stats.Effects = base.Cleanse(p)
 }
 
 func (p *Player) GetUpgrades(lvl int) int {
-	return p.Inventory.LevelSkillsUpgrades[lvl]
+	return p.Inventory.LevelSkills[lvl].Upgrades
 }
 
 func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
@@ -795,7 +521,7 @@ func (p *Player) GetLvlSkill(lvl int) types.PlayerSkill {
 		return nil
 	}
 
-	return skill
+	return skill.Skill
 }
 
 func (p *Player) GetUID() string {
@@ -803,29 +529,25 @@ func (p *Player) GetUID() string {
 }
 
 func (p *Player) GetLvlCD(lvl int) int {
-	return p.Inventory.LevelSkillsCDS[lvl]
+	return p.Inventory.LevelSkills[lvl].CD
 }
 
 func (p *Player) SetLvlCD(lvl int, value int) {
-	if value == 0 {
-		delete(p.Inventory.LevelSkillsCDS, lvl)
-	} else {
-		p.Inventory.LevelSkillsCDS[lvl] = value
-	}
+	p.Inventory.LevelSkills[lvl].CD = value
 }
 
 func (p *Player) GetLevelSkillsCD() map[int]int {
 	mapTemp := make(map[int]int, 0)
 
-	for skill, cd := range p.Inventory.LevelSkillsCDS {
-		mapTemp[skill] = cd
+	for skill, cd := range p.Inventory.LevelSkills {
+		if cd.CD == 0 {
+			continue
+		}
+
+		mapTemp[skill] = cd.CD
 	}
 
 	return mapTemp
-}
-
-func (p *Player) AppendDerivedStat(stat types.DerivedStat) {
-	p.DynamicStats = append(p.DynamicStats, stat)
 }
 
 func (p *Player) SetLevelStat(stat types.Stat, value int) {
@@ -841,14 +563,18 @@ func (p *Player) GetLevelStat(stat types.Stat) int {
 }
 
 func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
-	for skill := range p.Inventory.ItemSkillCD {
-		item := data.Items[utils.SkillUUIDToItemUUID(skill)]
+	for skill := range p.Inventory.ItemCD {
+		rawSUID, _ := skill.MarshalBinary()
 
-		for _, effect := range item.Effects {
+		copy(rawSUID[6:8], []byte{0, 0})
+
+		itemUuid, _ := uuid.FromBytes(rawSUID)
+
+		for _, effect := range data.Items[itemUuid].Effects {
 			cdMeta := effect.GetTrigger().Cooldown
 
 			if cdMeta == nil && event == types.TRIGGER_TURN {
-				p.Inventory.ItemSkillCD[skill]--
+				p.Inventory.ItemCD[skill]--
 			}
 
 			if cdMeta != nil && event != cdMeta.PassEvent {
@@ -857,36 +583,16 @@ func (p *Player) ReduceCooldowns(event types.SkillTrigger) {
 		}
 	}
 
-	for skillLevel := range p.Inventory.LevelSkillsCDS {
+	for skillLevel := range p.Inventory.LevelSkills {
 		skillData := p.Inventory.LevelSkills[skillLevel]
-		cdMeta := skillData.GetUpgradableTrigger(skillLevel).Cooldown
+		cdMeta := skillData.Skill.GetUpgradableTrigger(skillData.Upgrades).Cooldown
 
 		if cdMeta == nil && event == types.TRIGGER_TURN {
-			p.Inventory.LevelSkillsCDS[skillLevel]--
+			p.Inventory.LevelSkills[skillLevel].CD--
 		}
 
 		if cdMeta != nil && event != cdMeta.PassEvent {
 			continue
-		}
-	}
-
-	for skillUuid := range p.Inventory.FurySkillsCD {
-		if p.Meta.Fury == nil {
-			break
-		}
-
-		for _, skillStruct := range p.Meta.Fury.GetSkills() {
-			if skillUuid == skillStruct.GetUUID() {
-				cdMeta := skillStruct.GetTrigger().Cooldown
-
-				if cdMeta == nil && event == types.TRIGGER_TURN {
-					p.Inventory.FurySkillsCD[skillUuid]--
-				}
-
-				if cdMeta != nil && event != cdMeta.PassEvent {
-					continue
-				}
-			}
 		}
 	}
 }
@@ -895,24 +601,24 @@ func (p *Player) GetLvl() int {
 	return p.XP.Level
 }
 
-func (p *Player) TriggerEvent(event types.SkillTrigger, data types.EventData, meta interface{}) []interface{} {
-	returnMeta := make([]interface{}, 0)
+func (p *Player) TriggerEvent(event types.SkillTrigger, data types.EventData, meta any) []any {
+	returnMeta := make([]any, 0)
 
 	for _, item := range p.Inventory.Items {
 		for _, effect := range item.Effects {
-			trigger := effect.GetTrigger()
-
 			if cd := effect.GetCD(); cd != 0 {
-				currentCD, onCooldown := p.Inventory.ItemSkillCD[effect.GetUUID()]
+				currentCD, onCooldown := p.Inventory.ItemCD[effect.GetUUID()]
 
 				if onCooldown {
 					if currentCD == 0 {
-						p.Inventory.ItemSkillCD[effect.GetUUID()] = cd
+						p.Inventory.ItemCD[effect.GetUUID()] = cd
 					} else {
 						continue
 					}
 				}
 			}
+
+			trigger := effect.GetTrigger()
 
 			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
 				if cost := effect.GetCost(); cost != 0 {
@@ -933,22 +639,18 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, data types.EventData, me
 	}
 
 	for skillLevel, skillStruct := range p.Inventory.LevelSkills {
-		trigger := skillStruct.GetUpgradableTrigger(p.Inventory.LevelSkillsUpgrades[skillLevel])
+		trigger := skillStruct.Skill.GetUpgradableTrigger(skillStruct.Upgrades)
 
-		if cd := skillStruct.GetUpgradableCost(p.Inventory.LevelSkillsUpgrades[skillLevel]); cd != 0 {
-			currentCD, onCooldown := p.Inventory.LevelSkillsCDS[skillLevel]
-
-			if onCooldown {
-				if currentCD == 0 {
-					p.Inventory.LevelSkillsCDS[skillLevel] = cd
-				} else {
-					continue
-				}
+		if cd := skillStruct.Skill.GetCooldown(skillStruct.Upgrades); cd != 0 {
+			if currentCD := p.Inventory.LevelSkills[skillLevel].CD; currentCD == 0 {
+				p.Inventory.LevelSkills[skillLevel].CD = cd
+			} else {
+				continue
 			}
 		}
 
 		if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
-			if cost := skillStruct.GetCost(); cost != 0 {
+			if cost := skillStruct.Skill.GetCost(); cost != 0 {
 				if cost > p.GetCurrentMana() {
 					continue
 				} else {
@@ -956,44 +658,8 @@ func (p *Player) TriggerEvent(event types.SkillTrigger, data types.EventData, me
 				}
 			}
 
-			temp := skillStruct.Execute(p, data.Target, data.Fight, meta)
-
-			if temp != nil {
+			if temp := skillStruct.Skill.Execute(p, data.Target, data.Fight, meta); temp != nil {
 				returnMeta = append(returnMeta, temp)
-			}
-		}
-	}
-
-	if p.Meta.Fury != nil {
-		for _, skill := range p.Meta.Fury.GetSkills() {
-			trigger := skill.GetTrigger()
-
-			if cd := skill.GetCost(); cd != 0 {
-				currentCD, onCooldown := p.Inventory.FurySkillsCD[skill.GetUUID()]
-
-				if onCooldown {
-					if currentCD == 0 {
-						p.Inventory.FurySkillsCD[skill.GetUUID()] = cd
-					} else {
-						continue
-					}
-				}
-			}
-
-			if trigger.Type == types.TRIGGER_PASSIVE && trigger.Event == event {
-				if cost := skill.GetCost(); cost != 0 {
-					if cost > p.GetCurrentMana() {
-						continue
-					} else {
-						p.Stats.CurrentMana -= cost
-					}
-				}
-
-				temp := skill.Execute(p, data.Target, data.Fight, meta)
-
-				if temp != nil {
-					returnMeta = append(returnMeta, temp)
-				}
 			}
 		}
 	}
@@ -1026,27 +692,15 @@ func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
 		return errors.New("PLAYER_LVL_TOO_LOW")
 	}
 
-	if _, exists := p.Inventory.LevelSkills[lvl]; exists {
-		return errors.New("SKILL_ALREADY_UNLOCKED")
-	}
-
-	if actions := p.GetAvailableSkillActions(); actions < 1 {
+	if p.GetAvailableSkillActions() < 1 {
 		return errors.New("NO_ACTIONS_AVAILABLE")
 	}
 
-	skill, skillExists := inventory.AVAILABLE_SKILLS[path][lvl]
-
-	if !skillExists {
-		return errors.New("SKILL_NOT_FOUND")
+	if err := p.Inventory.UnlockSkill(lvl, path, choice); err != nil {
+		return err
 	}
 
-	if choice >= len(skill) {
-		return errors.New("INVALID_CHOICE")
-	}
-
-	p.Inventory.LevelSkills[lvl] = skill[choice]
-
-	skillEvents := p.Inventory.LevelSkills[lvl].GetEvents()
+	skillEvents := p.Inventory.LevelSkills[lvl].Skill.GetEvents()
 
 	if effect, effectExists := skillEvents[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
 		effect(p)
@@ -1056,37 +710,17 @@ func (p *Player) UnlockSkill(path types.SkillPath, lvl, choice int) error {
 }
 
 func (p *Player) UpgradeSkill(lvl int, upgradeIdx int) error {
-	skill, exists := p.Inventory.LevelSkills[lvl]
-
-	if !exists {
-		return errors.New("SKILL_NOT_FOUND")
-	}
-
-	skillUpgrades := skill.GetUpgrades()
-
-	if upgradeIdx >= len(skillUpgrades) {
-		return errors.New("INVALID_UPGRADE")
-	}
-
-	upgradeValue := 1 << upgradeIdx
-
-	if p.Inventory.LevelSkillsUpgrades[lvl]&upgradeValue != 0 {
-		return errors.New("UPGRADE_ALREADY_UNLOCKED")
-	}
-
-	if actions := p.GetAvailableSkillActions(); actions < 1 {
+	if p.GetAvailableSkillActions() <= 0 {
 		return errors.New("NO_ACTIONS_AVAILABLE")
 	}
 
-	p.Inventory.LevelSkillsUpgrades[lvl] |= upgradeValue
+	skillUpgrade := p.Inventory.LevelSkills[lvl].Skill.GetUpgrades()[upgradeIdx]
 
-	upgradeEvents := skillUpgrades[upgradeIdx].Events
-
-	if upgradeEvents == nil {
-		return nil
+	if err := p.Inventory.UpgradeSkill(lvl, upgradeIdx); err != nil {
+		return err
 	}
 
-	if effect, effectExists := (*upgradeEvents)[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
+	if effect, effectExists := skillUpgrade.Events[types.CUSTOM_TRIGGER_UNLOCK]; effectExists {
 		effect(p)
 	}
 
@@ -1108,8 +742,6 @@ func (p *Player) TriggerTempSkills() {
 		} else {
 			list = append(list, skill)
 		}
-
-		println(skill.Value.GetUUID().String(), skill.Expire, len(list))
 	}
 
 	p.Inventory.TempSkills = list
@@ -1122,7 +754,7 @@ func (p *Player) ClearFight() {
 func (p *Player) GetAvailableSkillActions() int {
 	overall := 0
 
-	if p.XP.Level < 6 {
+	if p.XP.Level <= 6 {
 		overall = p.XP.Level
 	}
 
@@ -1137,17 +769,9 @@ func (p *Player) GetAvailableSkillActions() int {
 
 	used := len(p.Inventory.LevelSkills)
 
-	for lvl, upgrades := range p.Inventory.LevelSkillsUpgrades {
-		skill := p.Inventory.LevelSkills[lvl]
-
-		if skill == nil {
-			continue
-		}
-
-		skillUpgrades := skill.GetUpgrades()
-
-		for i := 0; i < len(skillUpgrades); i++ {
-			if upgrades&i != 0 {
+	for _, skill := range p.Inventory.LevelSkills {
+		for i := range skill.Skill.GetUpgrades() {
+			if inventory.HasUpgrade(skill.Upgrades, i) {
 				used++
 			}
 		}
@@ -1156,87 +780,63 @@ func (p *Player) GetAvailableSkillActions() int {
 	return overall - used
 }
 
-func (p *Player) UnlockFloor(floor string) {
-	for _, unlocked := range p.Meta.UnlockedFloors {
-		if unlocked == floor {
-			return
-		}
-	}
-
-	p.Meta.UnlockedFloors = append(p.Meta.UnlockedFloors, floor)
+func (p *Player) SetLevelSkillMeta(lvl int, meta any) {
+	p.Inventory.LevelSkills[lvl].Meta = meta
 }
 
-func (p *Player) HasOnDefeat() bool {
-	return false
-}
-
-func (p *Player) SetLevelSkillMeta(lvl int, meta interface{}) {
-	p.Inventory.LevelSkillMeta[lvl] = meta
-}
-
-func (p *Player) GetLevelSkillMeta(lvl int) interface{} {
-	return p.Inventory.LevelSkillMeta[lvl]
+func (p *Player) GetLevelSkillMeta(lvl int) any {
+	return p.Inventory.LevelSkills[lvl].Meta
 }
 
 func (p *Player) UseItem(item uuid.UUID, target types.Entity, fight types.FightInstance) {
 	p.Inventory.UseItem(item, p, target, fight)
 }
 
+func (p *Player) GetSkillPath() types.SkillPath {
+	counts := make(map[types.SkillPath]int)
+
+	for lvl, skill := range p.Inventory.LevelSkills {
+		if lvl%10 == 0 {
+			continue
+		}
+
+		counts[skill.Skill.GetPath()]++
+
+		if skill.Upgrades != 0 {
+			for i := range skill.Skill.GetUpgrades() {
+				if inventory.HasUpgrade(skill.Upgrades, i) {
+					counts[skill.Skill.GetPath()]++
+				}
+			}
+		}
+	}
+
+	max := types.PathControl
+
+	for path, count := range counts {
+		if count > counts[path] {
+			max = path
+		}
+	}
+
+	return max
+}
+
 func NewPlayer(name string, uid string) Player {
 	return Player{
 		name,
-		PlayerXP{Level: 1, Exp: 0},
+		PlayerXP{Level: 1},
 		PlayerStats{
-			Default.StartingStats[types.STAT_HP],
-			make([]types.ActionEffect, 0),
-			false,
-			Default.StartingStats[types.STAT_MANA],
+			HP:          data.PlayerDefaults.Stats[types.STAT_HP],
+			Effects:     make([]types.ActionEffect, 0),
+			CurrentMana: data.PlayerDefaults.Stats[types.STAT_MANA],
 		},
-		PlayerMeta{Default.Location, uuid.New(), uid, nil, nil, nil, nil, make([]string, 0), false},
+		PlayerMeta{
+			OwnUUID:  uuid.New(),
+			UserID:   uid,
+		},
 		inventory.GetDefaultInventory(),
-		make([]types.DerivedStat, 0),
-		Default.LevelStats,
-		Default.StartingStats,
+		data.PlayerDefaults.Level,
+		data.PlayerDefaults.Stats,
 	}
-}
-
-var Default PlayerDefaults = GetPlayerDefaults()
-
-type PlayerDefaults struct {
-	StartingStats map[types.Stat]int
-	LevelStats    map[types.Stat]int
-	Location      types.EntityLocation
-}
-
-func GetPlayerDefaults() PlayerDefaults {
-	rawData, err := os.ReadFile(config.Config.GameDataLocation + "/players/default.json")
-
-	if err != nil {
-		panic(err)
-	}
-
-	var parsedData map[string]interface{}
-
-	json.Unmarshal([]byte(rawData), &parsedData)
-
-	pDefaults := PlayerDefaults{
-		Location: types.EntityLocation{
-			Floor:    parsedData["Location"].(map[string]interface{})["Floor"].(string),
-			Location: parsedData["Location"].(map[string]interface{})["Location"].(string),
-		},
-	}
-
-	pDefaults.StartingStats = make(map[types.Stat]int, 0)
-
-	for key, value := range parsedData["Stats"].(map[string]interface{}) {
-		pDefaults.StartingStats[utils.StringToStat[key]] = int(value.(float64))
-	}
-
-	pDefaults.LevelStats = make(map[types.Stat]int, 0)
-
-	for key, value := range parsedData["LevelStats"].(map[string]interface{}) {
-		pDefaults.LevelStats[utils.StringToStat[key]] = int(value.(float64))
-	}
-
-	return pDefaults
 }

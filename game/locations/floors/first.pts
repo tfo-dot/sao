@@ -1,0 +1,107 @@
+let Name = "beta-poza-miastem"
+let CID = "1272232994010169426"
+let Default = "Las"
+let Unlocked = true
+let CountsAsUnlocked = true
+
+let Locations = [
+  |>
+    Name: "Jaskinia",
+    CID: "1276112399799287892",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 1,
+        Enemy: "LV0_Skalniak"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Las",
+    CID: "1272233789200007269",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV0_Wilk"
+      <|,
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV2_Driad"
+      <|
+    ]
+  <|,
+  |>
+    Name: "dev",
+    CID: "1276235901944463554",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 1,
+        Enemy: "LV0_Error"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Polana",
+    CID: "1272233801837183036",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV0_Wilk"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Podnóże wulkanu",
+    CID: "1272233986617376829",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV0_Rycerz"
+      <|,
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV2_Turtle"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Wulkan",
+    CID: "1272234002174050394",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 1,
+        Enemy: "LV0_Dragon"
+      <|,
+      |>
+        MinNum: 1,
+        MaxNum: 1,
+        Enemy: "LV2_Ifryt"
+      <|
+    ]
+  <|
+]

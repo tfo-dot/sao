@@ -1,0 +1,13 @@
+let ReservedUIDs = [ "00000000-0000-0000-0000-00000000000B" ]
+
+let UUID = ReservedUIDs[0]
+let Name = "Dziedzictwo Ryu"
+let Description = "Zwiększa RES i DEF o 20%."
+
+let Stats = |>
+  HP: 150, DEF: 40, MR: 40,
+  Derived: [
+   |> Base: STAT_DEF, Derived: STAT_DEF, Percent: 20 <|,
+   |> Base: STAT_MR, Derived: STAT_MR, Percent: 20 <|
+  ]
+<|

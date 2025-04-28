@@ -1,0 +1,16 @@
+let ReservedUIDs = ["00000000-0000-0000-0000-000000000008", "00000000-0000-0001-0000-000000000008"]
+
+let UUID = ReservedUIDs[0]
+let Name = "Dziedzictwo wojownika"
+let Description = "Zwiększa obrażenia w zależności od maks zdrowia."
+
+let Stats = |> AD: 20, HP: 50 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_BEFORE <|,
+    UUID: ReservedUIDs[1],
+    Execute: fun(owner, target, fightInstance, meta) = 
+      |> Effects: [ |> Value: PercentOf(GetStat(owner, STAT_HP_PLUS), 1), Type: 0, Percent: true <| ] <|
+  <|
+]

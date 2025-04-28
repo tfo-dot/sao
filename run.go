@@ -11,10 +11,13 @@ import (
 func main() {
 	world := world.CreateWorld()
 
-	world.LoadBackup()
+	err := world.LoadBackup()
+
+	if err != nil {
+		panic(err)
+	}
 
 	go world.StartClock()
-	go world.MessageHandler()
 
 	discord.World = &world
 

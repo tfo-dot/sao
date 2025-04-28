@@ -1,0 +1,42 @@
+let ReservedUIDs = [
+  "00000000-0000-0000-0000-000000000015",
+  "00000000-0000-0001-0000-000000000015",
+  "00000000-0000-0001-0001-000000000015"
+]
+
+let UUID = ReservedUIDs[1]
+let Name = "Ognisty trybularz"
+let Description = "Leczenie i tarcze zwiększają obrażenia i prędkość sojusznika."
+
+let Stats = |> HEAL_POWER: 10, AP: 30, HP: 50 <|
+
+let Effects = [
+  |>
+    Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_HEAL_OTHER <|,
+    UUID: ReservedUIDs[2],
+    Execute: fun (owner, target, fightInstance, meta) {
+      AppendTempSkill(target, |>
+        Value: |>
+          Trigger: |> Type: TRIGGER_PASSIVE, Event: TRIGGER_ATTACK_BEFORE <|,
+          Execute: fun (_, _, _, _) = |> Effects: [ |> Value: PercentOf(GetStat(owner, STAT_AP), 25), Percent: false, Type: 1 <| ] <|
+        <|,
+        Expire: 2,
+        AfterUsage: false,
+        Either: true
+      <|)
+
+      HandleAction(fightInstance, |>
+        Event: ACTION_EFFECT,
+        Source: GetUUID(owner),
+        Target: GetUUID(target),
+        Meta: |>
+            Effect: EFFECT_STAT_INC,
+            Value: 0,
+            Duration: 1,
+            Uuid: ReservedUIDs[3],
+            Meta: |> Stat: STAT_SPD, Value: 10, IsPercent: false <|
+          <|
+        <|)
+    }
+  <|
+]

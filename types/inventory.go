@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/google/uuid"
 )
@@ -17,15 +18,8 @@ type PlayerSkill interface {
 
 	IsLevelSkill() bool
 
-	Execute(owner PlayerEntity, target Entity, fightInstance FightInstance, meta interface{}) interface{}
+	Execute(owner PlayerEntity, target Entity, fightInstance FightInstance, meta any) any
 	GetEvents() map[CustomTrigger]func(owner PlayerEntity)
-}
-
-type PlayerSkillLevel interface {
-	PlayerSkill
-
-	GetLevel() int
-	GetPath() SkillPath
 }
 
 type PlayerSkillUpgradable interface {
@@ -38,16 +32,17 @@ type PlayerSkillUpgradable interface {
 	GetPath() SkillPath
 	GetUpgrades() []PlayerSkillUpgrade
 	GetCooldown(upgrades int) int
-	UpgradableExecute(owner PlayerEntity, target Entity, fightInstance FightInstance, meta interface{}) interface{}
+	UpgradableExecute(owner PlayerEntity, target Entity, fightInstance FightInstance, meta any) any
 	GetUpgradableTrigger(upgrades int) Trigger
 	GetStats(upgrades int) map[Stat]int
+	GetDerivedStats(upgrades int) []DerivedStat
 	GetUpgradableCost(upgrades int) int
 }
 
 type PlayerSkillUpgrade struct {
 	Description string
 	Id          string
-	Events      *map[CustomTrigger]func(owner PlayerEntity)
+	Events      map[CustomTrigger]func(owner PlayerEntity)
 }
 
 type SkillTriggerType int
@@ -116,10 +111,6 @@ type DamageTriggerMeta struct {
 	Effects []DamagePartial
 }
 
-type EffectTriggerMeta struct {
-	Effects []IncreasePartial
-}
-
 type TargetTag int
 
 const (
@@ -141,20 +132,6 @@ const (
 	CUSTOM_TRIGGER_UNLOCK CustomTrigger = iota
 )
 
-type PlayerItem struct {
-	UUID        uuid.UUID
-	Name        string
-	Description string
-	TakesSlot   bool
-	Stacks      bool
-	Consume     bool
-	Count       int
-	MaxCount    int
-	Hidden      bool
-	Stats       map[Stat]int
-	Effects     []PlayerSkill
-}
-
 type SkillPath int
 
 const (
@@ -163,6 +140,21 @@ const (
 	PathDamage
 	PathSpecial
 )
+
+type PlayerItem struct {
+	UUID        uuid.UUID
+	Name        string
+	Description string
+	TakesSlot   bool `parts:"TakesSlot,ignoreEmpty"`
+	Stacks      bool `parts:"Stacks,ignoreEmpty"`
+	Consume     bool `parts:"Consume,ignoreEmpty"`
+	Count       int
+	MaxCount    int
+	Hidden      bool `parts:"Hidden,ignoreEmpty"`
+	Stats       map[Stat]int `parts:"PartsStats,ignoreEmpty"`
+	DerivedStats []DerivedStat `parts:"PartsDerivedStats,ignoreEmpty"`
+	Effects     []PlayerSkill `parts:"EffectsList,ignoreEmpty"`
+}
 
 func (item *PlayerItem) UseItem(owner PlayerEntity, target Entity, fight FightInstance) {
 	if item.Count < 0 {
@@ -180,34 +172,6 @@ func (item *PlayerItem) UseItem(owner PlayerEntity, target Entity, fight FightIn
 
 		effect.Execute(owner, target, fight, nil)
 	}
-}
-
-type ItemType int
-
-const (
-	ITEM_OTHER ItemType = iota
-	ITEM_MATERIAL
-)
-
-type Ingredient struct {
-	UUID  uuid.UUID
-	Name  string
-	Stats map[Stat]int
-	Count int
-}
-
-type Recipe struct {
-	UUID        uuid.UUID
-	Name        string
-	Ingredients []WithCount[uuid.UUID]
-	Cost        int
-	Product     ResultItem
-}
-
-type ResultItem struct {
-	UUID  uuid.UUID
-	Type  ItemType
-	Count int
 }
 
 type WithCount[T any] struct {
@@ -240,13 +204,6 @@ type SkillChoice struct {
 	Choice int
 }
 
-type DelayedAction struct {
-	Target    uuid.UUID
-	Execute   func(owner, fightInstance interface{})
-	Turns     int
-	PassEvent SkillTrigger
-}
-
 type DiscordChoice struct {
 	Id     string
 	Select func(*events.ComponentInteractionCreate)
@@ -261,17 +218,17 @@ type EventData struct {
 type FightInstance interface {
 	GetEnemiesFor(uuid.UUID) []Entity
 	GetAlliesFor(uuid.UUID) []Entity
+	GetEntity(uuid.UUID) Entity
+
 	GetChannelId() string
 
-	AddAdditionalLoot(Loot, uuid.UUID, bool)
-	AppendEventHandler(uuid.UUID, SkillTrigger, func(owner, target Entity, fightInstance FightInstance, meta interface{}) interface{}) uuid.UUID
+	AppendEventHandler(uuid.UUID, SkillTrigger, func(owner, target Entity, fi FightInstance, meta any) any) uuid.UUID
 	RemoveEventHandler(uuid.UUID)
 
 	HandleAction(Action)
 
-	GetEntity(uuid.UUID) Entity
-
-	DiscordSend(DiscordMessageStruct)
+	SendMessage(string, discord.MessageCreate, bool)
 
 	CanSummon(uuid.UUID, int) bool
+	GetTurnFor(uuid.UUID) int
 }

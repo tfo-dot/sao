@@ -1,0 +1,88 @@
+let Name = "beta-piętro-2"
+let CID = "1281710728348434485"
+let Default = "Las"
+let Unlocked = true
+let CountsAsUnlocked = true
+
+let Locations = [
+  |>
+    Name: "Kraina żywiołów",
+    CID: "1281711233925517425",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV1_Elemental"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Kamieniołom",
+    CID: "1281711461705711666",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV1_Golem"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Orcza dolina",
+    CID: "1281711711581245511",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV1_Orc"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Pole",
+    CID: "1272233801837183036",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 1,
+        Enemy: "LV1_Scarecrow"
+      <|
+    ]
+  <|,
+  |>
+    Name: "Opuszczona kopalnia",
+    CID: "1281712270459801672",
+    TP: true,
+    CityPart: false,
+    Unlocked: true,
+    Enemies: [
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV1_Toxic_Spider"
+      <|,
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV2_Rat"
+      <|,
+      |>
+        MinNum: 1,
+        MaxNum: 2,
+        Enemy: "LV2_Thief"
+      <|
+    ]
+  <|
+]
