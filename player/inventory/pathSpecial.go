@@ -628,7 +628,7 @@ func (skill SPC_ULT_1) GetName() string {
 }
 
 func (skill SPC_ULT_1) GetDescription() string {
-	return "Jesteś niemożliwy do trafienia przez 10 tur. Spowalniasz do bazowej wartości SPD, wszyscy sojusznicy otrzymują połowe dodatkowej prędkości.\nGdy jesteś niemożliwy do trafienia twoje ataki zadają 50% mniej obrażeń ale za to przywracają 1many i dają ci 10 SPD i 5 DGD do końca walki."
+	return "Jesteś niemożliwy do trafienia przez 10 tur. Spowalniasz do bazowej wartości SPD, wszyscy sojusznicy otrzymują połowe dodatkowej prędkości. Gdy jesteś niemożliwy do trafienia twoje ataki zadają 50% mniej obrażeń ale za to przywracają 1many i dają ci 10 SPD i 5 DGD do końca walki."
 }
 
 func (skill SPC_ULT_1) GetLevel() int {
@@ -730,9 +730,9 @@ func (skill SPC_ULT_1_EFFECT_2) GetDescription() string {
 }
 
 func (skill SPC_ULT_1_EFFECT_2) GetTrigger() types.Trigger {
-	// TODO Trigger effect for before getting hit
-	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_ATTACK_BEFORE}
+	return types.Trigger{Type: types.TRIGGER_PASSIVE, Event: types.TRIGGER_DAMAGE_GOT_HIT}
 }
+
 func (skill SPC_ULT_1_EFFECT_2) Execute(owner types.PlayerEntity, target types.Entity, fightInstance types.FightInstance, meta interface{}) interface{} {
 	return types.AttackTriggerMeta{
 		Effects:    []types.DamagePartial{},
@@ -787,7 +787,7 @@ func (skill SPC_ULT_2) GetName() string {
 }
 
 func (skill SPC_ULT_2) GetDescription() string {
-	return "Usuwasz negatywne efekty sojuszników.\nLeczysz wszystkich sojuszników o 25% ich maksymalnego zdrowia, otrzymują tarczę w wysokości 20% twojego HP.\nZa każdego sojusznika otrzymujesz 10 SPD do końca walki.\nEfekt pasywny: za każde 10 dodatkowego SPD twoje obrażenia są zwiększone o 5%"
+	return "Usuwasz negatywne efekty sojuszników. Leczysz wszystkich sojuszników o 25% ich maksymalnego zdrowia, otrzymują tarczę w wysokości 20% twojego HP. Za każdego sojusznika otrzymujesz 10 SPD do końca walki. Efekt pasywny: za każde 10 dodatkowego SPD twoje obrażenia są zwiększone o 5%"
 }
 
 func (skill SPC_ULT_2) GetLevel() int {

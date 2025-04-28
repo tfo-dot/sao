@@ -16,7 +16,7 @@ var AVAILABLE_SKILLS = map[types.SkillPath]map[int][]types.PlayerSkillUpgradable
 		6: []types.PlayerSkillUpgradable{DMG_LVL_6{}},
 		10: []types.PlayerSkillUpgradable{
 			DMG_ULT_1{},
-			DMG_LVL_2{},
+			DMG_ULT_2{},
 		},
 	},
 	types.PathEndurance: {

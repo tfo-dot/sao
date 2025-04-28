@@ -285,6 +285,30 @@ func commandListener(event *events.ApplicationCommandInteractionCreate) {
 				return
 			}
 
+			if lvl%10 == 0 {
+				path := playerChar.GetSkillPath()
+				embed := discord.NewEmbedBuilder()
+
+				buttons := make([]discord.InteractiveComponent, 0)
+
+				for idx, skill := range inventory.AVAILABLE_SKILLS[path][lvl] {
+					embed.AddField(
+						fmt.Sprintf("[%d] %s", idx+1, skill.GetName()), skill.GetDescription(), false,
+					)
+
+					buttons = append(buttons, discord.NewPrimaryButton(
+						fmt.Sprintf("[%d] %s", idx+1, skill.GetName()), fmt.Sprintf("su|%d|%d|%d", path, lvl, idx)),
+					)
+				}
+
+				event.CreateMessage(discord.MessageCreate{
+					Embeds:     []discord.Embed{embed.Build()},
+					Components: []discord.ContainerComponent{discord.NewActionRow(buttons...)},
+				})
+
+				return
+			}
+
 			embed := discord.NewEmbedBuilder()
 
 			buttons := make([]discord.InteractiveComponent, 0)

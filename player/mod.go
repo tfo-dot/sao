@@ -2,6 +2,7 @@ package player
 
 import (
 	"errors"
+	"fmt"
 	"sao/base"
 	"sao/data"
 	"sao/player/inventory"
@@ -48,9 +49,9 @@ func (pM *PlayerMeta) Serialize() map[string]any {
 	}
 
 	return map[string]any{
-		"uuid":     pM.OwnUUID.String(),
-		"uid":      pM.UserID,
-		"party":    party,
+		"uuid":  pM.OwnUUID.String(),
+		"uid":   pM.UserID,
+		"party": party,
 	}
 }
 
@@ -150,9 +151,9 @@ func DeserializeMeta(data map[string]any) *PlayerMeta {
 	}
 
 	return &PlayerMeta{
-		OwnUUID:  uuid.MustParse(data["uuid"].(string)),
-		UserID:   data["uid"].(string),
-		Party:    partyTemp,
+		OwnUUID: uuid.MustParse(data["uuid"].(string)),
+		UserID:  data["uid"].(string),
+		Party:   partyTemp,
 	}
 }
 
@@ -812,10 +813,13 @@ func (p *Player) GetSkillPath() types.SkillPath {
 	}
 
 	max := types.PathControl
+	maxCount := 0
 
 	for path, count := range counts {
-		if count > counts[path] {
+		fmt.Printf("%d %d", path, count)
+		if count > maxCount {
 			max = path
+			maxCount = count
 		}
 	}
 
@@ -832,8 +836,8 @@ func NewPlayer(name string, uid string) Player {
 			CurrentMana: data.PlayerDefaults.Stats[types.STAT_MANA],
 		},
 		PlayerMeta{
-			OwnUUID:  uuid.New(),
-			UserID:   uid,
+			OwnUUID: uuid.New(),
+			UserID:  uid,
 		},
 		inventory.GetDefaultInventory(),
 		data.PlayerDefaults.Level,

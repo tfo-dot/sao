@@ -882,7 +882,7 @@ func (skill CON_ULT_1) GetLevel() int {
 }
 
 func (skill CON_ULT_1) GetDescription() string {
-	return "Tworzy pulsujące pole energetyczne zadające obrażenia równe 1% maks. HP co rundę wszystkim wrogom. Pole trwa 10 tur.\nPrzeciwnicy zaatakowani podczas trwania umiejętności zostaną spowolnieni o 10 a obrażenia przez nich otrzymywane są zwiększone o 20% przy okazji nie mogą używać umiejętności.\nUżytkownik dostaje 10 SPD i regeneruje 1% maks zdrowia co turę podczas działania umiejętności\nPo zakończeniu zadaje wszystkim wrogom 75% AP i ogłusza ich na jedną turę."
+	return "Tworzy pulsujące pole energetyczne zadające obrażenia równe 1% maks. HP co rundę wszystkim wrogom. Pole trwa 10 tur. Przeciwnicy zaatakowani podczas trwania umiejętności zostaną spowolnieni o 10 a obrażenia przez nich otrzymywane są zwiększone o 20% przy okazji nie mogą używać umiejętności. Użytkownik dostaje 10 SPD i regeneruje 1% maks zdrowia co turę podczas działania umiejętności. Po zakończeniu zadaje wszystkim wrogom 75% AP i ogłusza ich na jedną turę."
 }
 
 func (skill CON_ULT_1) GetUpgradableDescription(upgrades int) string {
@@ -925,7 +925,7 @@ func (skill CON_ULT_2) GetName() string {
 }
 
 func (skill CON_ULT_2) GetDescription() string {
-	return "Przyzywa golema który uderza w ziemie zadając 100% AP i ogłuszając wszystkich wrogów na jedną turę.\nGolem nakłada na wszystkich sojuszników tarczę w wysokości 100% AP i trwa póki golem żyje lub zostanie zniszczona.\nGolem prowokuje wszystkich przeciwników. Przy uderzeniu wroga golem leczy się o 20% zadanych obrażeń.\nJego statystyki to:\nHP: HP gracza + 200% AP\nAD: AD gracza + 50% AP\nPancerz i odporność na magię: 200% użytkownika\nPo zakończeniu walki umiera."
+	return "Przyzywa golema który uderza w ziemie zadając 100% AP i ogłuszając wszystkich wrogów na jedną turę. Golem nakłada na wszystkich sojuszników tarczę w wysokości 100% AP i trwa póki golem żyje lub zostanie zniszczona. Golem prowokuje wszystkich przeciwników. Przy uderzeniu wroga golem leczy się o 20% zadanych obrażeń.\nJego statystyki to:\nHP: HP gracza + 200% AP\nAD: AD gracza + 50% AP\nPancerz i odporność na magię: 200% użytkownika\nPo zakończeniu walki umiera."
 }
 
 func (skill CON_ULT_2) GetUpgradableDescription(upgrades int) string {
