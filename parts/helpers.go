@@ -92,10 +92,6 @@ func AddFunctions(vm *parts.VM) {
 		Values:    make(map[string]*parts.Literal),
 	}
 
-	env.DefineFunction("Modulo", func(num int, other int) int {
-		return num % other
-	})
-
 	env.DefineFunction("GetTurnFor", func(f types.FightInstance, uid *uuid.UUID) int {
 		return f.GetTurnFor(*uid)
 	})

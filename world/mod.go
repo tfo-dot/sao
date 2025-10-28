@@ -237,24 +237,29 @@ func (w *World) PlayerSearch(pUuid uuid.UUID, threadId string, event *events.App
 	})
 }
 
+func (w *World) RevivePlayer(p *player.Player) {
+	p.Stats.HP = p.GetStat(types.STAT_HP)
+	p.Stats.CurrentMana = p.GetStat(types.STAT_MANA)
+
+	w.SendMessage(
+		data.Config.LogChannelID,
+		discord.MessageCreate{
+			Embeds: []discord.Embed{{
+				Title:       "Wskrzeszenie!",
+				Description: fmt.Sprintf("%s zostaje wskrzeszony...", p.GetName()),
+			}},
+		},
+		false,
+	)
+}
+
 func (w *World) TickPlayer(p *player.Player) {
 	if p.Meta.FightInstance != nil {
 		return
 	}
 
 	if !data.WorldConfig.Hardcore && p.GetCurrentHP() <= 0 {
-		p.Stats.HP = p.GetStat(types.STAT_HP)
-		p.Stats.CurrentMana = p.GetStat(types.STAT_MANA)
-
-		w.SendMessage(
-			data.Config.LogChannelID,
-			discord.MessageCreate{
-				Embeds: []discord.Embed{{
-					Title:       "Wskrzeszenie!",
-					Description: fmt.Sprintf("%s zostaje wskrzeszony...", p.GetName()),
-				}},
-			},
-			false)
+		w.RevivePlayer(p)
 
 		return
 	}

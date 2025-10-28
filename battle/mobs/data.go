@@ -58,7 +58,7 @@ func GetMobs() map[string]MobEntity {
 		mobEntity := MobEntity{
 			Effects:   make([]types.ActionEffect, 0),
 			UUID:      uuid.New(),
-			Props:     make(map[string]interface{}),
+			Props:     make(map[string]any),
 			TempSkill: make([]*types.WithExpire[types.PlayerSkill], 0),
 			Stats:     make(map[types.Stat]int),
 			Loot:      make([]types.Loot, 0),
